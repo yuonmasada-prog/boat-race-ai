@@ -1,4 +1,4 @@
-name: Train BOAT RACE AI v7
+name: Train BOAT RACE AI v8
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: boat-race-ai-v7-training
+  group: boat-race-ai-v8-training
   cancel-in-progress: false
 
 jobs:
@@ -39,12 +39,13 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile training/train_model.py
+          python -m py_compile training/backtest_trifecta.py
 
       - name: Real-data smoke test
         run: |
           python training/train_model.py --smoke-test
 
-      - name: Train v7.3 model
+      - name: Train historical model
         run: |
           python training/train_model.py \
             --days 120 \
@@ -54,7 +55,7 @@ jobs:
             --l2 0.002 \
             --workers 4
 
-      - name: Validate model
+      - name: Validate trained model
         run: |
           python - <<'PY'
           import json
@@ -69,7 +70,9 @@ jobs:
               )
 
           data = json.loads(
-              path.read_text(encoding="utf-8")
+              path.read_text(
+                  encoding="utf-8"
+              )
           )
 
           required = [
@@ -111,22 +114,30 @@ jobs:
               "scale",
               "coefficients",
           ):
-              if len(data[key]) != feature_count:
+              if (
+                  len(data[key])
+                  != feature_count
+              ):
                   raise SystemExit(
                       f"{key} length mismatch"
                   )
 
           if data["raceCount"] < 500:
               raise SystemExit(
-                  "too few races"
+                  "too few training races"
               )
 
-          if data["validationRaceCount"] < 1:
+          if (
+              data["validationRaceCount"]
+              < 1
+          ):
               raise SystemExit(
                   "validation set empty"
               )
 
-          for coefficient in data["coefficients"]:
+          for coefficient in (
+              data["coefficients"]
+          ):
               if not math.isfinite(
                   float(coefficient)
               ):
@@ -134,7 +145,9 @@ jobs:
                       "invalid coefficient"
                   )
 
-          validation = data["validation"]
+          validation = (
+              data["validation"]
+          )
 
           required_metrics = [
               "top1Accuracy",
@@ -143,8 +156,14 @@ jobs:
               "brierScore",
           ]
 
-          for metric in required_metrics:
-              value = validation.get(metric)
+          for metric in (
+              required_metrics
+          ):
+              value = (
+                  validation.get(
+                      metric
+                  )
+              )
 
               if value is None:
                   raise SystemExit(
@@ -163,12 +182,20 @@ jobs:
                   {
                       "version":
                           data["version"],
+
                       "raceCount":
                           data["raceCount"],
+
                       "trainRaceCount":
-                          data["trainRaceCount"],
+                          data[
+                              "trainRaceCount"
+                          ],
+
                       "validationRaceCount":
-                          data["validationRaceCount"],
+                          data[
+                              "validationRaceCount"
+                          ],
+
                       "validation":
                           validation,
                   },
@@ -178,19 +205,157 @@ jobs:
           )
           PY
 
-      - name: Commit trained model
+      - name: Run trifecta backtest
         run: |
-          git config user.name "boat-race-ai-bot"
-          git config user.email "boat-race-ai-bot@users.noreply.github.com"
+          python training/backtest_trifecta.py \
+            --days 30 \
+            --min-races 500
 
-          git add model/model.json
+      - name: Validate trifecta backtest
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
 
-          if git diff --cached --quiet; then
-            echo "Model did not change."
+          path = Path(
+              "model/backtest.json"
+          )
+
+          if not path.exists():
+              raise SystemExit(
+                  "model/backtest.json "
+                  "was not generated"
+              )
+
+          data = json.loads(
+              path.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          required = [
+              "version",
+              "modelVersion",
+              "days",
+              "raceCount",
+              "top1",
+              "top3",
+              "top5",
+              "actualRank",
+              "winnerLane1",
+              "winnerNotLane1",
+              "byVenue",
+          ]
+
+          missing = [
+              key
+              for key in required
+              if key not in data
+          ]
+
+          if missing:
+              raise SystemExit(
+                  f"backtest missing keys: "
+                  f"{missing}"
+              )
+
+          if data["raceCount"] < 500:
+              raise SystemExit(
+                  "too few backtest races"
+              )
+
+          for section in (
+              "top1",
+              "top3",
+              "top5",
+          ):
+              result = data[section]
+
+              for metric in (
+                  "hitRate",
+                  "roi",
+              ):
+                  value = result.get(
+                      metric
+                  )
+
+                  if value is None:
+                      raise SystemExit(
+                          f"{section}: "
+                          f"missing {metric}"
+                      )
+
+                  if not math.isfinite(
+                      float(value)
+                  ):
+                      raise SystemExit(
+                          f"{section}: "
+                          f"invalid {metric}"
+                      )
+
+          print(
+              json.dumps(
+                  {
+                      "version":
+                          data["version"],
+
+                      "modelVersion":
+                          data[
+                              "modelVersion"
+                          ],
+
+                      "raceCount":
+                          data[
+                              "raceCount"
+                          ],
+
+                      "top1":
+                          data["top1"],
+
+                      "top3":
+                          data["top3"],
+
+                      "top5":
+                          data["top5"],
+
+                      "actualRank":
+                          data[
+                              "actualRank"
+                          ],
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+              )
+          )
+          PY
+
+      - name: Commit model and backtest
+        run: |
+          git config \
+            user.name \
+            "boat-race-ai-bot"
+
+          git config \
+            user.email \
+            "boat-race-ai-bot@users.noreply.github.com"
+
+          git add \
+            model/model.json \
+            model/backtest.json
+
+          if git diff \
+            --cached \
+            --quiet
+          then
+            echo \
+              "Model and backtest did not change."
             exit 0
           fi
 
           git commit \
-            -m "chore: retrain BOAT RACE AI v7.3"
+            -m "chore: retrain BOAT RACE AI v8"
 
-          git push origin HEAD:main
+          git push \
+            origin \
+            HEAD:main
