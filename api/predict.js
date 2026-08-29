@@ -1,114 +1,205 @@
 const VENUES = {
-  '01':'桐生','02':'戸田','03':'江戸川','04':'平和島','05':'多摩川','06':'浜名湖',
-  '07':'蒲郡','08':'常滑','09':'津','10':'三国','11':'びわこ','12':'住之江',
-  '13':'尼崎','14':'鳴門','15':'丸亀','16':'児島','17':'宮島','18':'徳山',
-  '19':'下関','20':'若松','21':'芦屋','22':'福岡','23':'唐津','24':'大村'
+  '01':'桐生',
+  '02':'戸田',
+  '03':'江戸川',
+  '04':'平和島',
+  '05':'多摩川',
+  '06':'浜名湖',
+  '07':'蒲郡',
+  '08':'常滑',
+  '09':'津',
+  '10':'三国',
+  '11':'びわこ',
+  '12':'住之江',
+  '13':'尼崎',
+  '14':'鳴門',
+  '15':'丸亀',
+  '16':'児島',
+  '17':'宮島',
+  '18':'徳山',
+  '19':'下関',
+  '20':'若松',
+  '21':'芦屋',
+  '22':'福岡',
+  '23':'唐津',
+  '24':'大村'
 };
 
 const ORDER = [
-  123,213,312,412,512,612,124,214,314,413,513,613,125,215,315,415,514,614,
-  126,216,316,416,516,615,132,231,321,421,521,621,134,234,324,423,523,623,
-  135,235,325,425,524,624,136,236,326,426,526,625,142,241,341,431,531,631,
-  143,243,342,432,532,632,145,245,345,435,534,634,146,246,346,436,536,635,
-  152,251,351,451,541,641,153,253,352,452,542,642,154,254,354,453,543,643,
-  156,256,356,456,546,645,162,261,361,461,561,651,163,263,362,462,562,652,
-  164,264,364,463,563,653,165,265,365,465,564,654
+  123,213,312,412,512,612,
+  124,214,314,413,513,613,
+  125,215,315,415,514,614,
+  126,216,316,416,516,615,
+
+  132,231,321,421,521,621,
+  134,234,324,423,523,623,
+  135,235,325,425,524,624,
+  136,236,326,426,526,625,
+
+  142,241,341,431,531,631,
+  143,243,342,432,532,632,
+  145,245,345,435,534,634,
+  146,246,346,436,536,635,
+
+  152,251,351,451,541,641,
+  153,253,352,452,542,642,
+  154,254,354,453,543,643,
+  156,256,356,456,546,645,
+
+  162,261,361,461,561,651,
+  163,263,362,462,562,652,
+  164,264,364,463,563,653,
+  165,265,365,465,564,654
 ];
 
-const BASE_COURSE_PRIOR = {
-  1:.56,
-  2:.14,
-  3:.12,
-  4:.10,
-  5:.05,
-  6:.03
+const COURSE_PRIOR = {
+  1:0.56,
+  2:0.14,
+  3:0.12,
+  4:0.10,
+  5:0.05,
+  6:0.03
 };
 
 const GRADE_BONUS = {
-  A1:.42,
-  A2:.18,
-  B1:0,
-  B2:-.18
+  A1:0.42,
+  A2:0.18,
+  B1:0.00,
+  B2:-0.18
 };
 
-const strip = s =>
-  String(s || '')
-    .replace(/<script[\s\S]*?<\/script>/gi,' ')
-    .replace(/<style[\s\S]*?<\/style>/gi,' ')
-    .replace(/<[^>]+>/g,' ')
-    .replace(/&nbsp;|&#160;/gi,' ')
-    .replace(/&amp;/gi,'&')
-    .replace(/&#39;/gi,"'")
-    .replace(/&quot;/gi,'"')
-    .replace(/\s+/g,' ')
-    .trim();
+function cleanText(value){
 
-const lines = s =>
-  String(s || '')
-    .replace(/<br\s*\/?>/gi,'\n')
-    .replace(/<\/(?:div|p|li|span|td|tr|a)>/gi,'\n')
-    .replace(/<[^>]+>/g,' ')
-    .replace(/&nbsp;|&#160;/gi,' ')
-    .replace(/&amp;/gi,'&')
-    .split(/\n+/)
-    .map(x => x.replace(/\s+/g,' ').trim())
-    .filter(Boolean);
-
-function findMatchingClose(html, tag, openStart) {
-
-  const tokenRe =
-    new RegExp(`<\\/?${tag}\\b[^>]*>`,'gi');
-
-  tokenRe.lastIndex =
-    openStart;
-
-  let depth = 0;
-
-  let match;
-
-  while(
-    (
-      match =
-        tokenRe.exec(html)
+  return String(value || '')
+    .replace(
+      /<script[\s\S]*?<\/script>/gi,
+      ' '
     )
-  ){
-
-    if(
-      match[0].startsWith('</')
-    ){
-
-      depth--;
-
-    }else{
-
-      depth++;
-
-    }
-
-    if(
-      depth === 0
-    ){
-
-      return tokenRe.lastIndex;
-
-    }
-
-  }
-
-  return -1;
+    .replace(
+      /<style[\s\S]*?<\/style>/gi,
+      ' '
+    )
+    .replace(
+      /<br\s*\/?>/gi,
+      '\n'
+    )
+    .replace(
+      /<\/(?:div|p|li|span|td|tr|a|tbody)>/gi,
+      '\n'
+    )
+    .replace(
+      /<[^>]+>/g,
+      ' '
+    )
+    .replace(
+      /&nbsp;|&#160;/gi,
+      ' '
+    )
+    .replace(
+      /&amp;/gi,
+      '&'
+    )
+    .replace(
+      /&#39;/gi,
+      "'"
+    )
+    .replace(
+      /&quot;/gi,
+      '"'
+    )
+    .replace(
+      /[ \t]+/g,
+      ' '
+    )
+    .replace(
+      /\n\s+/g,
+      '\n'
+    )
+    .trim();
 
 }
 
-function blocksByTag(
+function compactText(value){
+
+  return cleanText(value)
+    .replace(
+      /\s+/g,
+      ' '
+    )
+    .trim();
+
+}
+
+function textLines(value){
+
+  return cleanText(value)
+    .split(/\n+/)
+    .map(
+      line =>
+        line.trim()
+    )
+    .filter(Boolean);
+
+}
+
+function toNumber(value){
+
+  const parsed =
+    Number(
+      String(value ?? '')
+        .replace(
+          /[%,¥,\s]/g,
+          ''
+        )
+    );
+
+  return Number.isFinite(parsed)
+    ?
+    parsed
+    :
+    null;
+
+}
+
+function toInteger(value){
+
+  const match =
+    String(value ?? '')
+      .match(
+        /\d+/
+      );
+
+  if(
+    !match
+  ){
+
+    return null;
+
+  }
+
+  const parsed =
+    Number(
+      match[0]
+    );
+
+  return Number.isFinite(parsed)
+    ?
+    parsed
+    :
+    null;
+
+}
+
+function extractTagBlocks(
   html,
-  tag
+  tagName
 ){
 
   const output = [];
 
-  const openRe =
+  const regex =
     new RegExp(
-      `<${tag}\\b[^>]*>`,
+      `<${tagName}\\b[^>]*>[\\s\\S]*?<\\/${tagName}>`,
       'gi'
     );
 
@@ -117,34 +208,13 @@ function blocksByTag(
   while(
     (
       match =
-        openRe.exec(html)
+        regex.exec(html)
     )
   ){
 
-    const end =
-      findMatchingClose(
-        html,
-        tag,
-        match.index
-      );
-
-    if(
-      end < 0
-    ){
-
-      break;
-
-    }
-
     output.push(
-      html.slice(
-        match.index,
-        end
-      )
+      match[0]
     );
-
-    openRe.lastIndex =
-      end;
 
   }
 
@@ -152,90 +222,60 @@ function blocksByTag(
 
 }
 
-function blocksByClass(
-  html,
-  tag,
-  className
+function extractTable1Blocks(
+  html
 ){
 
-  return blocksByTag(
-    html,
-    tag
-  )
-  .filter(
-    block => {
+  const starts = [];
 
-      const open =
-        block.match(
-          new RegExp(
-            `^<${tag}\\b[^>]*>`,
-            'i'
-          )
-        );
+  const regex =
+    /<div\b[^>]*class=["'][^"']*\btable1\b[^"']*["'][^>]*>/gi;
 
-      return (
-        open
-        &&
-        new RegExp(
-          `class=["'][^"']*\\b${className}\\b`,
-          'i'
-        )
-        .test(
-          open[0]
-        )
-      );
+  let match;
 
-    }
-  );
+  while(
+    (
+      match =
+        regex.exec(html)
+    )
+  ){
+
+    starts.push(
+      match.index
+    );
+
+  }
+
+  const blocks = [];
+
+  for(
+    let index = 0;
+    index < starts.length;
+    index++
+  ){
+
+    const start =
+      starts[index];
+
+    const end =
+      index + 1 < starts.length
+        ?
+        starts[index + 1]
+        :
+        html.length;
+
+    blocks.push(
+      html.slice(
+        start,
+        end
+      )
+    );
+
+  }
+
+  return blocks;
 
 }
-
-const num = value => {
-
-  const number =
-    Number(
-      String(
-        value ?? ''
-      )
-      .replace(
-        /[%,¥,\s]/g,
-        ''
-      )
-    );
-
-  return Number.isFinite(
-    number
-  )
-    ?
-    number
-    :
-    null;
-
-};
-
-const int = value => {
-
-  const number =
-    parseInt(
-      String(
-        value ?? ''
-      )
-      .replace(
-        /\D/g,
-        ''
-      ),
-      10
-    );
-
-  return Number.isFinite(
-    number
-  )
-    ?
-    number
-    :
-    null;
-
-};
 
 async function fetchText(
   url
@@ -284,41 +324,39 @@ function parseOdds(
     )
   ){
 
-    const number =
-      num(
-        strip(
+    const value =
+      toNumber(
+        compactText(
           match[1]
         )
       );
 
     values.push(
-      Number.isFinite(
-        number
-      )
-      &&
-      number >= 1
-        ?
-        number
-        :
-        null
+      value
     );
 
   }
 
-  const odds = {};
+  const result = {};
 
   for(
     let index = 0;
-    index <
-      Math.min(
-        values.length,
-        120
-      );
+    index < Math.min(
+      values.length,
+      120
+    );
     index++
   ){
 
+    const odd =
+      values[index];
+
     if(
-      values[index] == null
+      !Number.isFinite(
+        odd
+      )
+      ||
+      odd < 1
     ){
 
       continue;
@@ -330,14 +368,15 @@ function parseOdds(
         ORDER[index]
       );
 
-    odds[
-      `${combination[0]}-${combination[1]}-${combination[2]}`
-    ] =
-      values[index];
+    const key =
+      `${combination[0]}-${combination[1]}-${combination[2]}`;
+
+    result[key] =
+      odd;
 
   }
 
-  return odds;
+  return result;
 
 }
 
@@ -354,82 +393,54 @@ function parseRaceList(
   ){
 
     racers[lane] = {
-
       lane,
-
       racerId:null,
-
       name:null,
-
       grade:null,
-
       age:null,
-
       weight:null,
-
       fCount:0,
-
       lCount:0,
-
       avgSt:null,
-
       nationalWin:null,
-
       national2:null,
-
       national3:null,
-
       localWin:null,
-
       local2:null,
-
       local3:null,
-
       motorNo:null,
-
       motor2:null,
-
       motor3:null,
-
       boatNo:null,
-
       boat2:null,
-
       boat3:null,
-
       currentMeet:[]
-
     };
 
   }
 
   const tables =
-    blocksByClass(
-      html,
-      'div',
-      'table1'
+    extractTable1Blocks(
+      html
     );
 
-  const main =
+  const mainTable =
     tables[1];
 
   if(
-    !main
+    !mainTable
   ){
 
     return {
-
       racers,
-
       currentMeetDetected:false
-
     };
 
   }
 
-  const tbodies =
-    blocksByTag(
-      main,
+  const bodies =
+    extractTagBlocks(
+      mainTable,
       'tbody'
     )
     .slice(
@@ -437,7 +448,7 @@ function parseRaceList(
       6
     );
 
-  tbodies.forEach(
+  bodies.forEach(
     (
       body,
       index
@@ -446,8 +457,11 @@ function parseRaceList(
       const lane =
         index + 1;
 
+      const racer =
+        racers[lane];
+
       const cells =
-        blocksByTag(
+        extractTagBlocks(
           body,
           'td'
         );
@@ -460,141 +474,137 @@ function parseRaceList(
 
       }
 
-      const racer =
-        racers[lane];
-
-      const idGrade =
-        strip(
+      const identityText =
+        compactText(
           cells[2]
-        )
-        .match(
+        );
+
+      const identityMatch =
+        identityText.match(
           /\b(\d{4})\s*\/\s*(A1|A2|B1|B2)\b/
         );
 
       if(
-        idGrade
+        identityMatch
       ){
 
         racer.racerId =
           Number(
-            idGrade[1]
+            identityMatch[1]
           );
 
         racer.grade =
-          idGrade[2];
+          identityMatch[2];
 
       }
 
       const nameMatch =
         cells[2]
-        .match(
-          /<a\b[^>]*>([\s\S]*?)<\/a>/i
-        );
+          .match(
+            /<a\b[^>]*>([\s\S]*?)<\/a>/i
+          );
 
       if(
         nameMatch
       ){
 
         racer.name =
-          strip(
+          compactText(
             nameMatch[1]
           )
           .replace(
-            /\s+/g,
+            /\s/g,
             ''
           );
 
       }
 
-      const detail =
-        strip(
-          cells[2]
-        );
-
-      const age =
-        detail.match(
+      const ageMatch =
+        identityText.match(
           /(\d{2})歳/
         );
 
-      const weight =
-        detail.match(
+      const weightMatch =
+        identityText.match(
           /(\d{2}(?:\.\d+)?)kg/
         );
 
       if(
-        age
+        ageMatch
       ){
 
         racer.age =
           Number(
-            age[1]
+            ageMatch[1]
           );
 
       }
 
       if(
-        weight
+        weightMatch
       ){
 
         racer.weight =
           Number(
-            weight[1]
+            weightMatch[1]
           );
 
       }
 
-      const flst =
-        strip(
+      const statusText =
+        compactText(
           cells[3]
         );
 
-      const flying =
-        flst.match(
+      const fMatch =
+        statusText.match(
           /\bF(\d+)\b/i
         );
 
-      const late =
-        flst.match(
+      const lMatch =
+        statusText.match(
           /\bL(\d+)\b/i
         );
 
-      const averageSt =
-        flst.match(
+      const stMatch =
+        statusText.match(
           /\b0\.(\d{2})\b/
         );
 
       racer.fCount =
-        flying
+        fMatch
           ?
           Number(
-            flying[1]
+            fMatch[1]
           )
           :
           0;
 
       racer.lCount =
-        late
+        lMatch
           ?
           Number(
-            late[1]
+            lMatch[1]
           )
           :
           0;
 
       racer.avgSt =
-        averageSt
+        stMatch
           ?
           Number(
-            `0.${averageSt[1]}`
+            `0.${stMatch[1]}`
           )
           :
           null;
 
       const national =
-        lines(
+        textLines(
           cells[4]
         )
-        .map(num)
+        .map(
+          toNumber
+        )
         .filter(
           Number.isFinite
         );
@@ -603,23 +613,24 @@ function parseRaceList(
         national.length >= 3
       ){
 
-        [
-          racer.nationalWin,
-          racer.national2,
-          racer.national3
-        ] =
-          national.slice(
-            0,
-            3
-          );
+        racer.nationalWin =
+          national[0];
+
+        racer.national2 =
+          national[1];
+
+        racer.national3 =
+          national[2];
 
       }
 
       const local =
-        lines(
+        textLines(
           cells[5]
         )
-        .map(num)
+        .map(
+          toNumber
+        )
         .filter(
           Number.isFinite
         );
@@ -628,23 +639,24 @@ function parseRaceList(
         local.length >= 3
       ){
 
-        [
-          racer.localWin,
-          racer.local2,
-          racer.local3
-        ] =
-          local.slice(
-            0,
-            3
-          );
+        racer.localWin =
+          local[0];
+
+        racer.local2 =
+          local[1];
+
+        racer.local3 =
+          local[2];
 
       }
 
       const motor =
-        lines(
+        textLines(
           cells[6]
         )
-        .map(num)
+        .map(
+          toNumber
+        )
         .filter(
           Number.isFinite
         );
@@ -653,23 +665,24 @@ function parseRaceList(
         motor.length >= 3
       ){
 
-        [
-          racer.motorNo,
-          racer.motor2,
-          racer.motor3
-        ] =
-          motor.slice(
-            0,
-            3
-          );
+        racer.motorNo =
+          motor[0];
+
+        racer.motor2 =
+          motor[1];
+
+        racer.motor3 =
+          motor[2];
 
       }
 
       const boat =
-        lines(
+        textLines(
           cells[7]
         )
-        .map(num)
+        .map(
+          toNumber
+        )
         .filter(
           Number.isFinite
         );
@@ -678,15 +691,14 @@ function parseRaceList(
         boat.length >= 3
       ){
 
-        [
-          racer.boatNo,
-          racer.boat2,
-          racer.boat3
-        ] =
-          boat.slice(
-            0,
-            3
-          );
+        racer.boatNo =
+          boat[0];
+
+        racer.boat2 =
+          boat[1];
+
+        racer.boat3 =
+          boat[2];
 
       }
 
@@ -696,123 +708,128 @@ function parseRaceList(
   let currentMeetDetected =
     false;
 
-  for(
-    const table
-    of tables.slice(2)
+  const wholeText =
+    cleanText(
+      html
+    );
+
+  const meetIndex =
+    wholeText.indexOf(
+      '今節成績'
+    );
+
+  if(
+    meetIndex >= 0
   ){
 
-    const rows =
-      blocksByTag(
-        table,
-        'tbody'
+    const meetText =
+      wholeText.slice(
+        meetIndex
       );
 
-    if(
-      rows.length < 6
-    ){
-
-      continue;
-
-    }
-
-    let totalEntries =
-      0;
-
-    const parsed = {};
+    const lines =
+      meetText
+        .split(/\n+/)
+        .map(
+          line =>
+            line.trim()
+        )
+        .filter(Boolean);
 
     for(
-      let index = 0;
-      index < 6;
-      index++
+      let lane = 1;
+      lane <= 6;
+      lane++
     ){
-
-      const text =
-        strip(
-          rows[index]
-        );
 
       const entries = [];
 
-      const regex =
-        /(?:^|\s)([1-6])\s+(F|L)?\.?([0-3]\d)\s+([1-6])(?=\s|$)/g;
-
-      let match;
-
-      while(
-        (
-          match =
-            regex.exec(
-              text
-            )
-        )
-      ){
-
-        entries.push({
-
-          course:
-            Number(
-              match[1]
-            ),
-
-          st:
-            Number(
-              `0.${match[3]}`
-            ),
-
-          finish:
-            Number(
-              match[4]
-            ),
-
-          flag:
-            match[2] || null
-
-        });
-
-      }
-
-      parsed[
-        index + 1
-      ] =
-        entries;
-
-      totalEntries +=
-        entries.length;
-
-    }
-
-    if(
-      totalEntries >= 6
-    ){
-
-      currentMeetDetected =
-        true;
-
       for(
-        let lane = 1;
-        lane <= 6;
-        lane++
+        let index = 0;
+        index < lines.length - 2;
+        index++
       ){
 
-        racers[
-          lane
-        ].currentMeet =
-          parsed[lane];
+        if(
+          Number(
+            lines[index]
+          ) !== lane
+      ){
+
+          continue;
+
+        }
+
+        const window =
+          lines
+            .slice(
+              index,
+              index + 40
+            )
+            .join(
+              ' '
+            );
+
+        const regex =
+          /\b([1-6])\s+(?:F|L)?\.?([0-3]\d)\s+([1-6])\b/g;
+
+        let match;
+
+        while(
+          (
+            match =
+              regex.exec(
+                window
+              )
+          )
+        ){
+
+          entries.push({
+            course:
+              Number(
+                match[1]
+              ),
+
+            st:
+              Number(
+                `0.${match[2]}`
+              ),
+
+            finish:
+              Number(
+                match[3]
+              )
+          });
+
+        }
+
+        break;
 
       }
 
-      break;
+      racers[lane]
+        .currentMeet =
+          entries.slice(
+            0,
+            8
+          );
 
     }
+
+    currentMeetDetected =
+      Object.values(
+        racers
+      )
+      .some(
+        racer =>
+          racer.currentMeet.length > 0
+      );
 
   }
 
   return {
-
     racers,
-
     currentMeetDetected
-
   };
 
 }
@@ -830,44 +847,33 @@ function parseBeforeInfo(
   ){
 
     boats[lane] = {
-
       lane,
-
       exTime:null,
-
       tilt:null,
-
       parts:[],
-
       isMiss:false,
-
       exCourse:null,
-
       exSt:null,
-
       exFlying:false
-
     };
 
   }
 
   const tables =
-    blocksByClass(
-      html,
-      'div',
-      'table1'
+    extractTable1Blocks(
+      html
     );
 
-  const main =
+  const mainTable =
     tables[1];
 
   if(
-    main
+    mainTable
   ){
 
     const rows =
-      blocksByTag(
-        main,
+      extractTagBlocks(
+        mainTable,
         'tbody'
       )
       .slice(
@@ -881,111 +887,105 @@ function parseBeforeInfo(
         index
       ) => {
 
-        const cells =
-          blocksByTag(
-            row,
-            'td'
+      const boat =
+        boats[
+          index + 1
+        ];
+
+      const cells =
+        extractTagBlocks(
+          row,
+          'td'
+        );
+
+      if(
+        cells.length > 4
+      ){
+
+        boat.exTime =
+          toNumber(
+            compactText(
+              cells[4]
+            )
           );
 
-        const boat =
-          boats[
-            index + 1
-          ];
+      }
 
-        if(
-          cells[4]
-        ){
+      if(
+        cells.length > 5
+      ){
 
-          boat.exTime =
-            num(
-              strip(
-                cells[4]
-              )
-            );
-
-        }
-
-        if(
-          cells[5]
-        ){
-
-          boat.tilt =
-            num(
-              strip(
-                cells[5]
-              )
-            );
-
-        }
-
-        if(
-          cells[7]
-        ){
-
-          boat.parts =
-            blocksByTag(
-              cells[7],
-              'li'
+        boat.tilt =
+          toNumber(
+            compactText(
+              cells[5]
             )
-            .map(strip)
-            .filter(Boolean);
-
-        }
-
-        const open =
-          row.match(
-            /^<tbody\b[^>]*>/i
-          )?.[0] || '';
-
-        boat.isMiss =
-          /is-miss/i
-            .test(
-              open
-            );
+          );
 
       }
-    );
+
+      if(
+        cells.length > 7
+      ){
+
+        boat.parts =
+          extractTagBlocks(
+            cells[7],
+            'li'
+          )
+          .map(
+            compactText
+          )
+          .filter(Boolean);
+
+      }
+
+      boat.isMiss =
+        /is-miss/i
+          .test(
+            row
+          );
+
+    });
 
   }
 
-  const start =
+  const startTable =
     tables[2];
 
   if(
-    start
+    startTable
   ){
 
     const rows =
-      blocksByTag(
-        start,
+      extractTagBlocks(
+        startTable,
         'tr'
-      )
-      .slice(1);
+      );
 
-    let course = 0;
+    let course =
+      0;
 
-    for(
-      const row
-      of rows
-    ){
+    rows.forEach(
+      row => {
 
-      const number =
+      const laneMatch =
         row.match(
           /table1_boatImage1Number[^>]*>\s*([1-6])/i
         );
 
-      const timing =
+      const stMatch =
         row.match(
           /table1_boatImage1Time[^>]*>\s*(F)?\.?([0-3]\d)/i
         );
 
       if(
-        !number
+        !laneMatch
         ||
-        !timing
+        !stMatch
       ){
 
-        continue;
+        return;
 
       }
 
@@ -993,170 +993,165 @@ function parseBeforeInfo(
 
       const lane =
         Number(
-          number[1]
+          laneMatch[1]
         );
 
-      boats[
-        lane
-      ].exCourse =
-        course;
+      boats[lane]
+        .exCourse =
+          course;
 
-      boats[
-        lane
-      ].exSt =
-        Number(
-          `0.${timing[2]}`
-        );
+      boats[lane]
+        .exSt =
+          Number(
+            `0.${stMatch[2]}`
+          );
 
-      boats[
-        lane
-      ].exFlying =
-        Boolean(
-          timing[1]
-        );
+      boats[lane]
+        .exFlying =
+          Boolean(
+            stMatch[1]
+          );
+
+    });
+
+  }
+
+  const pageText =
+    cleanText(
+      html
+    );
+
+  const weather = {
+    temperature:null,
+    weather:null,
+    windSpeed:null,
+    windDirection:null,
+    waterTemperature:null,
+    waveHeight:null,
+    stabilityBoard:false,
+    fixedEntry:false
+  };
+
+  weather.stabilityBoard =
+    pageText.includes(
+      '安定板使用'
+    );
+
+  weather.fixedEntry =
+    pageText.includes(
+      '進入固定'
+    );
+
+  const temperatureMatch =
+    pageText.match(
+      /気温\s*([0-9.]+)\s*℃/
+    );
+
+  const windMatch =
+    pageText.match(
+      /風速\s*([0-9.]+)\s*m/
+    );
+
+  const waterMatch =
+    pageText.match(
+      /水温\s*([0-9.]+)\s*℃/
+    );
+
+  const waveMatch =
+    pageText.match(
+      /波高\s*([0-9.]+)\s*cm/
+    );
+
+  if(
+    temperatureMatch
+  ){
+
+    weather.temperature =
+      Number(
+        temperatureMatch[1]
+      );
+
+  }
+
+  if(
+    windMatch
+  ){
+
+    weather.windSpeed =
+      Number(
+        windMatch[1]
+      );
+
+  }
+
+  if(
+    waterMatch
+  ){
+
+    weather.waterTemperature =
+      Number(
+        waterMatch[1]
+      );
+
+  }
+
+  if(
+    waveMatch
+  ){
+
+    weather.waveHeight =
+      Number(
+        waveMatch[1]
+      );
+
+  }
+
+  const directionMatch =
+    html.match(
+      /\bis-wind(\d+)\b/i
+    );
+
+  if(
+    directionMatch
+  ){
+
+    weather.windDirection =
+      Number(
+        directionMatch[1]
+      );
+
+  }
+
+  const knownWeather = [
+    '晴',
+    '曇り',
+    '曇',
+    '雨',
+    '雪'
+  ];
+
+  for(
+    const label of knownWeather
+  ){
+
+    if(
+      pageText.includes(
+        label
+      )
+    ){
+
+      weather.weather =
+        label;
+
+      break;
 
     }
 
   }
 
-  const labels =
-    blocksByClass(
-      html,
-      'span',
-      'label2'
-    )
-    .map(strip);
-
-  const weather = {
-
-    temperature:null,
-
-    weather:null,
-
-    windSpeed:null,
-
-    windDirection:null,
-
-    waterTemperature:null,
-
-    waveHeight:null,
-
-    stabilityBoard:
-      labels.includes(
-        '安定板使用'
-      ),
-
-    fixedEntry:
-      labels.includes(
-        '進入固定'
-      )
-
-  };
-
-  const weatherBody =
-    blocksByClass(
-      html,
-      'div',
-      'weather1_body'
-    )[0];
-
-  if(
-    weatherBody
-  ){
-
-    const units =
-      blocksByClass(
-        weatherBody,
-        'div',
-        'weather1_bodyUnit'
-      );
-
-    const getData =
-      index => {
-
-        if(
-          !units[index]
-        ){
-
-          return null;
-
-        }
-
-        const match =
-          units[index]
-          .match(
-            /weather1_bodyUnitLabelData[^>]*>([\s\S]*?)<\/span>/i
-          );
-
-        return match
-          ?
-          strip(
-            match[1]
-          )
-          :
-          strip(
-            units[index]
-          );
-
-      };
-
-    weather.temperature =
-      num(
-        getData(0)
-      );
-
-    const weatherTitle =
-      units[1]
-      ?.match(
-        /weather1_bodyUnitLabelTitle[^>]*>([\s\S]*?)<\/span>/i
-      );
-
-    weather.weather =
-      weatherTitle
-        ?
-        strip(
-          weatherTitle[1]
-        )
-        :
-        null;
-
-    weather.windSpeed =
-      num(
-        getData(2)
-      );
-
-    weather.waterTemperature =
-      num(
-        getData(4)
-      );
-
-    weather.waveHeight =
-      num(
-        getData(5)
-      );
-
-    const direction =
-      weatherBody.match(
-        /\bis-wind(\d+)\b/i
-      );
-
-    weather.windDirection =
-      direction
-        ?
-        Number(
-          direction[1]
-        )
-        :
-        null;
-
-  }
-
   return {
-
     boats,
-
     weather
-
   };
 
 }
@@ -1166,10 +1161,8 @@ function parseResult(
 ){
 
   const tables =
-    blocksByClass(
-      html,
-      'div',
-      'table1'
+    extractTable1Blocks(
+      html
     );
 
   if(
@@ -1182,143 +1175,129 @@ function parseResult(
 
   }
 
-  let combo = null;
+  const paymentTable =
+    tables[3];
 
-  let payout = null;
-
-  let popularity = null;
-
-  const payRows =
-    blocksByTag(
-      tables[3],
+  const bodies =
+    extractTagBlocks(
+      paymentTable,
       'tbody'
     );
 
   if(
-    payRows[0]
+    !bodies.length
   ){
 
-    const cells =
-      blocksByTag(
-        payRows[0],
-        'td'
-      );
-
-    if(
-      cells.length >= 4
-    ){
-
-      const combination =
-        strip(
-          cells[1]
-        )
-        .match(
-          /[1-6]\s*-\s*[1-6]\s*-\s*[1-6]/
-        );
-
-      combo =
-        combination
-          ?
-          combination[0]
-            .replace(
-              /\s/g,
-              ''
-            )
-          :
-          null;
-
-      payout =
-        num(
-          strip(
-            cells[2]
-          )
-        );
-
-      popularity =
-        int(
-          strip(
-            cells[3]
-          )
-        );
-
-    }
+    return {
+      ready:false
+    };
 
   }
 
+  const cells =
+    extractTagBlocks(
+      bodies[0],
+      'td'
+    );
+
+  if(
+    cells.length < 3
+  ){
+
+    return {
+      ready:false
+    };
+
+  }
+
+  const combinationMatch =
+    compactText(
+      cells[1]
+    )
+    .match(
+      /([1-6])\s*-\s*([1-6])\s*-\s*([1-6])/
+    );
+
+  if(
+    !combinationMatch
+  ){
+
+    return {
+      ready:false
+    };
+
+  }
+
+  const combo =
+    `${combinationMatch[1]}-${combinationMatch[2]}-${combinationMatch[3]}`;
+
+  const payout =
+    toNumber(
+      compactText(
+        cells[2]
+      )
+    );
+
+  const popularity =
+    cells.length >= 4
+      ?
+      toInteger(
+        compactText(
+          cells[3]
+        )
+      )
+      :
+      null;
+
   return {
-
-    ready:
-      Boolean(
-        combo
-      ),
-
+    ready:true,
     combo,
-
     payout,
-
     popularity
-
   };
 
 }
 
-function parseBias(
-  raw
+function readCourseBias(
+  query
 ){
 
-  const output = {
-    1:1,
-    2:1,
-    3:1,
-    4:1,
-    5:1,
-    6:1
-  };
+  const result = {};
 
-  try{
+  for(
+    let lane = 1;
+    lane <= 6;
+    lane++
+  ){
 
-    const input =
-      JSON.parse(
-        String(
-          raw || '{}'
+    const raw =
+      Number(
+        query[
+          `b${lane}`
+        ]
+      );
+
+    const value =
+      Number.isFinite(
+        raw
+      )
+        ?
+        raw
+        :
+        1;
+
+    result[lane] =
+      Math.max(
+        0.82,
+        Math.min(
+          1.18,
+          value
         )
       );
 
-    for(
-      let lane = 1;
-      lane <= 6;
-      lane++
-    ){
-
-      const value =
-        Number(
-          input[lane]
-        );
-
-      if(
-        Number.isFinite(
-          value
-        )
-      ){
-
-        output[lane] =
-          Math.max(
-            .82,
-            Math.min(
-              1.18,
-              value
-            )
-          );
-
-      }
-
-    }
-
-  }catch{
-
   }
 
-  return output;
+  return result;
 
 }
 
@@ -1329,7 +1308,10 @@ function zScore(
 
   const valid =
     values.filter(
-      Number.isFinite
+      value =>
+        Number.isFinite(
+          value
+        )
     );
 
   if(
@@ -1389,16 +1371,16 @@ function zScore(
 
 }
 
-function currentMeetScore(
-  entries
+function recentMeetScore(
+  races
 ){
 
   if(
     !Array.isArray(
-      entries
+      races
     )
     ||
-    !entries.length
+    races.length === 0
   ){
 
     return 0;
@@ -1406,12 +1388,28 @@ function currentMeetScore(
   }
 
   const recent =
-    entries.slice(
+    races.slice(
       -6
     );
 
+  const validFinishes =
+    recent.filter(
+      race =>
+        Number.isFinite(
+          race.finish
+        )
+    );
+
+  if(
+    validFinishes.length === 0
+  ){
+
+    return 0;
+
+  }
+
   const averageFinish =
-    recent.reduce(
+    validFinishes.reduce(
       (
         total,
         race
@@ -1421,7 +1419,7 @@ function currentMeetScore(
       0
     )
     /
-    recent.length;
+    validFinishes.length;
 
   const validStarts =
     recent.filter(
@@ -1454,7 +1452,7 @@ function currentMeetScore(
       averageFinish
     )
     *
-    .10;
+    0.09;
 
   if(
     Number.isFinite(
@@ -1464,42 +1462,53 @@ function currentMeetScore(
 
     score +=
       (
-        .16 -
+        0.16 -
         averageStart
       )
       *
-      .55;
+      0.45;
 
   }
 
   return Math.max(
-    -.35,
+    -0.30,
     Math.min(
-      .35,
+      0.30,
       score
     )
   );
 
 }
 
-function laneStrength(
+function racerValues(
+  racers,
+  key
+){
+
+  return Object.values(
+    racers
+  )
+  .map(
+    racer =>
+      racer[key]
+  );
+
+}
+
+function calculateLaneStrength(
   lane,
   racer,
-  before,
-  allRacers,
-  allBefore,
-  bias
+  exhibition,
+  racers,
+  allExhibition,
+  courseBias
 ){
 
   let score =
     Math.log(
-      BASE_COURSE_PRIOR[
-        lane
-      ]
+      COURSE_PRIOR[lane]
       *
-      bias[
-        lane
-      ]
+      courseBias[lane]
     );
 
   score +=
@@ -1509,121 +1518,122 @@ function laneStrength(
     ||
     0;
 
-  const values =
-    key =>
-      Object.values(
-        allRacers
-      )
-      .map(
-        racer =>
-          racer[key]
-      );
-
   score +=
-    .22
+    0.20
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'nationalWin'
       ),
       racer.nationalWin
     );
 
   score +=
-    .10
+    0.08
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'national2'
       ),
       racer.national2
     );
 
   score +=
-    .10
+    0.08
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'national3'
       ),
       racer.national3
     );
 
   score +=
-    .14
+    0.13
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'localWin'
       ),
       racer.localWin
     );
 
   score +=
-    .07
+    0.06
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'local2'
       ),
       racer.local2
     );
 
   score +=
-    .06
+    0.05
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'local3'
       ),
       racer.local3
     );
 
   score +=
-    .13
+    0.13
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'motor2'
       ),
       racer.motor2
     );
 
   score +=
-    .07
+    0.06
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'motor3'
       ),
       racer.motor3
     );
 
   score +=
-    .08
+    0.07
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'boat2'
       ),
       racer.boat2
     );
 
   score +=
-    .04
+    0.04
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'boat3'
       ),
       racer.boat3
     );
 
   score -=
-    .12
+    0.11
     *
     zScore(
-      values(
+      racerValues(
+        racers,
         'avgSt'
       ),
       racer.avgSt
@@ -1631,43 +1641,59 @@ function laneStrength(
 
   score -=
     Math.min(
-      .30,
+      0.32,
       (
         racer.fCount ||
         0
       )
       *
-      .12
+      0.13
     );
 
   score -=
     Math.min(
-      .15,
+      0.16,
       (
         racer.lCount ||
         0
       )
       *
-      .08
+      0.08
     );
 
   score +=
-    currentMeetScore(
+    recentMeetScore(
       racer.currentMeet
     );
 
   const exhibitionTimes =
     Object.values(
-      allBefore
+      allExhibition
     )
     .map(
       boat =>
         boat.exTime
     );
 
+  if(
+    Number.isFinite(
+      exhibition.exTime
+    )
+  ){
+
+    score -=
+      0.19
+      *
+      zScore(
+        exhibitionTimes,
+        exhibition.exTime
+      );
+
+  }
+
   const exhibitionStarts =
     Object.values(
-      allBefore
+      allExhibition
     )
     .map(
       boat =>
@@ -1676,91 +1702,76 @@ function laneStrength(
 
   if(
     Number.isFinite(
-      before.exTime
+      exhibition.exSt
     )
   ){
 
     score -=
-      .20
-      *
-      zScore(
-        exhibitionTimes,
-        before.exTime
-      );
-
-  }
-
-  if(
-    Number.isFinite(
-      before.exSt
-    )
-  ){
-
-    score -=
-      .12
+      0.11
       *
       zScore(
         exhibitionStarts,
-        before.exSt
+        exhibition.exSt
       );
 
   }
 
   if(
-    before.exFlying
+    exhibition.exFlying
   ){
 
     score -=
-      .025;
+      0.03;
 
   }
 
   if(
-    before.isMiss
+    exhibition.isMiss
   ){
 
     score -=
-      .18;
+      0.18;
 
   }
 
   if(
     Number.isFinite(
-      before.exCourse
+      exhibition.exCourse
     )
     &&
-    before.exCourse !==
-      lane
+    exhibition.exCourse !== lane
   ){
 
-    const ratio =
-      BASE_COURSE_PRIOR[
-        before.exCourse
-      ]
-      /
-      BASE_COURSE_PRIOR[
+    const original =
+      COURSE_PRIOR[
         lane
       ];
 
+    const actual =
+      COURSE_PRIOR[
+        exhibition.exCourse
+      ];
+
     score +=
-      .18
+      0.18
       *
       Math.log(
-        ratio
+        actual /
+        original
       );
 
   }
 
   if(
     Array.isArray(
-      before.parts
+      exhibition.parts
     )
     &&
-    before.parts.length >= 3
+    exhibition.parts.length >= 3
   ){
 
     score -=
-      .05;
+      0.05;
 
   }
 
@@ -1768,7 +1779,7 @@ function laneStrength(
 
 }
 
-function allModelProbabilities(
+function createModelProbabilities(
   strengths
 ){
 
@@ -1789,88 +1800,72 @@ function allModelProbabilities(
 
   const probabilities = {};
 
+  const initialTotal =
+    Object.values(
+      weights
+    )
+    .reduce(
+      (
+        total,
+        value
+      ) =>
+        total +
+        value,
+      0
+    );
+
   for(
-    const combination
+    const value
     of ORDER
   ){
 
-    const value =
+    const combination =
       String(
-        combination
+        value
       );
 
     const first =
       Number(
-        value[0]
+        combination[0]
       );
 
     const second =
       Number(
-        value[1]
+        combination[1]
       );
 
     const third =
       Number(
-        value[2]
-      );
-
-    const total1 =
-      Object.values(
-        weights
-      )
-      .reduce(
-        (
-          total,
-          weight
-        ) =>
-          total +
-          weight,
-        0
+        combination[2]
       );
 
     const p1 =
-      weights[
-        first
-      ]
+      weights[first]
       /
-      total1;
+      initialTotal;
 
-    const total2 =
-      total1
-      -
-      weights[
-        first
-      ];
+    const secondTotal =
+      initialTotal -
+      weights[first];
 
     const p2 =
-      weights[
-        second
-      ]
+      weights[second]
       /
-      total2;
+      secondTotal;
 
-    const total3 =
-      total2
-      -
-      weights[
-        second
-      ];
+    const thirdTotal =
+      secondTotal -
+      weights[second];
 
     const p3 =
-      weights[
-        third
-      ]
+      weights[third]
       /
-      total3;
+      thirdTotal;
 
     probabilities[
       `${first}-${second}-${third}`
     ] =
-      p1
-      *
-      p2
-      *
-      p3;
+      p1 * p2 * p3;
 
   }
 
@@ -1878,72 +1873,77 @@ function allModelProbabilities(
 
 }
 
-function marketProbabilities(
+function createMarketProbabilities(
   odds
 ){
 
   const inverse = {};
 
-  let total = 0;
+  let sum =
+    0;
 
-  for(
-    const [
-      combination,
-      odd
-    ]
-    of Object.entries(
-      odds
-    )
-  ){
-
-    if(
-      Number.isFinite(
+  Object.entries(
+    odds
+  )
+  .forEach(
+    (
+      [
+        combination,
         odd
-      )
-      &&
-      odd > 0
-    ){
+      ]
+    ) => {
 
-      inverse[
-        combination
-      ] =
-        1 /
-        odd;
+      if(
+        Number.isFinite(
+          odd
+        )
+        &&
+        odd > 0
+      ){
 
-      total +=
         inverse[
           combination
-        ];
+        ] =
+          1 /
+          odd;
+
+        sum +=
+          inverse[
+            combination
+          ];
+
+      }
 
     }
+  );
 
-  }
+  const probabilities = {};
 
-  const output = {};
+  Object.entries(
+    inverse
+  )
+  .forEach(
+    (
+      [
+        combination,
+        value
+      ]
+    ) => {
 
-  for(
-    const [
-      combination,
-      value
-    ]
-    of Object.entries(
-      inverse
-    )
-  ){
+      probabilities[
+        combination
+      ] =
+        sum
+          ?
+          value /
+          sum
+          :
+          0;
 
-    output[
-      combination
-    ] =
-      total
-        ?
-        value /
-        total
-        :
-        0;
+    }
+  );
 
-  }
-
-  return output;
+  return probabilities;
 
 }
 
@@ -1953,38 +1953,37 @@ function blendProbabilities(
   modelWeight
 ){
 
-  const output = {};
+  const result = {};
 
-  let total = 0;
+  let total =
+    0;
 
   for(
-    const combination
+    const value
     of ORDER
   ){
 
-    const value =
+    const combination =
       String(
-        combination
+        value
       );
 
     const key =
-      `${value[0]}-${value[1]}-${value[2]}`;
+      `${combination[0]}-${combination[1]}-${combination[2]}`;
 
     const modelProbability =
       Math.max(
-        model[key] ||
-        1e-9,
-        1e-9
+        model[key] || 0,
+        0.000000001
       );
 
     const marketProbability =
       Math.max(
-        market[key] ||
-        1e-9,
-        1e-9
+        market[key] || 0,
+        0.000000001
       );
 
-    const probability =
+    const blended =
       Math.pow(
         modelProbability,
         modelWeight
@@ -1992,55 +1991,46 @@ function blendProbabilities(
       *
       Math.pow(
         marketProbability,
-        1 -
-        modelWeight
+        1 - modelWeight
       );
 
-    output[
-      key
-    ] =
-      probability;
+    result[key] =
+      blended;
 
     total +=
-      probability;
+      blended;
 
   }
 
   if(
-    total
+    total > 0
   ){
 
-    for(
-      const key
-      of Object.keys(
-        output
-      )
-    ){
+    Object.keys(
+      result
+    )
+    .forEach(
+      key => {
 
-      output[
-        key
-      ] /=
-        total;
+        result[key] /=
+          total;
 
-    }
+      }
+    );
 
   }
 
-  return output;
+  return result;
 
 }
 
-function dataCoverage(
+function calculateCoverage(
   racers,
-  beforeInfo,
+  before,
   currentMeetDetected
 ){
 
-  let obtained = 0;
-
-  let total = 0;
-
-  const racerKeys = [
+  const racerFields = [
     'grade',
     'avgSt',
     'nationalWin',
@@ -2055,6 +2045,18 @@ function dataCoverage(
     'boat3'
   ];
 
+  const beforeFields = [
+    'exTime',
+    'exSt',
+    'exCourse'
+  ];
+
+  let total =
+    0;
+
+  let obtained =
+    0;
+
   for(
     let lane = 1;
     lane <= 6;
@@ -2062,16 +2064,14 @@ function dataCoverage(
   ){
 
     for(
-      const key
-      of racerKeys
+      const field
+      of racerFields
     ){
 
       total++;
 
       if(
-        racers[
-          lane
-        ][key] != null
+        racers[lane][field] != null
       ){
 
         obtained++;
@@ -2081,21 +2081,14 @@ function dataCoverage(
     }
 
     for(
-      const key
-      of [
-        'exTime',
-        'exSt',
-        'exCourse'
-      ]
+      const field
+      of beforeFields
     ){
 
       total++;
 
       if(
-        beforeInfo
-          .boats[
-            lane
-          ][key] != null
+        before.boats[lane][field] != null
       ){
 
         obtained++;
@@ -2106,7 +2099,7 @@ function dataCoverage(
 
   }
 
-  total += 2;
+  total++;
 
   if(
     currentMeetDetected
@@ -2116,14 +2109,12 @@ function dataCoverage(
 
   }
 
+  total++;
+
   if(
-    beforeInfo
-      .weather
-      .windSpeed != null
+    before.weather.windSpeed != null
     ||
-    beforeInfo
-      .weather
-      .waveHeight != null
+    before.weather.waveHeight != null
   ){
 
     obtained++;
@@ -2138,10 +2129,10 @@ function dataCoverage(
 
 }
 
-function chooseBets(
+function selectBets(
   odds,
-  finalProbabilities,
-  marketProbabilitiesMap,
+  probabilities,
+  market,
   budget,
   coverage,
   weather
@@ -2149,11 +2140,7 @@ function chooseBets(
 
   const units =
     Math.floor(
-      Math.max(
-        0,
-        budget
-      )
-      /
+      budget /
       100
     );
 
@@ -2165,7 +2152,7 @@ function chooseBets(
 
   }
 
-  const rows =
+  let rows =
     Object.entries(
       odds
     )
@@ -2178,21 +2165,18 @@ function chooseBets(
       ) => {
 
         const probability =
-          finalProbabilities[
+          probabilities[
             combination
-          ] ||
+          ]
+          ||
           0;
 
         const marketProbability =
-          marketProbabilitiesMap[
+          market[
             combination
-          ] ||
+          ]
+          ||
           0;
-
-        const fairIndex =
-          probability
-          *
-          odd;
 
         const divergence =
           marketProbability > 0
@@ -2200,10 +2184,54 @@ function chooseBets(
             probability /
             marketProbability
             :
-            null;
+            1;
+
+        let oddsPenalty =
+          1;
+
+        if(
+          odd > 100
+        ){
+
+          oddsPenalty =
+            0.50;
+
+        }else if(
+          odd > 60
+        ){
+
+          oddsPenalty =
+            0.68;
+
+        }else if(
+          odd > 30
+        ){
+
+          oddsPenalty =
+            0.82;
+
+        }
+
+        const edge =
+          Math.max(
+            0.80,
+            Math.min(
+              1.25,
+              divergence
+            )
+          );
+
+        const score =
+          probability
+          *
+          Math.pow(
+            edge,
+            0.30
+          )
+          *
+          oddsPenalty;
 
         return {
-
           combo:
             combination,
 
@@ -2216,155 +2244,102 @@ function chooseBets(
           marketP:
             marketProbability,
 
-          fairIndex,
+          divergence,
 
-          divergence
-
+          score
         };
 
       }
     )
     .filter(
       row =>
-        row.odds >= 1
-        &&
         Number.isFinite(
-          row.p
+          row.odds
         )
+        &&
+        row.odds >= 1
     );
 
-  const maxOdds =
+  if(
     units <= 3
-      ?
-      80
-      :
-      150;
+  ){
 
-  let candidates =
-    rows.filter(
-      row =>
-        row.odds <=
-        maxOdds
-    );
+    rows =
+      rows.filter(
+        row =>
+          row.odds <= 80
+      );
 
-  candidates.forEach(
-    row => {
+  }else{
 
-      const edgeBoost =
-        Math.max(
-          .75,
-          Math.min(
-            1.25,
-            row.divergence ||
-            1
-          )
-        );
+    rows =
+      rows.filter(
+        row =>
+          row.odds <= 150
+      );
 
-      row.rankScore =
-        row.p
-        *
-        Math.pow(
-          edgeBoost,
-          .35
-        )
-        *
-        Math.pow(
-          Math.log1p(
-            row.odds
-          ),
-          .18
-        );
+  }
 
-    }
-  );
-
-  candidates.sort(
+  rows.sort(
     (
-      first,
-      second
+      a,
+      b
     ) =>
-      second.rankScore -
-      first.rankScore
+      b.score -
+      a.score
       ||
-      second.p -
-      first.p
+      b.p -
+      a.p
   );
 
   const wind =
-    weather?.windSpeed ||
-    0;
-
-  const wave =
-    weather?.waveHeight ||
-    0;
-
-  const uncertaintyPenalty =
-    (
-      coverage < 75
-        ?
-        1
-        :
-        0
-    )
-    +
-    (
-      wind >= 6
-        ?
-        1
-        :
-        0
-    )
-    +
-    (
-      wave >= 6
-        ?
-        1
-        :
-        0
+    Number(
+      weather.windSpeed ||
+      0
     );
 
-  let maxPicks =
+  const wave =
+    Number(
+      weather.waveHeight ||
+      0
+    );
+
+  let maximumPicks =
     Math.min(
       3,
       units
     );
 
   if(
-    units === 3
-    &&
-    uncertaintyPenalty > 0
+    coverage < 75
+    ||
+    wind >= 6
+    ||
+    wave >= 6
   ){
 
-    maxPicks =
-      2;
+    maximumPicks =
+      Math.min(
+        maximumPicks,
+        2
+      );
 
   }
 
-  if(
-    units === 2
-    &&
-    uncertaintyPenalty > 1
-  ){
-
-    maxPicks =
-      1;
-
-  }
-
-  const viable =
-    candidates
+  const selected =
+    rows
       .filter(
         row =>
           row.p >=
-          .025
+          0.025
       )
       .slice(
         0,
-        maxPicks
+        maximumPicks
       );
 
   if(
-    !viable.length
+    selected.length === 0
   ){
 
     return [];
@@ -2375,30 +2350,14 @@ function chooseBets(
     units <= 3
   ){
 
-    return viable.map(
+    return selected.map(
       row => ({
-
         ...row,
-
-        amount:
-          100
-
+        amount:100
       })
     );
 
   }
-
-  const selected =
-    viable.slice(
-      0,
-      Math.min(
-        3,
-        viable.length
-      )
-    );
-
-  let remainingUnits =
-    units;
 
   const probabilityTotal =
     selected.reduce(
@@ -2411,7 +2370,11 @@ function chooseBets(
       0
     );
 
-  const output = [];
+  let remaining =
+    units;
+
+  const result =
+    [];
 
   selected.forEach(
     (
@@ -2419,20 +2382,19 @@ function chooseBets(
       index
     ) => {
 
-      let useUnits;
+      let use;
 
       if(
         index ===
-        selected.length -
-        1
+        selected.length - 1
       ){
 
-        useUnits =
-          remainingUnits;
+        use =
+          remaining;
 
       }else{
 
-        useUnits =
+        use =
           Math.max(
             1,
             Math.floor(
@@ -2446,37 +2408,34 @@ function chooseBets(
 
       }
 
-      useUnits =
+      const mustRemain =
+        selected.length
+        -
+        index
+        -
+        1;
+
+      use =
         Math.min(
-          useUnits,
-          remainingUnits
-          -
-          (
-            selected.length
-            -
-            index
-            -
-            1
-          )
+          use,
+          remaining -
+          mustRemain
         );
 
-      output.push({
-
+      result.push({
         ...row,
-
         amount:
-          useUnits *
+          use *
           100
-
       });
 
-      remainingUnits -=
-        useUnits;
+      remaining -=
+        use;
 
     }
   );
 
-  return output;
+  return result;
 
 }
 
@@ -2541,19 +2500,17 @@ async function handler(
       return res
         .status(400)
         .json({
-
           error:
             '入力値が不正です'
-
         });
 
     }
 
-    const base =
-      'https://www.boatrace.jp/owpc/pc/race';
-
     const query =
       `?rno=${race}&jcd=${venue}&hd=${date}`;
+
+    const base =
+      'https://www.boatrace.jp/owpc/pc/race';
 
     if(
       action ===
@@ -2565,10 +2522,14 @@ async function handler(
           `${base}/raceresult${query}`
         );
 
+      const result =
+        parseResult(
+          html
+        );
+
       return res
         .status(200)
         .json({
-
           venueName:
             VENUES[
               venue
@@ -2576,10 +2537,7 @@ async function handler(
 
           race,
 
-          ...parseResult(
-            html
-          )
-
+          ...result
         });
 
     }
@@ -2587,7 +2545,7 @@ async function handler(
     const budget =
       Number(
         req.query.budget ||
-        1000
+        300
       );
 
     if(
@@ -2601,17 +2559,15 @@ async function handler(
       return res
         .status(400)
         .json({
-
           error:
             '予算が不正です'
-
         });
 
     }
 
-    const bias =
-      parseBias(
-        req.query.bias
+    const courseBias =
+      readCourseBias(
+        req.query
       );
 
     const [
@@ -2652,7 +2608,6 @@ async function handler(
       return res
         .status(200)
         .json({
-
           skip:true,
 
           venueName:
@@ -2668,7 +2623,6 @@ async function handler(
 
           reason:
             `公式3連単オッズを${oddsCount}通りしか取得できないため見送り。`
-
         });
 
     }
@@ -2684,15 +2638,10 @@ async function handler(
       );
 
     const coverage =
-      dataCoverage(
-
+      calculateCoverage(
         raceInfo.racers,
-
         before,
-
-        raceInfo
-          .currentMeetDetected
-
+        raceInfo.currentMeetDetected
       );
 
     const strengths = {};
@@ -2704,7 +2653,7 @@ async function handler(
     ){
 
       strengths[lane] =
-        laneStrength(
+        calculateLaneStrength(
 
           lane,
 
@@ -2724,48 +2673,67 @@ async function handler(
           before
             .boats,
 
-          bias
+          courseBias
 
         );
 
     }
 
     const modelProbabilities =
-      allModelProbabilities(
+      createModelProbabilities(
         strengths
       );
 
-    const market =
-      marketProbabilities(
+    const marketProbabilities =
+      createMarketProbabilities(
         odds
       );
 
-    let modelWeight =
+    let modelWeight;
+
+    if(
       coverage >= 90
-        ?
-        .58
-        :
-        coverage >= 80
-          ?
-          .54
-          :
-          coverage >= 65
-            ?
-            .50
-            :
-            .45;
+    ){
+
+      modelWeight =
+        0.58;
+
+    }else if(
+      coverage >= 80
+    ){
+
+      modelWeight =
+        0.54;
+
+    }else if(
+      coverage >= 65
+    ){
+
+      modelWeight =
+        0.50;
+
+    }else{
+
+      modelWeight =
+        0.44;
+
+    }
 
     const wind =
-      before
-        .weather
-        .windSpeed ||
-      0;
+      Number(
+        before
+          .weather
+          .windSpeed ||
+        0
+      );
 
     const wave =
-      before
-        .weather
-        .waveHeight ||
-      0;
+      Number(
+        before
+          .weather
+          .waveHeight ||
+        0
+      );
 
     if(
       wind >= 6
@@ -2775,42 +2743,31 @@ async function handler(
 
       modelWeight =
         Math.max(
-          .42,
+          0.40,
           modelWeight -
-          .06
+          0.06
         );
 
     }
 
-    const finalProbabilities =
+    const blended =
       blendProbabilities(
-
         modelProbabilities,
-
-        market,
-
+        marketProbabilities,
         modelWeight
-
       );
 
     const picks =
-      chooseBets(
-
+      selectBets(
         odds,
-
-        finalProbabilities,
-
-        market,
-
+        blended,
+        marketProbabilities,
         budget,
-
         coverage,
-
         before.weather
-
       );
 
-    const topProbability =
+    const bestProbability =
       picks.length
         ?
         Math.max(
@@ -2823,46 +2780,13 @@ async function handler(
         0;
 
     const skip =
-      !picks.length
+      picks.length === 0
       ||
       (
         budget <= 500
         &&
-        topProbability <
-          .04
+        bestProbability < 0.04
       );
-
-    const output =
-      skip
-        ?
-        []
-        :
-        picks.map(
-          pick => ({
-
-            combo:
-              pick.combo,
-
-            amount:
-              pick.amount,
-
-            odds:
-              pick.odds,
-
-            p:
-              pick.p,
-
-            marketP:
-              pick.marketP,
-
-            divergence:
-              pick.divergence,
-
-            fairIndex:
-              pick.fairIndex
-
-          })
-        );
 
     return res
       .status(200)
@@ -2880,23 +2804,23 @@ async function handler(
         oddsCount,
 
         picks:
-          output,
+          skip
+            ?
+            []
+            :
+            picks,
 
         reason:
           skip
-
             ?
-
-            '取得データ・市場オッズ・不確実性を統合した結果、少額資金で無理に買う根拠が弱いため見送り。'
-
+            '全取得データと市場オッズを統合した結果、少額資金で買う根拠が弱いため見送り。'
             :
-
-            '全国/当地成績、平均ST、F/L、モーター/ボート、今節成績、展示タイム/ST/進入、チルト・部品交換、気象、3連単市場オッズ、蓄積結果補正を統合。',
+            '全国/当地成績・平均ST・F/L・モーター/ボート・今節成績・展示タイム/ST/進入・チルト・部品交換・気象・120通りオッズ・蓄積結果補正を統合。',
 
         meta:{
 
           model:
-            'full-v4-market-calibrated',
+            'full-v4.1',
 
           coverage,
 
@@ -2906,8 +2830,7 @@ async function handler(
             raceInfo
               .currentMeetDetected,
 
-          courseBias:
-            bias,
+          courseBias,
 
           weather:
             before.weather,
@@ -2933,7 +2856,9 @@ async function handler(
 
           coverage,
 
-          modelWeight
+          modelWeight,
+
+          courseBias
 
         }
 
@@ -2946,14 +2871,12 @@ async function handler(
     return res
       .status(500)
       .json({
-
         error:
           error.message
           ||
           String(
             error
           )
-
       });
 
   }
