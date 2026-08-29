@@ -14,28 +14,18 @@ import requests
 
 
 BASE = "https://boatracecsv.github.io/data"
-MODEL_PATH = Path("model/model.json")
+DEFAULT_MODEL_PATH = Path("model/model.json")
 
 FEATURES = [
-    "lane1",
-    "lane2",
-    "lane3",
-    "lane4",
-    "lane5",
-    "lane6",
-    "avg_st",
-    "national_win",
-    "national2",
-    "local_win",
-    "local2",
-    "motor2",
-    "boat2",
-    "meet_avg_finish",
-    "meet_avg_st",
+    "lane1", "lane2", "lane3", "lane4", "lane5", "lane6",
+    "avg_st", "national_win", "national2",
+    "local_win", "local2",
+    "motor2", "boat2",
+    "meet_avg_finish", "meet_avg_st",
 ]
 
 HEADERS = {
-    "User-Agent": "boat-race-ai-v7.4",
+    "User-Agent": "boat-race-ai-v8.1",
     "Accept": "text/csv,text/plain,*/*",
 }
 
@@ -44,6 +34,20 @@ def args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--days", type=int, default=120)
+
+    parser.add_argument(
+        "--end-offset",
+        type=int,
+        default=0,
+        help="Exclude recent completed days from training",
+    )
+
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=str(DEFAULT_MODEL_PATH),
+    )
+
     parser.add_argument("--min-races", type=int, default=500)
     parser.add_argument("--epochs", type=int, default=300)
     parser.add_argument("--lr", type=float, default=0.035)
@@ -81,11 +85,9 @@ def csv(kind, target):
 
 
 def number(value):
-    text = str(value or "").strip()
-
     match = re.search(
         r"-?\d+(?:\.\d+)?",
-        text,
+        str(value or "").strip(),
     )
 
     return (
@@ -178,6 +180,7 @@ def features(card, lane):
                 float(lane == n)
                 for n in range(1, 7)
             ],
+
             number(
                 value(
                     card,
@@ -185,6 +188,7 @@ def features(card, lane):
                     ["全国平均ST", "平均ST"],
                 )
             ),
+
             number(
                 value(
                     card,
@@ -192,6 +196,7 @@ def features(card, lane):
                     ["全国勝率"],
                 )
             ),
+
             number(
                 value(
                     card,
@@ -199,6 +204,7 @@ def features(card, lane):
                     ["全国2連対率", "全国2連率"],
                 )
             ),
+
             number(
                 value(
                     card,
@@ -206,6 +212,7 @@ def features(card, lane):
                     ["当地勝率"],
                 )
             ),
+
             number(
                 value(
                     card,
@@ -213,6 +220,7 @@ def features(card, lane):
                     ["当地2連対率", "当地2連率"],
                 )
             ),
+
             number(
                 value(
                     card,
@@ -223,6 +231,7 @@ def features(card, lane):
                     ],
                 )
             ),
+
             number(
                 value(
                     card,
@@ -233,6 +242,7 @@ def features(card, lane):
                     ],
                 )
             ),
+
             meet_finish,
             meet_st,
         ],
@@ -245,7 +255,9 @@ def winner(row):
         key = f"艇{lane}_着順"
 
         if key in row.index:
-            place = number(row.get(key))
+            place = number(
+                row.get(key)
+            )
 
             if (
                 np.isfinite(place)
@@ -260,7 +272,9 @@ def winner(row):
         "1着枠",
     ):
         if key in row.index:
-            lane = number(row.get(key))
+            lane = number(
+                row.get(key)
+            )
 
             if (
                 np.isfinite(lane)
@@ -294,13 +308,17 @@ def load_day(target):
         return []
 
     result_map = by_code(results)
+
     races = []
 
     for index in range(len(cards)):
         card = cards.iloc[index]
 
         code = str(
-            card.get("レースコード", "")
+            card.get(
+                "レースコード",
+                "",
+            )
         ).strip()
 
         result = result_map.get(code)
@@ -316,7 +334,8 @@ def load_day(target):
         matrix = np.vstack(
             [
                 features(card, lane)
-                for lane in range(1, 7)
+                for lane
+                in range(1, 7)
             ]
         )
 
@@ -332,12 +351,21 @@ def load_day(target):
     return races
 
 
-def collect(days):
-    end = date.today() - timedelta(days=1)
+def collect(days, end_offset=0):
+    end = (
+        date.today()
+        - timedelta(
+            days=1 + end_offset
+        )
+    )
+
     races = []
 
     for offset in range(days):
-        target = end - timedelta(days=offset)
+        target = (
+            end
+            - timedelta(days=offset)
+        )
 
         day_races = load_day(target)
 
@@ -361,10 +389,17 @@ def collect(days):
 
 
 def smoke():
-    end = date.today() - timedelta(days=1)
+    end = (
+        date.today()
+        - timedelta(days=1)
+    )
 
     for offset in range(7):
-        target = end - timedelta(days=offset)
+        target = (
+            end
+            - timedelta(days=offset)
+        )
+
         races = load_day(target)
 
         print(
@@ -393,6 +428,7 @@ def smoke():
             "SMOKE TEST PASSED",
             flush=True,
         )
+
         return
 
     raise SystemExit(
@@ -401,9 +437,15 @@ def smoke():
     )
 
 
-def prepare(train, validation):
+def prepare(
+    train_raw,
+    validation_raw,
+):
     flat = np.vstack(
-        [race[2] for race in train]
+        [
+            race[2]
+            for race in train_raw
+        ]
     )
 
     with np.errstate(all="ignore"):
@@ -461,28 +503,43 @@ def prepare(train, validation):
         return output
 
     return (
-        transform(train),
-        transform(validation),
+        transform(train_raw),
+        transform(validation_raw),
         mean,
         scale,
     )
 
 
 def softmax(scores):
-    scores = scores - np.max(scores)
+    scores = (
+        scores
+        - np.max(scores)
+    )
+
     exp = np.exp(scores)
 
-    return exp / np.sum(exp)
+    return (
+        exp
+        / np.sum(exp)
+    )
 
 
-def train(dataset, epochs, lr, l2):
+def train(
+    dataset,
+    epochs,
+    lr,
+    l2,
+):
     weights = np.zeros(
         len(FEATURES),
         dtype=float,
     )
 
     for epoch in range(epochs):
-        gradient = np.zeros_like(weights)
+        gradient = np.zeros_like(
+            weights
+        )
+
         loss = 0.0
 
         for race in dataset:
@@ -530,7 +587,10 @@ def train(dataset, epochs, lr, l2):
     return weights
 
 
-def evaluate(dataset, weights):
+def evaluate(
+    dataset,
+    weights,
+):
     hits = 0
     top3 = 0
     log_loss = 0.0
@@ -577,10 +637,18 @@ def evaluate(dataset, weights):
 
     return {
         "races": count,
-        "top1Accuracy": hits / count,
-        "winnerInTop3": top3 / count,
-        "logLoss": log_loss / count,
-        "brierScore": brier / count,
+
+        "top1Accuracy":
+            hits / count,
+
+        "winnerInTop3":
+            top3 / count,
+
+        "logLoss":
+            log_loss / count,
+
+        "brierScore":
+            brier / count,
     }
 
 
@@ -591,8 +659,18 @@ def main():
         smoke()
         return
 
+    if (
+        config.days < 1
+        or config.end_offset < 0
+    ):
+        raise SystemExit(
+            "days must be >= 1 "
+            "and end-offset must be >= 0"
+        )
+
     races = collect(
-        config.days
+        config.days,
+        config.end_offset,
     )
 
     if len(races) < config.min_races:
@@ -638,7 +716,7 @@ def main():
 
     model = {
         "version":
-            "v7.4-conditional-logit",
+            "v8.1-conditional-logit",
 
         "trainedAt":
             datetime.now(
@@ -647,6 +725,15 @@ def main():
 
         "lookbackDays":
             config.days,
+
+        "endOffsetDays":
+            config.end_offset,
+
+        "dataStartDate":
+            races[0][1],
+
+        "dataEndDate":
+            races[-1][1],
 
         "raceCount":
             len(races),
@@ -676,12 +763,16 @@ def main():
             validation,
     }
 
-    MODEL_PATH.parent.mkdir(
+    output_path = Path(
+        config.output
+    )
+
+    output_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    MODEL_PATH.write_text(
+    output_path.write_text(
         json.dumps(
             model,
             ensure_ascii=False,
