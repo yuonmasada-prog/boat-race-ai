@@ -1,127 +1,162 @@
-const VENUES = {
-  '01':'桐生',
-  '02':'戸田',
-  '03':'江戸川',
-  '04':'平和島',
-  '05':'多摩川',
-  '06':'浜名湖',
-  '07':'蒲郡',
-  '08':'常滑',
-  '09':'津',
-  '10':'三国',
-  '11':'びわこ',
-  '12':'住之江',
-  '13':'尼崎',
-  '14':'鳴門',
-  '15':'丸亀',
-  '16':'児島',
-  '17':'宮島',
-  '18':'徳山',
-  '19':'下関',
-  '20':'若松',
-  '21':'芦屋',
-  '22':'福岡',
-  '23':'唐津',
-  '24':'大村'
+const VENUES={
+  '01':'桐生','02':'戸田','03':'江戸川','04':'平和島','05':'多摩川','06':'浜名湖',
+  '07':'蒲郡','08':'常滑','09':'津','10':'三国','11':'びわこ','12':'住之江',
+  '13':'尼崎','14':'鳴門','15':'丸亀','16':'児島','17':'宮島','18':'徳山',
+  '19':'下関','20':'若松','21':'芦屋','22':'福岡','23':'唐津','24':'大村'
 };
 
-const ORDER = [
-  123,213,312,412,512,612,
-  124,214,314,413,513,613,
-  125,215,315,415,514,614,
-  126,216,316,416,516,615,
-
-  132,231,321,421,521,621,
-  134,234,324,423,523,623,
-  135,235,325,425,524,624,
-  136,236,326,426,526,625,
-
-  142,241,341,431,531,631,
-  143,243,342,432,532,632,
-  145,245,345,435,534,634,
-  146,246,346,436,536,635,
-
-  152,251,351,451,541,641,
-  153,253,352,452,542,642,
-  154,254,354,453,543,643,
-  156,256,356,456,546,645,
-
-  162,261,361,461,561,651,
-  163,263,362,462,562,652,
-  164,264,364,463,563,653,
-  165,265,365,465,564,654
+const ORDER=[
+  123,213,312,412,512,612,124,214,314,413,513,613,
+  125,215,315,415,514,614,126,216,316,416,516,615,
+  132,231,321,421,521,621,134,234,324,423,523,623,
+  135,235,325,425,524,624,136,236,326,426,526,625,
+  142,241,341,431,531,631,143,243,342,432,532,632,
+  145,245,345,435,534,634,146,246,346,436,536,635,
+  152,251,351,451,541,641,153,253,352,452,542,642,
+  154,254,354,453,543,643,156,256,356,456,546,645,
+  162,261,361,461,561,651,163,263,362,462,562,652,
+  164,264,364,463,563,653,165,265,365,465,564,654
 ];
 
-const COURSE_PRIOR = {
-  1:0.56,
-  2:0.14,
-  3:0.12,
-  4:0.10,
-  5:0.05,
-  6:0.03
+const PRIOR={
+  1:.56,
+  2:.14,
+  3:.12,
+  4:.10,
+  5:.05,
+  6:.03
 };
 
-const GRADE_BONUS = {
-  A1:0.42,
-  A2:0.18,
-  B1:0.00,
-  B2:-0.18
+const GRADE={
+  A1:.42,
+  A2:.18,
+  B1:0,
+  B2:-.18
 };
 
-function cleanText(value){
 
-  return String(value || '')
-    .replace(
-      /<script[\s\S]*?<\/script>/gi,
-      ' '
-    )
-    .replace(
-      /<style[\s\S]*?<\/style>/gi,
-      ' '
-    )
-    .replace(
-      /<br\s*\/?>/gi,
-      '\n'
-    )
-    .replace(
-      /<\/(?:div|p|li|span|td|tr|a|tbody)>/gi,
-      '\n'
-    )
-    .replace(
-      /<[^>]+>/g,
-      ' '
-    )
-    .replace(
-      /&nbsp;|&#160;/gi,
-      ' '
-    )
-    .replace(
-      /&amp;/gi,
-      '&'
-    )
-    .replace(
-      /&#39;/gi,
-      "'"
-    )
-    .replace(
-      /&quot;/gi,
-      '"'
-    )
-    .replace(
-      /[ \t]+/g,
-      ' '
-    )
-    .replace(
-      /\n\s+/g,
-      '\n'
-    )
-    .trim();
+/* ================================
+   短期キャッシュ
+================================ */
+
+const CACHE=
+  globalThis.__BR_CACHE__
+  ||
+  new Map();
+
+globalThis.__BR_CACHE__=
+  CACHE;
+
+
+function cached(key){
+
+  const item=
+    CACHE.get(key);
+
+  if(!item){
+    return null;
+  }
+
+  if(
+    item.expiresAt
+    <=
+    Date.now()
+  ){
+
+    CACHE.delete(key);
+
+    return null;
+
+  }
+
+  return item.value;
 
 }
 
-function compactText(value){
 
-  return cleanText(value)
+function putCache(
+  key,
+  value,
+  ttl
+){
+
+  CACHE.set(
+    key,
+    {
+      value,
+      expiresAt:
+        Date.now()
+        +
+        ttl
+    }
+  );
+
+}
+
+
+/* ================================
+   HTML utility
+================================ */
+
+function clean(value){
+
+  return String(
+    value || ''
+  )
+
+  .replace(
+    /<script[\s\S]*?<\/script>/gi,
+    ' '
+  )
+
+  .replace(
+    /<style[\s\S]*?<\/style>/gi,
+    ' '
+  )
+
+  .replace(
+    /<br\s*\/?>/gi,
+    '\n'
+  )
+
+  .replace(
+    /<\/(?:div|p|li|span|td|tr|a|tbody)>/gi,
+    '\n'
+  )
+
+  .replace(
+    /<[^>]+>/g,
+    ' '
+  )
+
+  .replace(
+    /&nbsp;|&#160;/gi,
+    ' '
+  )
+
+  .replace(
+    /&amp;/gi,
+    '&'
+  )
+
+  .replace(
+    /[ \t]+/g,
+    ' '
+  )
+
+  .replace(
+    /\n\s+/g,
+    '\n'
+  )
+
+  .trim();
+
+}
+
+
+function compact(value){
+
+  return clean(value)
     .replace(
       /\s+/g,
       ' '
@@ -130,76 +165,41 @@ function compactText(value){
 
 }
 
-function textLines(value){
 
-  return cleanText(value)
-    .split(/\n+/)
-    .map(
-      line =>
-        line.trim()
-    )
-    .filter(Boolean);
+function number(value){
 
-}
-
-function toNumber(value){
-
-  const parsed =
+  const result=
     Number(
-      String(value ?? '')
-        .replace(
-          /[%,¥,\s]/g,
-          ''
-        )
+      String(
+        value ?? ''
+      )
+      .replace(
+        /[%,¥,\s]/g,
+        ''
+      )
     );
 
-  return Number.isFinite(parsed)
+  return Number.isFinite(
+    result
+  )
     ?
-    parsed
+    result
     :
     null;
 
 }
 
-function toInteger(value){
 
-  const match =
-    String(value ?? '')
-      .match(
-        /\d+/
-      );
-
-  if(
-    !match
-  ){
-
-    return null;
-
-  }
-
-  const parsed =
-    Number(
-      match[0]
-    );
-
-  return Number.isFinite(parsed)
-    ?
-    parsed
-    :
-    null;
-
-}
-
-function extractTagBlocks(
+function tagBlocks(
   html,
-  tagName
+  tag
 ){
 
-  const output = [];
+  const result=[];
 
-  const regex =
+  const regex=
     new RegExp(
-      `<${tagName}\\b[^>]*>[\\s\\S]*?<\\/${tagName}>`,
+      `<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`,
       'gi'
     );
 
@@ -207,35 +207,36 @@ function extractTagBlocks(
 
   while(
     (
-      match =
+      match=
         regex.exec(html)
     )
   ){
 
-    output.push(
+    result.push(
       match[0]
     );
 
   }
 
-  return output;
+  return result;
 
 }
 
-function extractTable1Blocks(
+
+function tableBlocks(
   html
 ){
 
-  const starts = [];
+  const starts=[];
 
-  const regex =
+  const regex=
     /<div\b[^>]*class=["'][^"']*\btable1\b[^"']*["'][^>]*>/gi;
 
   let match;
 
   while(
     (
-      match =
+      match=
         regex.exec(html)
     )
   ){
@@ -246,109 +247,233 @@ function extractTable1Blocks(
 
   }
 
-  const blocks = [];
+  return starts.map(
+    (
+      start,
+      index
+    ) => {
 
-  for(
-    let index = 0;
-    index < starts.length;
-    index++
-  ){
+      const end=
+        index + 1
+        <
+        starts.length
 
-    const start =
-      starts[index];
+          ?
 
-    const end =
-      index + 1 < starts.length
-        ?
-        starts[index + 1]
-        :
-        html.length;
+          starts[
+            index + 1
+          ]
 
-    blocks.push(
-      html.slice(
+          :
+
+          html.length;
+
+      return html.slice(
         start,
         end
-      )
+      );
+
+    }
+  );
+
+}
+
+
+/* ================================
+   安定したfetch
+================================ */
+
+async function fetchOnce(
+  url,
+  timeoutMs
+){
+
+  const controller=
+    new AbortController();
+
+  const timer=
+    setTimeout(
+      () =>
+        controller.abort(),
+      timeoutMs
+    );
+
+  try{
+
+    const response=
+      await fetch(
+        url,
+        {
+          cache:'no-store',
+          signal:
+            controller.signal
+        }
+      );
+
+    const text=
+      await response.text();
+
+    if(
+      !response.ok
+    ){
+
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+
+    }
+
+    return text;
+
+  }finally{
+
+    clearTimeout(
+      timer
     );
 
   }
 
-  return blocks;
-
 }
 
-async function fetchText(
-  url
+
+async function fetchReliable(
+  url,
+  key,
+  ttl
 ){
 
-  const response =
-    await fetch(
-      url,
-      {
-        cache:'no-store'
-      }
-    );
+  const hit=
+    cached(key);
 
-  const html =
-    await response.text();
+  if(hit){
 
-  if(
-    !response.ok
+    return {
+      ok:true,
+      text:hit,
+      source:'cache'
+    };
+
+  }
+
+  let lastError=
+    null;
+
+  for(
+    let attempt=0;
+    attempt<2;
+    attempt++
   ){
 
-    throw new Error(
-      `公式ページ取得失敗 HTTP ${response.status}`
-    );
+    try{
+
+      const text=
+        await fetchOnce(
+          url,
+          2200
+        );
+
+      putCache(
+        key,
+        text,
+        ttl
+      );
+
+      return {
+        ok:true,
+        text,
+        source:'network'
+      };
+
+    }catch(error){
+
+      lastError=
+        error;
+
+      if(
+        attempt === 0
+      ){
+
+        await new Promise(
+          resolve =>
+            setTimeout(
+              resolve,
+              120
+            )
+        );
+
+      }
+
+    }
 
   }
 
-  return html;
+  return {
+    ok:false,
+
+    error:
+      lastError?.name
+      ===
+      'AbortError'
+
+        ?
+
+        'timeout'
+
+        :
+
+        (
+          lastError?.message
+          ||
+          'fetch failed'
+        )
+  };
 
 }
 
-function parseOdds(
-  html
-){
 
-  const values = [];
+/* ================================
+   オッズ
+================================ */
 
-  const regex =
+function parseOdds(html){
+
+  const values=[];
+
+  const regex=
     /<td[^>]*class=["'][^"']*\boddsPoint\b[^"']*["'][^>]*>([\s\S]*?)<\/td>/gi;
 
   let match;
 
   while(
     (
-      match =
+      match=
         regex.exec(html)
     )
   ){
 
-    const value =
-      toNumber(
-        compactText(
+    values.push(
+      number(
+        compact(
           match[1]
         )
-      );
-
-    values.push(
-      value
+      )
     );
 
   }
 
-  const result = {};
+  const result={};
 
   for(
-    let index = 0;
-    index < Math.min(
-      values.length,
-      120
-    );
+    let index=0;
+    index<
+      Math.min(
+        values.length,
+        120
+      );
     index++
   ){
 
-    const odd =
+    const odd=
       values[index];
 
     if(
@@ -363,15 +488,14 @@ function parseOdds(
 
     }
 
-    const combination =
+    const s=
       String(
         ORDER[index]
       );
 
-    const key =
-      `${combination[0]}-${combination[1]}-${combination[2]}`;
-
-    result[key] =
+    result[
+      `${s[0]}-${s[1]}-${s[2]}`
+    ]=
       odd;
 
   }
@@ -380,56 +504,91 @@ function parseOdds(
 
 }
 
-function parseRaceList(
-  html
-){
 
-  const racers = {};
+/* ================================
+   出走表
+================================ */
+
+function emptyRacer(lane){
+
+  return {
+    lane,
+
+    racerId:null,
+    name:null,
+    grade:null,
+    age:null,
+    weight:null,
+
+    fCount:0,
+    lCount:0,
+
+    avgSt:null,
+
+    nationalWin:null,
+    national2:null,
+    national3:null,
+
+    localWin:null,
+    local2:null,
+    local3:null,
+
+    motorNo:null,
+    motor2:null,
+    motor3:null,
+
+    boatNo:null,
+    boat2:null,
+    boat3:null,
+
+    currentMeet:[]
+  };
+
+}
+
+
+function numericCell(cell){
+
+  return clean(cell)
+    .split(
+      /\s+/
+    )
+    .map(
+      number
+    )
+    .filter(
+      Number.isFinite
+    );
+
+}
+
+
+function parseRaceList(html){
+
+  const racers={};
 
   for(
-    let lane = 1;
-    lane <= 6;
+    let lane=1;
+    lane<=6;
     lane++
   ){
 
-    racers[lane] = {
-      lane,
-      racerId:null,
-      name:null,
-      grade:null,
-      age:null,
-      weight:null,
-      fCount:0,
-      lCount:0,
-      avgSt:null,
-      nationalWin:null,
-      national2:null,
-      national3:null,
-      localWin:null,
-      local2:null,
-      local3:null,
-      motorNo:null,
-      motor2:null,
-      motor3:null,
-      boatNo:null,
-      boat2:null,
-      boat3:null,
-      currentMeet:[]
-    };
+    racers[lane]=
+      emptyRacer(
+        lane
+      );
 
   }
 
-  const tables =
-    extractTable1Blocks(
+  const tables=
+    tableBlocks(
       html
     );
 
-  const mainTable =
+  const main=
     tables[1];
 
-  if(
-    !mainTable
-  ){
+  if(!main){
 
     return {
       racers,
@@ -438,9 +597,9 @@ function parseRaceList(
 
   }
 
-  const bodies =
-    extractTagBlocks(
-      mainTable,
+  const rows=
+    tagBlocks(
+      main,
       'tbody'
     )
     .slice(
@@ -448,21 +607,21 @@ function parseRaceList(
       6
     );
 
-  bodies.forEach(
+  rows.forEach(
     (
-      body,
+      row,
       index
     ) => {
 
-      const lane =
+      const lane=
         index + 1;
 
-      const racer =
+      const racer=
         racers[lane];
 
-      const cells =
-        extractTagBlocks(
-          body,
+      const cells=
+        tagBlocks(
+          row,
           'td'
         );
 
@@ -474,43 +633,39 @@ function parseRaceList(
 
       }
 
-      const identityText =
-        compactText(
+      const identity=
+        compact(
           cells[2]
         );
 
-      const identityMatch =
-        identityText.match(
+      const id=
+        identity.match(
           /\b(\d{4})\s*\/\s*(A1|A2|B1|B2)\b/
         );
 
-      if(
-        identityMatch
-      ){
+      if(id){
 
-        racer.racerId =
+        racer.racerId=
           Number(
-            identityMatch[1]
+            id[1]
           );
 
-        racer.grade =
-          identityMatch[2];
+        racer.grade=
+          id[2];
 
       }
 
-      const nameMatch =
+      const name=
         cells[2]
           .match(
             /<a\b[^>]*>([\s\S]*?)<\/a>/i
           );
 
-      if(
-        nameMatch
-      ){
+      if(name){
 
-        racer.name =
-          compactText(
-            nameMatch[1]
+        racer.name=
+          compact(
+            name[1]
           )
           .replace(
             /\s/g,
@@ -519,185 +674,161 @@ function parseRaceList(
 
       }
 
-      const ageMatch =
-        identityText.match(
+      const age=
+        identity.match(
           /(\d{2})歳/
         );
 
-      const weightMatch =
-        identityText.match(
+      const weight=
+        identity.match(
           /(\d{2}(?:\.\d+)?)kg/
         );
 
-      if(
-        ageMatch
-      ){
+      if(age){
 
-        racer.age =
+        racer.age=
           Number(
-            ageMatch[1]
+            age[1]
           );
 
       }
 
-      if(
-        weightMatch
-      ){
+      if(weight){
 
-        racer.weight =
+        racer.weight=
           Number(
-            weightMatch[1]
+            weight[1]
           );
 
       }
 
-      const statusText =
-        compactText(
+      const status=
+        compact(
           cells[3]
         );
 
-      const fMatch =
-        statusText.match(
+      const f=
+        status.match(
           /\bF(\d+)\b/i
         );
 
-      const lMatch =
-        statusText.match(
+      const l=
+        status.match(
           /\bL(\d+)\b/i
         );
 
-      const stMatch =
-        statusText.match(
+      const st=
+        status.match(
           /\b0\.(\d{2})\b/
         );
 
-      racer.fCount =
-        fMatch
+      racer.fCount=
+        f
           ?
           Number(
-            fMatch[1]
+            f[1]
           )
           :
           0;
 
-      racer.lCount =
-        lMatch
+      racer.lCount=
+        l
           ?
           Number(
-            lMatch[1]
+            l[1]
           )
           :
           0;
 
-      racer.avgSt =
-        stMatch
+      racer.avgSt=
+        st
           ?
           Number(
-            `0.${stMatch[1]}`
+            `0.${st[1]}`
           )
           :
           null;
 
-      const national =
-        textLines(
+
+      const national=
+        numericCell(
           cells[4]
-        )
-        .map(
-          toNumber
-        )
-        .filter(
-          Number.isFinite
         );
 
       if(
         national.length >= 3
       ){
 
-        racer.nationalWin =
+        racer.nationalWin=
           national[0];
 
-        racer.national2 =
+        racer.national2=
           national[1];
 
-        racer.national3 =
+        racer.national3=
           national[2];
 
       }
 
-      const local =
-        textLines(
+
+      const local=
+        numericCell(
           cells[5]
-        )
-        .map(
-          toNumber
-        )
-        .filter(
-          Number.isFinite
         );
 
       if(
         local.length >= 3
       ){
 
-        racer.localWin =
+        racer.localWin=
           local[0];
 
-        racer.local2 =
+        racer.local2=
           local[1];
 
-        racer.local3 =
+        racer.local3=
           local[2];
 
       }
 
-      const motor =
-        textLines(
+
+      const motor=
+        numericCell(
           cells[6]
-        )
-        .map(
-          toNumber
-        )
-        .filter(
-          Number.isFinite
         );
 
       if(
         motor.length >= 3
       ){
 
-        racer.motorNo =
+        racer.motorNo=
           motor[0];
 
-        racer.motor2 =
+        racer.motor2=
           motor[1];
 
-        racer.motor3 =
+        racer.motor3=
           motor[2];
 
       }
 
-      const boat =
-        textLines(
+
+      const boat=
+        numericCell(
           cells[7]
-        )
-        .map(
-          toNumber
-        )
-        .filter(
-          Number.isFinite
         );
 
       if(
         boat.length >= 3
       ){
 
-        racer.boatNo =
+        racer.boatNo=
           boat[0];
 
-        racer.boat2 =
+        racer.boat2=
           boat[1];
 
-        racer.boat3 =
+        racer.boat3=
           boat[2];
 
       }
@@ -705,127 +836,99 @@ function parseRaceList(
     }
   );
 
-  let currentMeetDetected =
+
+  let currentMeetDetected=
     false;
 
-  const wholeText =
-    cleanText(
+  const page=
+    clean(
       html
     );
 
-  const meetIndex =
-    wholeText.indexOf(
+  const meetPosition=
+    page.indexOf(
       '今節成績'
     );
 
   if(
-    meetIndex >= 0
+    meetPosition >= 0
   ){
 
-    const meetText =
-      wholeText.slice(
-        meetIndex
+    const meetText=
+      page.slice(
+        meetPosition
       );
 
-    const lines =
-      meetText
-        .split(/\n+/)
-        .map(
-          line =>
-            line.trim()
-        )
-        .filter(Boolean);
-
     for(
-      let lane = 1;
-      lane <= 6;
+      let lane=1;
+      lane<=6;
       lane++
     ){
 
-      const entries = [];
+      const entries=[];
 
-      for(
-        let index = 0;
-        index < lines.length - 2;
-        index++
+      const regex=
+        new RegExp(
+          `(?:^|\\s)${lane}\\s+([1-6])\\s+(?:F|L)?\\.?([0-3]\\d)\\s+([1-6])`,
+          'g'
+        );
+
+      let match;
+
+      while(
+        (
+          match=
+            regex.exec(
+              meetText
+            )
+        )
       ){
+
+        entries.push({
+          course:
+            Number(
+              match[1]
+            ),
+
+          st:
+            Number(
+              `0.${match[2]}`
+            ),
+
+          finish:
+            Number(
+              match[3]
+            )
+        });
 
         if(
-          Number(
-            lines[index]
-          ) !== lane
-      ){
-
-          continue;
-
-        }
-
-        const window =
-          lines
-            .slice(
-              index,
-              index + 40
-            )
-            .join(
-              ' '
-            );
-
-        const regex =
-          /\b([1-6])\s+(?:F|L)?\.?([0-3]\d)\s+([1-6])\b/g;
-
-        let match;
-
-        while(
-          (
-            match =
-              regex.exec(
-                window
-              )
-          )
+          entries.length >= 8
         ){
 
-          entries.push({
-            course:
-              Number(
-                match[1]
-              ),
-
-            st:
-              Number(
-                `0.${match[2]}`
-              ),
-
-            finish:
-              Number(
-                match[3]
-              )
-          });
+          break;
 
         }
-
-        break;
 
       }
 
-      racers[lane]
-        .currentMeet =
-          entries.slice(
-            0,
-            8
-          );
+      racers[
+        lane
+      ].currentMeet=
+        entries;
+
+      if(
+        entries.length > 0
+      ){
+
+        currentMeetDetected=
+          true;
+
+      }
 
     }
 
-    currentMeetDetected =
-      Object.values(
-        racers
-      )
-      .some(
-        racer =>
-          racer.currentMeet.length > 0
-      );
-
   }
+
 
   return {
     racers,
@@ -834,19 +937,22 @@ function parseRaceList(
 
 }
 
-function parseBeforeInfo(
-  html
-){
 
-  const boats = {};
+/* ================================
+   直前・展示
+================================ */
+
+function parseBeforeInfo(html){
+
+  const boats={};
 
   for(
-    let lane = 1;
-    lane <= 6;
+    let lane=1;
+    lane<=6;
     lane++
   ){
 
-    boats[lane] = {
+    boats[lane]={
       lane,
       exTime:null,
       tilt:null,
@@ -859,21 +965,19 @@ function parseBeforeInfo(
 
   }
 
-  const tables =
-    extractTable1Blocks(
+  const tables=
+    tableBlocks(
       html
     );
 
-  const mainTable =
+  const main=
     tables[1];
 
-  if(
-    mainTable
-  ){
+  if(main){
 
-    const rows =
-      extractTagBlocks(
-        mainTable,
+    const rows=
+      tagBlocks(
+        main,
         'tbody'
       )
       .slice(
@@ -887,267 +991,225 @@ function parseBeforeInfo(
         index
       ) => {
 
-      const boat =
-        boats[
-          index + 1
-        ];
+        const boat=
+          boats[
+            index + 1
+          ];
 
-      const cells =
-        extractTagBlocks(
-          row,
-          'td'
-        );
+        const cells=
+          tagBlocks(
+            row,
+            'td'
+          );
 
-      if(
-        cells.length > 4
-      ){
+        if(cells[4]){
 
-        boat.exTime =
-          toNumber(
-            compactText(
-              cells[4]
+          boat.exTime=
+            number(
+              compact(
+                cells[4]
+              )
+            );
+
+        }
+
+        if(cells[5]){
+
+          boat.tilt=
+            number(
+              compact(
+                cells[5]
+              )
+            );
+
+        }
+
+        if(cells[7]){
+
+          boat.parts=
+            tagBlocks(
+              cells[7],
+              'li'
             )
-          );
-
-      }
-
-      if(
-        cells.length > 5
-      ){
-
-        boat.tilt =
-          toNumber(
-            compactText(
-              cells[5]
+            .map(
+              compact
             )
-          );
+            .filter(Boolean);
+
+        }
+
+        boat.isMiss=
+          /is-miss/i
+            .test(
+              row
+            );
 
       }
-
-      if(
-        cells.length > 7
-      ){
-
-        boat.parts =
-          extractTagBlocks(
-            cells[7],
-            'li'
-          )
-          .map(
-            compactText
-          )
-          .filter(Boolean);
-
-      }
-
-      boat.isMiss =
-        /is-miss/i
-          .test(
-            row
-          );
-
-    });
+    );
 
   }
 
-  const startTable =
+
+  const start=
     tables[2];
 
-  if(
-    startTable
-  ){
+  if(start){
 
-    const rows =
-      extractTagBlocks(
-        startTable,
-        'tr'
-      );
-
-    let course =
+    let course=
       0;
 
-    rows.forEach(
-      row => {
+    for(
+      const row
+      of tagBlocks(
+        start,
+        'tr'
+      )
+    ){
 
-      const laneMatch =
+      const lane=
         row.match(
           /table1_boatImage1Number[^>]*>\s*([1-6])/i
         );
 
-      const stMatch =
+      const st=
         row.match(
           /table1_boatImage1Time[^>]*>\s*(F)?\.?([0-3]\d)/i
         );
 
       if(
-        !laneMatch
+        !lane
         ||
-        !stMatch
+        !st
       ){
 
-        return;
+        continue;
 
       }
 
       course++;
 
-      const lane =
+      const laneNumber=
         Number(
-          laneMatch[1]
+          lane[1]
         );
 
-      boats[lane]
-        .exCourse =
-          course;
+      boats[
+        laneNumber
+      ].exCourse=
+        course;
 
-      boats[lane]
-        .exSt =
-          Number(
-            `0.${stMatch[2]}`
-          );
+      boats[
+        laneNumber
+      ].exSt=
+        Number(
+          `0.${st[2]}`
+        );
 
-      boats[lane]
-        .exFlying =
-          Boolean(
-            stMatch[1]
-          );
-
-    });
-
-  }
-
-  const pageText =
-    cleanText(
-      html
-    );
-
-  const weather = {
-    temperature:null,
-    weather:null,
-    windSpeed:null,
-    windDirection:null,
-    waterTemperature:null,
-    waveHeight:null,
-    stabilityBoard:false,
-    fixedEntry:false
-  };
-
-  weather.stabilityBoard =
-    pageText.includes(
-      '安定板使用'
-    );
-
-  weather.fixedEntry =
-    pageText.includes(
-      '進入固定'
-    );
-
-  const temperatureMatch =
-    pageText.match(
-      /気温\s*([0-9.]+)\s*℃/
-    );
-
-  const windMatch =
-    pageText.match(
-      /風速\s*([0-9.]+)\s*m/
-    );
-
-  const waterMatch =
-    pageText.match(
-      /水温\s*([0-9.]+)\s*℃/
-    );
-
-  const waveMatch =
-    pageText.match(
-      /波高\s*([0-9.]+)\s*cm/
-    );
-
-  if(
-    temperatureMatch
-  ){
-
-    weather.temperature =
-      Number(
-        temperatureMatch[1]
-      );
-
-  }
-
-  if(
-    windMatch
-  ){
-
-    weather.windSpeed =
-      Number(
-        windMatch[1]
-      );
-
-  }
-
-  if(
-    waterMatch
-  ){
-
-    weather.waterTemperature =
-      Number(
-        waterMatch[1]
-      );
-
-  }
-
-  if(
-    waveMatch
-  ){
-
-    weather.waveHeight =
-      Number(
-        waveMatch[1]
-      );
-
-  }
-
-  const directionMatch =
-    html.match(
-      /\bis-wind(\d+)\b/i
-    );
-
-  if(
-    directionMatch
-  ){
-
-    weather.windDirection =
-      Number(
-        directionMatch[1]
-      );
-
-  }
-
-  const knownWeather = [
-    '晴',
-    '曇り',
-    '曇',
-    '雨',
-    '雪'
-  ];
-
-  for(
-    const label of knownWeather
-  ){
-
-    if(
-      pageText.includes(
-        label
-      )
-    ){
-
-      weather.weather =
-        label;
-
-      break;
+      boats[
+        laneNumber
+      ].exFlying=
+        Boolean(
+          st[1]
+        );
 
     }
 
   }
+
+
+  const text=
+    clean(
+      html
+    );
+
+
+  function getNumber(regex){
+
+    const match=
+      text.match(
+        regex
+      );
+
+    return match
+      ?
+      Number(
+        match[1]
+      )
+      :
+      null;
+
+  }
+
+
+  const weather={
+
+    temperature:
+      getNumber(
+        /気温\s*([0-9.]+)\s*℃/
+      ),
+
+    weather:
+      [
+        '晴',
+        '曇り',
+        '曇',
+        '雨',
+        '雪'
+      ]
+      .find(
+        item =>
+          text.includes(
+            item
+          )
+      )
+      ||
+      null,
+
+    windSpeed:
+      getNumber(
+        /風速\s*([0-9.]+)\s*m/
+      ),
+
+    windDirection:
+      null,
+
+    waterTemperature:
+      getNumber(
+        /水温\s*([0-9.]+)\s*℃/
+      ),
+
+    waveHeight:
+      getNumber(
+        /波高\s*([0-9.]+)\s*cm/
+      ),
+
+    stabilityBoard:
+      text.includes(
+        '安定板使用'
+      ),
+
+    fixedEntry:
+      text.includes(
+        '進入固定'
+      )
+
+  };
+
+
+  const direction=
+    html.match(
+      /\bis-wind(\d+)\b/i
+    );
+
+  if(direction){
+
+    weather.windDirection=
+      Number(
+        direction[1]
+      );
+
+  }
+
 
   return {
     boats,
@@ -1156,12 +1218,15 @@ function parseBeforeInfo(
 
 }
 
-function parseResult(
-  html
-){
 
-  const tables =
-    extractTable1Blocks(
+/* ================================
+   結果
+================================ */
+
+function parseResult(html){
+
+  const tables=
+    tableBlocks(
       html
     );
 
@@ -1175,18 +1240,13 @@ function parseResult(
 
   }
 
-  const paymentTable =
-    tables[3];
-
-  const bodies =
-    extractTagBlocks(
-      paymentTable,
+  const body=
+    tagBlocks(
+      tables[3],
       'tbody'
-    );
+    )[0];
 
-  if(
-    !bodies.length
-  ){
+  if(!body){
 
     return {
       ready:false
@@ -1194,9 +1254,9 @@ function parseResult(
 
   }
 
-  const cells =
-    extractTagBlocks(
-      bodies[0],
+  const cells=
+    tagBlocks(
+      body,
       'td'
     );
 
@@ -1210,17 +1270,15 @@ function parseResult(
 
   }
 
-  const combinationMatch =
-    compactText(
+  const combo=
+    compact(
       cells[1]
     )
     .match(
       /([1-6])\s*-\s*([1-6])\s*-\s*([1-6])/
     );
 
-  if(
-    !combinationMatch
-  ){
+  if(!combo){
 
     return {
       ready:false
@@ -1228,70 +1286,74 @@ function parseResult(
 
   }
 
-  const combo =
-    `${combinationMatch[1]}-${combinationMatch[2]}-${combinationMatch[3]}`;
-
-  const payout =
-    toNumber(
-      compactText(
-        cells[2]
-      )
-    );
-
-  const popularity =
-    cells.length >= 4
-      ?
-      toInteger(
-        compactText(
-          cells[3]
-        )
-      )
-      :
-      null;
-
   return {
+
     ready:true,
-    combo,
-    payout,
-    popularity
+
+    combo:
+      `${combo[1]}-${combo[2]}-${combo[3]}`,
+
+    payout:
+      number(
+        compact(
+          cells[2]
+        )
+      ),
+
+    popularity:
+      cells[3]
+        ?
+        Number(
+          compact(
+            cells[3]
+          )
+          .match(
+            /\d+/
+          )?.[0]
+          ||
+          0
+        )
+        :
+        null
+
   };
 
 }
 
-function readCourseBias(
-  query
-){
 
-  const result = {};
+/* ================================
+   学習補正
+================================ */
+
+function readBias(query){
+
+  const result={};
 
   for(
-    let lane = 1;
-    lane <= 6;
+    let lane=1;
+    lane<=6;
     lane++
   ){
 
-    const raw =
+    const value=
       Number(
         query[
           `b${lane}`
         ]
       );
 
-    const value =
-      Number.isFinite(
-        raw
-      )
-        ?
-        raw
-        :
-        1;
-
-    result[lane] =
+    result[lane]=
       Math.max(
-        0.82,
+        .82,
         Math.min(
           1.18,
-          value
+          Number.isFinite(
+            value
+          )
+            ?
+            value
+            :
+            1
         )
       );
 
@@ -1301,17 +1363,19 @@ function readCourseBias(
 
 }
 
+
+/* ================================
+   モデル
+================================ */
+
 function zScore(
   values,
   target
 ){
 
-  const valid =
+  const valid=
     values.filter(
-      value =>
-        Number.isFinite(
-          value
-        )
+      Number.isFinite
     );
 
   if(
@@ -1326,7 +1390,7 @@ function zScore(
 
   }
 
-  const mean =
+  const mean=
     valid.reduce(
       (
         total,
@@ -1338,7 +1402,7 @@ function zScore(
     /
     valid.length;
 
-  const variance =
+  const variance=
     valid.reduce(
       (
         total,
@@ -1355,7 +1419,7 @@ function zScore(
     /
     valid.length;
 
-  const standardDeviation =
+  const standardDeviation=
     Math.sqrt(
       variance
     )
@@ -1370,6 +1434,7 @@ function zScore(
   standardDeviation;
 
 }
+
 
 function recentMeetScore(
   races
@@ -1387,12 +1452,12 @@ function recentMeetScore(
 
   }
 
-  const recent =
+  const recent=
     races.slice(
       -6
     );
 
-  const validFinishes =
+  const finishes=
     recent.filter(
       race =>
         Number.isFinite(
@@ -1401,15 +1466,15 @@ function recentMeetScore(
     );
 
   if(
-    validFinishes.length === 0
+    finishes.length === 0
   ){
 
     return 0;
 
   }
 
-  const averageFinish =
-    validFinishes.reduce(
+  const averageFinish=
+    finishes.reduce(
       (
         total,
         race
@@ -1419,9 +1484,9 @@ function recentMeetScore(
       0
     )
     /
-    validFinishes.length;
+    finishes.length;
 
-  const validStarts =
+  const starts=
     recent.filter(
       race =>
         Number.isFinite(
@@ -1429,10 +1494,10 @@ function recentMeetScore(
         )
     );
 
-  const averageStart =
-    validStarts.length
+  const averageStart=
+    starts.length
       ?
-      validStarts.reduce(
+      starts.reduce(
         (
           total,
           race
@@ -1442,17 +1507,17 @@ function recentMeetScore(
         0
       )
       /
-      validStarts.length
+      starts.length
       :
       null;
 
-  let score =
+  let score=
     (
       3.5 -
       averageFinish
     )
     *
-    0.09;
+    .09;
 
   if(
     Number.isFinite(
@@ -1462,23 +1527,24 @@ function recentMeetScore(
 
     score +=
       (
-        0.16 -
+        .16 -
         averageStart
       )
       *
-      0.45;
+      .45;
 
   }
 
   return Math.max(
-    -0.30,
+    -.30,
     Math.min(
-      0.30,
+      .30,
       score
     )
   );
 
 }
+
 
 function racerValues(
   racers,
@@ -1495,32 +1561,33 @@ function racerValues(
 
 }
 
-function calculateLaneStrength(
+
+function laneStrength(
   lane,
   racer,
   exhibition,
   racers,
   allExhibition,
-  courseBias
+  bias
 ){
 
-  let score =
+  let score=
     Math.log(
-      COURSE_PRIOR[lane]
+      PRIOR[lane]
       *
-      courseBias[lane]
+      bias[lane]
     );
 
   score +=
-    GRADE_BONUS[
+    GRADE[
       racer.grade
     ]
     ||
     0;
 
+
   score +=
-    0.20
-    *
+    .20 *
     zScore(
       racerValues(
         racers,
@@ -1530,8 +1597,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.08
-    *
+    .08 *
     zScore(
       racerValues(
         racers,
@@ -1541,8 +1607,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.08
-    *
+    .08 *
     zScore(
       racerValues(
         racers,
@@ -1552,8 +1617,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.13
-    *
+    .13 *
     zScore(
       racerValues(
         racers,
@@ -1563,8 +1627,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.06
-    *
+    .06 *
     zScore(
       racerValues(
         racers,
@@ -1574,8 +1637,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.05
-    *
+    .05 *
     zScore(
       racerValues(
         racers,
@@ -1585,8 +1647,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.13
-    *
+    .13 *
     zScore(
       racerValues(
         racers,
@@ -1596,8 +1657,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.06
-    *
+    .06 *
     zScore(
       racerValues(
         racers,
@@ -1607,8 +1667,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.07
-    *
+    .07 *
     zScore(
       racerValues(
         racers,
@@ -1618,8 +1677,7 @@ function calculateLaneStrength(
     );
 
   score +=
-    0.04
-    *
+    .04 *
     zScore(
       racerValues(
         racers,
@@ -1629,8 +1687,7 @@ function calculateLaneStrength(
     );
 
   score -=
-    0.11
-    *
+    .11 *
     zScore(
       racerValues(
         racers,
@@ -1639,34 +1696,38 @@ function calculateLaneStrength(
       racer.avgSt
     );
 
+
   score -=
     Math.min(
-      0.32,
+      .32,
       (
         racer.fCount ||
         0
       )
       *
-      0.13
+      .13
     );
+
 
   score -=
     Math.min(
-      0.16,
+      .16,
       (
         racer.lCount ||
         0
       )
       *
-      0.08
+      .08
     );
+
 
   score +=
     recentMeetScore(
       racer.currentMeet
     );
 
-  const exhibitionTimes =
+
+  const exhibitionTimes=
     Object.values(
       allExhibition
     )
@@ -1675,6 +1736,7 @@ function calculateLaneStrength(
         boat.exTime
     );
 
+
   if(
     Number.isFinite(
       exhibition.exTime
@@ -1682,8 +1744,7 @@ function calculateLaneStrength(
   ){
 
     score -=
-      0.19
-      *
+      .19 *
       zScore(
         exhibitionTimes,
         exhibition.exTime
@@ -1691,7 +1752,8 @@ function calculateLaneStrength(
 
   }
 
-  const exhibitionStarts =
+
+  const exhibitionStarts=
     Object.values(
       allExhibition
     )
@@ -1700,6 +1762,7 @@ function calculateLaneStrength(
         boat.exSt
     );
 
+
   if(
     Number.isFinite(
       exhibition.exSt
@@ -1707,8 +1770,7 @@ function calculateLaneStrength(
   ){
 
     score -=
-      0.11
-      *
+      .11 *
       zScore(
         exhibitionStarts,
         exhibition.exSt
@@ -1716,236 +1778,238 @@ function calculateLaneStrength(
 
   }
 
+
   if(
     exhibition.exFlying
   ){
 
     score -=
-      0.03;
+      .03;
 
   }
+
 
   if(
     exhibition.isMiss
   ){
 
     score -=
-      0.18;
+      .18;
 
   }
+
 
   if(
     Number.isFinite(
       exhibition.exCourse
     )
     &&
-    exhibition.exCourse !== lane
+    exhibition.exCourse !==
+      lane
   ){
 
-    const original =
-      COURSE_PRIOR[
-        lane
-      ];
-
-    const actual =
-      COURSE_PRIOR[
-        exhibition.exCourse
-      ];
-
     score +=
-      0.18
-      *
+      .18 *
       Math.log(
-        actual /
-        original
+        PRIOR[
+          exhibition.exCourse
+        ]
+        /
+        PRIOR[
+          lane
+        ]
       );
 
   }
 
+
   if(
-    Array.isArray(
-      exhibition.parts
-    )
-    &&
-    exhibition.parts.length >= 3
+    exhibition.parts?.length >= 3
   ){
 
     score -=
-      0.05;
+      .05;
 
   }
+
 
   return score;
 
 }
 
-function createModelProbabilities(
+
+function modelProbabilities(
   strengths
 ){
 
-  const weights = {};
+  const weights={};
 
   for(
-    let lane = 1;
-    lane <= 6;
+    let lane=1;
+    lane<=6;
     lane++
   ){
 
-    weights[lane] =
+    weights[lane]=
       Math.exp(
         strengths[lane]
       );
 
   }
 
-  const probabilities = {};
 
-  const initialTotal =
+  const total=
     Object.values(
       weights
     )
     .reduce(
       (
-        total,
+        sum,
         value
       ) =>
-        total +
-        value,
+        sum + value,
       0
     );
+
+
+  const result={};
+
 
   for(
     const value
     of ORDER
   ){
 
-    const combination =
+    const s=
       String(
         value
       );
 
-    const first =
+    const first=
       Number(
-        combination[0]
+        s[0]
       );
 
-    const second =
+    const second=
       Number(
-        combination[1]
+        s[1]
       );
 
-    const third =
+    const third=
       Number(
-        combination[2]
+        s[2]
       );
 
-    const p1 =
+
+    const p1=
       weights[first]
       /
-      initialTotal;
+      total;
 
-    const secondTotal =
-      initialTotal -
+
+    const secondTotal=
+      total -
       weights[first];
 
-    const p2 =
+
+    const p2=
       weights[second]
       /
       secondTotal;
 
-    const thirdTotal =
+
+    const thirdTotal=
       secondTotal -
       weights[second];
 
-    const p3 =
+
+    const p3=
       weights[third]
       /
       thirdTotal;
 
-    probabilities[
+
+    result[
       `${first}-${second}-${third}`
-    ] =
-      p1 * p2 * p3;
+    ]=
+      p1 *
+      p2 *
+      p3;
 
   }
 
-  return probabilities;
+
+  return result;
 
 }
 
-function createMarketProbabilities(
+
+function marketProbabilities(
   odds
 ){
 
-  const inverse = {};
+  const inverse={};
 
-  let sum =
+  let total=
     0;
 
-  Object.entries(
-    odds
-  )
-  .forEach(
-    (
-      [
-        combination,
-        odd
-      ]
-    ) => {
 
-      if(
-        Number.isFinite(
-          odd
-        )
-        &&
-        odd > 0
-      ){
+  for(
+    const [
+      combination,
+      odd
+    ]
+    of Object.entries(
+      odds
+    )
+  ){
 
+    if(
+      odd > 0
+    ){
+
+      inverse[
+        combination
+      ]=
+        1 /
+        odd;
+
+      total +=
         inverse[
           combination
-        ] =
-          1 /
-          odd;
-
-        sum +=
-          inverse[
-            combination
-          ];
-
-      }
+        ];
 
     }
-  );
 
-  const probabilities = {};
+  }
 
-  Object.entries(
-    inverse
-  )
-  .forEach(
-    (
-      [
-        combination,
-        value
-      ]
-    ) => {
 
-      probabilities[
-        combination
-      ] =
-        sum
-          ?
-          value /
-          sum
-          :
-          0;
+  const result={};
 
-    }
-  );
 
-  return probabilities;
+  for(
+    const [
+      combination,
+      value
+    ]
+    of Object.entries(
+      inverse
+    )
+  ){
+
+    result[
+      combination
+    ]=
+      value /
+      total;
+
+  }
+
+
+  return result;
 
 }
+
 
 function blendProbabilities(
   model,
@@ -1953,37 +2017,43 @@ function blendProbabilities(
   modelWeight
 ){
 
-  const result = {};
+  const result={};
 
-  let total =
+  let total=
     0;
+
 
   for(
     const value
     of ORDER
   ){
 
-    const combination =
+    const s=
       String(
         value
       );
 
-    const key =
-      `${combination[0]}-${combination[1]}-${combination[2]}`;
+    const key=
+      `${s[0]}-${s[1]}-${s[2]}`;
 
-    const modelProbability =
+
+    const modelProbability=
       Math.max(
-        model[key] || 0,
-        0.000000001
+        model[key] ||
+        0,
+        1e-9
       );
 
-    const marketProbability =
+
+    const marketProbability=
       Math.max(
-        market[key] || 0,
-        0.000000001
+        market[key] ||
+        0,
+        1e-9
       );
 
-    const blended =
+
+    const probability=
       Math.pow(
         modelProbability,
         modelWeight
@@ -1991,46 +2061,50 @@ function blendProbabilities(
       *
       Math.pow(
         marketProbability,
-        1 - modelWeight
+        1 -
+        modelWeight
       );
 
-    result[key] =
-      blended;
+
+    result[key]=
+      probability;
+
 
     total +=
-      blended;
+      probability;
 
   }
 
-  if(
-    total > 0
-  ){
 
-    Object.keys(
+  for(
+    const key
+    of Object.keys(
       result
     )
-    .forEach(
-      key => {
+  ){
 
-        result[key] /=
-          total;
-
-      }
-    );
+    result[key] /=
+      total;
 
   }
+
 
   return result;
 
 }
 
-function calculateCoverage(
+
+/* ================================
+   データ完全性
+================================ */
+
+function coverage(
   racers,
   before,
   currentMeetDetected
 ){
 
-  const racerFields = [
+  const racerFields=[
     'grade',
     'avgSt',
     'nationalWin',
@@ -2045,21 +2119,21 @@ function calculateCoverage(
     'boat3'
   ];
 
-  const beforeFields = [
+
+  const beforeFields=[
     'exTime',
     'exSt',
     'exCourse'
   ];
 
-  let total =
-    0;
 
-  let obtained =
-    0;
+  let total=0;
+  let obtained=0;
+
 
   for(
-    let lane = 1;
-    lane <= 6;
+    let lane=1;
+    lane<=6;
     lane++
   ){
 
@@ -2071,7 +2145,11 @@ function calculateCoverage(
       total++;
 
       if(
-        racers[lane][field] != null
+        racers[
+          lane
+        ][
+          field
+        ] != null
       ){
 
         obtained++;
@@ -2079,6 +2157,7 @@ function calculateCoverage(
       }
 
     }
+
 
     for(
       const field
@@ -2088,7 +2167,12 @@ function calculateCoverage(
       total++;
 
       if(
-        before.boats[lane][field] != null
+        before
+          .boats[
+            lane
+          ][
+            field
+          ] != null
       ){
 
         obtained++;
@@ -2098,6 +2182,7 @@ function calculateCoverage(
     }
 
   }
+
 
   total++;
 
@@ -2109,17 +2194,23 @@ function calculateCoverage(
 
   }
 
+
   total++;
 
   if(
-    before.weather.windSpeed != null
-    ||
-    before.weather.waveHeight != null
+    before
+      .weather
+      .windSpeed != null
+    &&
+    before
+      .weather
+      .waveHeight != null
   ){
 
     obtained++;
 
   }
+
 
   return Math.round(
     obtained /
@@ -2129,16 +2220,129 @@ function calculateCoverage(
 
 }
 
-function selectBets(
+
+function criticalData(
+  racers,
+  before,
+  oddsCount
+){
+
+  const missing=[];
+
+
+  if(
+    oddsCount < 100
+  ){
+
+    missing.push(
+      '3連単オッズ'
+    );
+
+  }
+
+
+  for(
+    let lane=1;
+    lane<=6;
+    lane++
+  ){
+
+    const racer=
+      racers[lane];
+
+    const exhibition=
+      before
+        .boats[
+          lane
+        ];
+
+
+    if(!racer.grade){
+      missing.push(`${lane}号艇級別`);
+    }
+
+    if(racer.avgSt == null){
+      missing.push(`${lane}号艇平均ST`);
+    }
+
+    if(racer.nationalWin == null){
+      missing.push(`${lane}号艇全国勝率`);
+    }
+
+    if(racer.motor2 == null){
+      missing.push(`${lane}号艇モーター`);
+    }
+
+    if(racer.boat2 == null){
+      missing.push(`${lane}号艇ボート`);
+    }
+
+    if(exhibition.exTime == null){
+      missing.push(`${lane}号艇展示タイム`);
+    }
+
+    if(exhibition.exSt == null){
+      missing.push(`${lane}号艇展示ST`);
+    }
+
+    if(exhibition.exCourse == null){
+      missing.push(`${lane}号艇展示進入`);
+    }
+
+  }
+
+
+  if(
+    before
+      .weather
+      .windSpeed == null
+  ){
+
+    missing.push(
+      '風速'
+    );
+
+  }
+
+
+  if(
+    before
+      .weather
+      .waveHeight == null
+  ){
+
+    missing.push(
+      '波高'
+    );
+
+  }
+
+
+  return {
+
+    ok:
+      missing.length === 0,
+
+    missing
+
+  };
+
+}
+
+
+/* ================================
+   買い目
+================================ */
+
+function chooseBets(
   odds,
   probabilities,
   market,
   budget,
-  coverage,
   weather
 ){
 
-  const units =
+  const units=
     Math.floor(
       budget /
       100
@@ -2152,7 +2356,8 @@ function selectBets(
 
   }
 
-  let rows =
+
+  let rows=
     Object.entries(
       odds
     )
@@ -2164,21 +2369,23 @@ function selectBets(
         ]
       ) => {
 
-        const probability =
+        const probability=
           probabilities[
             combination
           ]
           ||
           0;
 
-        const marketProbability =
+
+        const marketProbability=
           market[
             combination
           ]
           ||
           0;
 
-        const divergence =
+
+        const divergence=
           marketProbability > 0
             ?
             probability /
@@ -2186,52 +2393,47 @@ function selectBets(
             :
             1;
 
-        let oddsPenalty =
+
+        let oddsPenalty=
           1;
+
 
         if(
           odd > 100
         ){
 
-          oddsPenalty =
-            0.50;
+          oddsPenalty=
+            .50;
 
         }else if(
           odd > 60
         ){
 
-          oddsPenalty =
-            0.68;
+          oddsPenalty=
+            .68;
 
         }else if(
           odd > 30
         ){
 
-          oddsPenalty =
-            0.82;
+          oddsPenalty=
+            .82;
 
         }
 
-        const edge =
+
+        const edge=
           Math.max(
-            0.80,
+            .80,
             Math.min(
               1.25,
               divergence
             )
           );
 
-        const score =
-          probability
-          *
-          Math.pow(
-            edge,
-            0.30
-          )
-          *
-          oddsPenalty;
 
         return {
+
           combo:
             combination,
 
@@ -2246,39 +2448,37 @@ function selectBets(
 
           divergence,
 
-          score
+          score:
+            probability
+            *
+            Math.pow(
+              edge,
+              .30
+            )
+            *
+            oddsPenalty
+
         };
 
       }
-    )
-    .filter(
-      row =>
-        Number.isFinite(
-          row.odds
-        )
-        &&
-        row.odds >= 1
     );
 
-  if(
-    units <= 3
-  ){
 
-    rows =
-      rows.filter(
-        row =>
-          row.odds <= 80
-      );
+  rows=
+    rows.filter(
+      row =>
+        row.odds >= 1
+        &&
+        row.odds <=
+          (
+            units <= 3
+              ?
+              80
+              :
+              150
+          )
+    );
 
-  }else{
-
-    rows =
-      rows.filter(
-        row =>
-          row.odds <= 150
-      );
-
-  }
 
   rows.sort(
     (
@@ -2292,51 +2492,46 @@ function selectBets(
       a.p
   );
 
-  const wind =
-    Number(
+
+  const unstable=
+    (
       weather.windSpeed ||
       0
-    );
-
-  const wave =
-    Number(
+    )
+    >=
+    6
+    ||
+    (
       weather.waveHeight ||
       0
-    );
+    )
+    >=
+    6;
 
-  let maximumPicks =
+
+  const maxPicks=
     Math.min(
-      3,
+      unstable
+        ?
+        2
+        :
+        3,
       units
     );
 
-  if(
-    coverage < 75
-    ||
-    wind >= 6
-    ||
-    wave >= 6
-  ){
 
-    maximumPicks =
-      Math.min(
-        maximumPicks,
-        2
-      );
-
-  }
-
-  const selected =
+  const selected=
     rows
       .filter(
         row =>
           row.p >=
-          0.025
+          .025
       )
       .slice(
         0,
-        maximumPicks
+        maxPicks
       );
+
 
   if(
     selected.length === 0
@@ -2345,6 +2540,7 @@ function selectBets(
     return [];
 
   }
+
 
   if(
     units <= 3
@@ -2359,42 +2555,39 @@ function selectBets(
 
   }
 
-  const probabilityTotal =
+
+  const totalProbability=
     selected.reduce(
       (
-        total,
+        sum,
         row
       ) =>
-        total +
+        sum +
         row.p,
       0
     );
 
-  let remaining =
+
+  let remaining=
     units;
 
-  const result =
-    [];
 
-  selected.forEach(
+  return selected.map(
     (
       row,
       index
     ) => {
 
-      let use;
-
-      if(
+      let use=
         index ===
         selected.length - 1
-      ){
 
-        use =
-          remaining;
+          ?
 
-      }else{
+          remaining
 
-        use =
+          :
+
           Math.max(
             1,
             Math.floor(
@@ -2402,58 +2595,67 @@ function selectBets(
               *
               row.p
               /
-              probabilityTotal
+              totalProbability
             )
           );
 
-      }
 
-      const mustRemain =
-        selected.length
-        -
-        index
-        -
-        1;
-
-      use =
+      use=
         Math.min(
           use,
-          remaining -
-          mustRemain
+          remaining
+          -
+          (
+            selected.length
+            -
+            index
+            -
+            1
+          )
         );
 
-      result.push({
-        ...row,
-        amount:
-          use *
-          100
-      });
 
       remaining -=
         use;
 
+
+      return {
+        ...row,
+        amount:
+          use *
+          100
+      };
+
     }
   );
 
-  return result;
-
 }
 
-module.exports =
+
+/* ================================
+   API
+================================ */
+
+module.exports=
 async function handler(
   req,
   res
 ){
 
+  const started=
+    Date.now();
+
+
   try{
 
-    const action =
+    const action=
       String(
         req.query.action ||
         'predict'
       );
 
-    const date =
+
+    const date=
       String(
         req.query.date ||
         ''
@@ -2463,7 +2665,8 @@ async function handler(
         ''
       );
 
-    const venue =
+
+    const venue=
       String(
         req.query.venue ||
         ''
@@ -2473,11 +2676,13 @@ async function handler(
         '0'
       );
 
-    const race =
+
+    const race=
       Number(
         req.query.race ||
         1
       );
+
 
     if(
       !/^\d{8}$/.test(
@@ -2506,30 +2711,65 @@ async function handler(
 
     }
 
-    const query =
+
+    const base=
+      'https://www.boatrace.jp/owpc/pc/race';
+
+
+    const query=
       `?rno=${race}&jcd=${venue}&hd=${date}`;
 
-    const base =
-      'https://www.boatrace.jp/owpc/pc/race';
+
+    const key=
+      `${date}_${venue}_${race}`;
+
 
     if(
       action ===
       'result'
     ){
 
-      const html =
-        await fetchText(
-          `${base}/raceresult${query}`
+      const resultFetch=
+        await fetchReliable(
+
+          `${base}/raceresult${query}`,
+
+          `result_${key}`,
+
+          5000
+
         );
 
-      const result =
-        parseResult(
-          html
-        );
+
+      if(
+        !resultFetch.ok
+      ){
+
+        return res
+          .status(200)
+          .json({
+
+            ready:false,
+
+            venueName:
+              VENUES[
+                venue
+              ],
+
+            race,
+
+            reason:
+              '公式結果ページの応答が遅いため未取得。'
+
+          });
+
+      }
+
 
       return res
         .status(200)
         .json({
+
           venueName:
             VENUES[
               venue
@@ -2537,16 +2777,21 @@ async function handler(
 
           race,
 
-          ...result
+          ...parseResult(
+            resultFetch.text
+          )
+
         });
 
     }
 
-    const budget =
+
+    const budget=
       Number(
         req.query.budget ||
         300
       );
+
 
     if(
       !Number.isFinite(
@@ -2565,49 +2810,208 @@ async function handler(
 
     }
 
-    const courseBias =
-      readCourseBias(
+
+    const courseBias=
+      readBias(
         req.query
       );
 
+
+    /*
+      3ページ同時取得。
+      1ページ最大2.2秒 × 2回。
+      他ページを待ち続けてVercel全体を
+      504にしない。
+    */
+
     const [
-      oddsHtml,
-      raceHtml,
-      beforeHtml
-    ] =
+      oddsFetch,
+      raceFetch,
+      beforeFetch
+    ]=
+
       await Promise.all([
 
-        fetchText(
-          `${base}/odds3t${query}`
+        fetchReliable(
+
+          `${base}/odds3t${query}`,
+
+          `odds_${key}`,
+
+          8000
+
         ),
 
-        fetchText(
-          `${base}/racelist${query}`
+        fetchReliable(
+
+          `${base}/racelist${query}`,
+
+          `race_${key}`,
+
+          60000
+
         ),
 
-        fetchText(
-          `${base}/beforeinfo${query}`
+        fetchReliable(
+
+          `${base}/beforeinfo${query}`,
+
+          `before_${key}`,
+
+          15000
+
         )
 
       ]);
 
-    const odds =
-      parseOdds(
-        oddsHtml
-      );
 
-    const oddsCount =
-      Object.keys(
-        odds
-      ).length;
+    const fetchStatus={
+
+      odds:
+        oddsFetch.ok
+          ?
+          oddsFetch.source
+          :
+          oddsFetch.error,
+
+      raceList:
+        raceFetch.ok
+          ?
+          raceFetch.source
+          :
+          raceFetch.error,
+
+      beforeInfo:
+        beforeFetch.ok
+          ?
+          beforeFetch.source
+          :
+          beforeFetch.error
+
+    };
+
+
+    /*
+      重要ページのどれかが取れなければ
+      精度を落とした予想はしない。
+    */
 
     if(
-      oddsCount < 100
+      !oddsFetch.ok
+      ||
+      !raceFetch.ok
+      ||
+      !beforeFetch.ok
     ){
 
       return res
         .status(200)
         .json({
+
+          skip:true,
+
+          venueName:
+            VENUES[
+              venue
+            ],
+
+          race,
+
+          oddsCount:0,
+
+          picks:[],
+
+          reason:
+            '重要データの取得が完了しなかったため、精度を落とした予想は出さず見送り。',
+
+          meta:{
+
+            model:
+              'full-v4.2-stable',
+
+            coverage:0,
+
+            fetchStatus,
+
+            elapsedMs:
+              Date.now()
+              -
+              started,
+
+            criticalMissing:true
+
+          }
+
+        });
+
+    }
+
+
+    const odds=
+      parseOdds(
+        oddsFetch.text
+      );
+
+
+    const raceInfo=
+      parseRaceList(
+        raceFetch.text
+      );
+
+
+    const before=
+      parseBeforeInfo(
+        beforeFetch.text
+      );
+
+
+    const oddsCount=
+      Object.keys(
+        odds
+      ).length;
+
+
+    const dataCoverage=
+      coverage(
+
+        raceInfo.racers,
+
+        before,
+
+        raceInfo
+          .currentMeetDetected
+
+      );
+
+
+    const critical=
+      criticalData(
+
+        raceInfo.racers,
+
+        before,
+
+        oddsCount
+
+      );
+
+
+    /*
+      重要項目欠損 または
+      取得率85%未満なら
+      予想しない。
+    */
+
+    if(
+      !critical.ok
+      ||
+      dataCoverage < 85
+    ){
+
+      return res
+        .status(200)
+        .json({
+
           skip:true,
 
           venueName:
@@ -2622,38 +3026,57 @@ async function handler(
           picks:[],
 
           reason:
-            `公式3連単オッズを${oddsCount}通りしか取得できないため見送り。`
+            '重要データが不足しているため、精度優先で予想を見送り。',
+
+          meta:{
+
+            model:
+              'full-v4.2-stable',
+
+            coverage:
+              dataCoverage,
+
+            fetchStatus,
+
+            missingCritical:
+              critical.missing,
+
+            currentMeetDetected:
+              raceInfo
+                .currentMeetDetected,
+
+            weather:
+              before.weather,
+
+            racers:
+              raceInfo.racers,
+
+            exhibition:
+              before.boats,
+
+            elapsedMs:
+              Date.now()
+              -
+              started
+
+          }
+
         });
 
     }
 
-    const raceInfo =
-      parseRaceList(
-        raceHtml
-      );
 
-    const before =
-      parseBeforeInfo(
-        beforeHtml
-      );
+    const strengths={};
 
-    const coverage =
-      calculateCoverage(
-        raceInfo.racers,
-        before,
-        raceInfo.currentMeetDetected
-      );
-
-    const strengths = {};
 
     for(
-      let lane = 1;
-      lane <= 6;
+      let lane=1;
+      lane<=6;
       lane++
     ){
 
-      strengths[lane] =
-        calculateLaneStrength(
+      strengths[lane]=
+        laneStrength(
 
           lane,
 
@@ -2667,11 +3090,9 @@ async function handler(
               lane
             ],
 
-          raceInfo
-            .racers,
+          raceInfo.racers,
 
-          before
-            .boats,
+          before.boats,
 
           courseBias
 
@@ -2679,114 +3100,124 @@ async function handler(
 
     }
 
-    const modelProbabilities =
-      createModelProbabilities(
+
+    const model=
+      modelProbabilities(
         strengths
       );
 
-    const marketProbabilities =
-      createMarketProbabilities(
+
+    const market=
+      marketProbabilities(
         odds
       );
 
-    let modelWeight;
+
+    let modelWeight=
+      dataCoverage >= 95
+
+        ?
+
+        .60
+
+        :
+
+        dataCoverage >= 90
+
+          ?
+
+          .57
+
+          :
+
+          .53;
+
 
     if(
-      coverage >= 90
-    ){
-
-      modelWeight =
-        0.58;
-
-    }else if(
-      coverage >= 80
-    ){
-
-      modelWeight =
-        0.54;
-
-    }else if(
-      coverage >= 65
-    ){
-
-      modelWeight =
-        0.50;
-
-    }else{
-
-      modelWeight =
-        0.44;
-
-    }
-
-    const wind =
-      Number(
+      (
         before
           .weather
           .windSpeed ||
         0
-      );
-
-    const wave =
-      Number(
+      )
+      >=
+      6
+      ||
+      (
         before
           .weather
           .waveHeight ||
         0
-      );
-
-    if(
-      wind >= 6
-      ||
-      wave >= 6
+      )
+      >=
+      6
     ){
 
-      modelWeight =
+      modelWeight=
         Math.max(
-          0.40,
+          .47,
           modelWeight -
-          0.06
+          .05
         );
 
     }
 
-    const blended =
+
+    const blended=
       blendProbabilities(
-        modelProbabilities,
-        marketProbabilities,
+
+        model,
+
+        market,
+
         modelWeight
+
       );
 
-    const picks =
-      selectBets(
+
+    const picks=
+      chooseBets(
+
         odds,
+
         blended,
-        marketProbabilities,
+
+        market,
+
         budget,
-        coverage,
+
         before.weather
+
       );
 
-    const bestProbability =
+
+    const bestProbability=
       picks.length
+
         ?
+
         Math.max(
           ...picks.map(
             pick =>
               pick.p
           )
         )
+
         :
+
         0;
 
-    const skip =
-      picks.length === 0
+
+    const skip=
+      !picks.length
       ||
       (
         budget <= 500
         &&
-        bestProbability < 0.04
+        bestProbability <
+          .04
       );
+
 
     return res
       .status(200)
@@ -2812,19 +3243,26 @@ async function handler(
 
         reason:
           skip
+
             ?
-            '全取得データと市場オッズを統合した結果、少額資金で買う根拠が弱いため見送り。'
+
+            '必要データは取得できたが、買い条件を満たす組み合わせが弱いため見送り。'
+
             :
+
             '全国/当地成績・平均ST・F/L・モーター/ボート・今節成績・展示タイム/ST/進入・チルト・部品交換・気象・120通りオッズ・蓄積結果補正を統合。',
 
         meta:{
 
           model:
-            'full-v4.1',
+            'full-v4.2-stable',
 
-          coverage,
+          coverage:
+            dataCoverage,
 
           modelWeight,
+
+          fetchStatus,
 
           currentMeetDetected:
             raceInfo
@@ -2839,7 +3277,12 @@ async function handler(
             raceInfo.racers,
 
           exhibition:
-            before.boats
+            before.boats,
+
+          elapsedMs:
+            Date.now()
+            -
+            started
 
         },
 
@@ -2854,7 +3297,8 @@ async function handler(
           weather:
             before.weather,
 
-          coverage,
+          coverage:
+            dataCoverage,
 
           modelWeight,
 
@@ -2864,19 +3308,25 @@ async function handler(
 
       });
 
-  }catch(
-    error
-  ){
+
+  }catch(error){
 
     return res
       .status(500)
       .json({
+
         error:
           error.message
           ||
           String(
             error
-          )
+          ),
+
+        elapsedMs:
+          Date.now()
+          -
+          started
+
       });
 
   }
