@@ -4,8 +4,8 @@ import argparse
 import io
 import json
 import re
-from collections import defaultdict
 from datetime import date, timedelta
+from itertools import permutations
 from pathlib import Path
 
 import numpy as np
@@ -14,12 +14,21 @@ import requests
 
 
 BASE = "https://boatracecsv.github.io/data"
-MODEL_PATH = Path("model/model.json")
-OUTPUT_PATH = Path("model/backtest.json")
+
+DEFAULT_MODEL_PATH = Path(
+    "model/model.json"
+)
+
+DEFAULT_OUTPUT_PATH = Path(
+    "model/backtest.json"
+)
 
 HEADERS = {
-    "User-Agent": "boat-race-ai-v8-backtest",
-    "Accept": "text/csv,text/plain,*/*",
+    "User-Agent":
+        "boat-race-ai-v8.1-backtest",
+
+    "Accept":
+        "text/csv,text/plain,*/*",
 }
 
 
@@ -38,10 +47,29 @@ def parse_args():
         default=500,
     )
 
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=str(
+            DEFAULT_MODEL_PATH
+        ),
+    )
+
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=str(
+            DEFAULT_OUTPUT_PATH
+        ),
+    )
+
     return parser.parse_args()
 
 
-def load_csv(kind: str, target: date):
+def load_csv(
+    kind,
+    target,
+):
     url = (
         f"{BASE}/"
         f"{kind}/"
@@ -51,7 +79,7 @@ def load_csv(kind: str, target: date):
     response = requests.get(
         url,
         headers=HEADERS,
-        timeout=20,
+        timeout=25,
     )
 
     if (
@@ -63,7 +91,9 @@ def load_csv(kind: str, target: date):
     response.raise_for_status()
 
     return pd.read_csv(
-        io.StringIO(response.text),
+        io.StringIO(
+            response.text
+        ),
         dtype=str,
     )
 
@@ -71,13 +101,19 @@ def load_csv(kind: str, target: date):
 def number(value):
     match = re.search(
         r"-?\d+(?:\.\d+)?",
-        str(value or "").strip(),
+        str(
+            value
+            if value is not None
+            else ""
+        ),
     )
 
     if not match:
         return np.nan
 
-    return float(match.group())
+    return float(
+        match.group()
+    )
 
 
 def racer_value(
@@ -86,7 +122,9 @@ def racer_value(
     names,
 ):
     for name in names:
-        key = f"艇{lane}_{name}"
+        key = (
+            f"艇{lane}_{name}"
+        )
 
         if key in row.index:
             return row.get(key)
@@ -98,13 +136,16 @@ def rows_by_code(frame):
     if (
         frame is None
         or frame.empty
-        or "レースコード" not in frame
+        or "レースコード"
+        not in frame.columns
     ):
         return {}
 
-    output = {}
+    result = {}
 
-    for _, row in frame.iterrows():
+    for _, row in (
+        frame.iterrows()
+    ):
         code = str(
             row.get(
                 "レースコード",
@@ -113,9 +154,9 @@ def rows_by_code(frame):
         ).strip()
 
         if code:
-            output[code] = row
+            result[code] = row
 
-    return output
+    return result
 
 
 def current_meet_stats(
@@ -190,11 +231,12 @@ def build_features(
     card,
     lane,
 ):
-    meet_finish, meet_start = (
-        current_meet_stats(
-            card,
-            lane,
-        )
+    (
+        meet_finish,
+        meet_start,
+    ) = current_meet_stats(
+        card,
+        lane,
     )
 
     return np.array(
@@ -324,11 +366,14 @@ def finish_order(row):
     if len(placed) >= 3:
         placed.sort()
 
-        return [
+        order = [
             lane
             for _, lane
             in placed[:3]
         ]
+
+        if len(set(order)) == 3:
+            return order
 
     order = []
 
@@ -400,12 +445,12 @@ def payout_for(row):
     for key in row.index:
         text = str(key)
 
+        if "3連単" not in text:
+            continue
+
         if (
-            "3連単" not in text
-            or (
-                "払戻" not in text
-                and "配当" not in text
-            )
+            "払戻" not in text
+            and "配当" not in text
         ):
             continue
 
@@ -441,88 +486,75 @@ def softmax(scores):
 def trifecta_probabilities(
     lane_probabilities,
 ):
-    output = {}
+    result = {}
 
-    for first in range(6):
-        for second in range(6):
-            if second == first:
-                continue
+    for (
+        first,
+        second,
+        third,
+    ) in permutations(
+        range(6),
+        3,
+    ):
+        p1 = (
+            lane_probabilities[
+                first
+            ]
+        )
 
-            for third in range(6):
-                if third in (
-                    first,
-                    second,
-                ):
-                    continue
+        denominator2 = max(
+            1.0 - p1,
+            1e-12,
+        )
 
-                p1 = (
-                    lane_probabilities[
-                        first
-                    ]
-                )
+        p2 = (
+            lane_probabilities[
+                second
+            ]
+            / denominator2
+        )
 
-                remaining_after_first = (
-                    1.0 - p1
-                )
+        denominator3 = max(
+            1.0
+            - lane_probabilities[
+                first
+            ]
+            - lane_probabilities[
+                second
+            ],
+            1e-12,
+        )
 
-                p2 = (
-                    lane_probabilities[
-                        second
-                    ]
-                    /
-                    max(
-                        remaining_after_first,
-                        1e-12,
-                    )
-                )
+        p3 = (
+            lane_probabilities[
+                third
+            ]
+            / denominator3
+        )
 
-                remaining_after_second = (
-                    1.0
-                    - lane_probabilities[
-                        first
-                    ]
-                    - lane_probabilities[
-                        second
-                    ]
-                )
+        combination = (
+            f"{first + 1}"
+            f"{second + 1}"
+            f"{third + 1}"
+        )
 
-                p3 = (
-                    lane_probabilities[
-                        third
-                    ]
-                    /
-                    max(
-                        remaining_after_second,
-                        1e-12,
-                    )
-                )
-
-                combination = (
-                    f"{first + 1}"
-                    f"{second + 1}"
-                    f"{third + 1}"
-                )
-
-                output[
-                    combination
-                ] = (
-                    p1
-                    * p2
-                    * p3
-                )
+        result[combination] = (
+            p1 * p2 * p3
+        )
 
     total = sum(
-        output.values()
+        result.values()
     )
 
     if total > 0:
-        output = {
-            key: value / total
+        result = {
+            key:
+                value / total
             for key, value
-            in output.items()
+            in result.items()
         }
 
-    return output
+    return result
 
 
 def venue_from_code(code):
@@ -532,36 +564,214 @@ def venue_from_code(code):
     return code[8:10]
 
 
-def summarize(
-    rows,
-    top_n,
+def normalize_combo(text):
+    digits = re.findall(
+        r"[1-6]",
+        str(text),
+    )
+
+    if len(digits) < 3:
+        return None
+
+    combo = "".join(
+        digits[:3]
+    )
+
+    if len(set(combo)) != 3:
+        return None
+
+    return combo
+
+
+def extract_odds(row):
+    if row is None:
+        return {}
+
+    odds = {}
+
+    for key in row.index:
+        key_text = str(key)
+
+        combo = normalize_combo(
+            key_text
+        )
+
+        if combo is None:
+            continue
+
+        value = number(
+            row.get(key)
+        )
+
+        if (
+            np.isfinite(value)
+            and value > 1.0
+        ):
+            odds[combo] = float(
+                value
+            )
+
+    if len(odds) >= 100:
+        return odds
+
+    values = []
+
+    for key in row.index:
+        value = number(
+            row.get(key)
+        )
+
+        if (
+            np.isfinite(value)
+            and value > 1.0
+        ):
+            values.append(
+                float(value)
+            )
+
+    order = [
+        "".join(
+            map(str, combo)
+        )
+        for combo
+        in permutations(
+            range(1, 7),
+            3,
+        )
+    ]
+
+    if len(values) == 120:
+        return dict(
+            zip(
+                order,
+                values,
+            )
+        )
+
+    return odds
+
+
+def market_probabilities(
+    odds,
 ):
-    race_count = 0
+    raw = {}
+
+    for combo, price in (
+        odds.items()
+    ):
+        if price <= 1:
+            continue
+
+        raw[combo] = (
+            1.0 / price
+        )
+
+    total = sum(
+        raw.values()
+    )
+
+    if total <= 0:
+        return {}
+
+    return {
+        combo:
+            value / total
+        for combo, value
+        in raw.items()
+    }
+
+
+def blended_probabilities(
+    model_probabilities,
+    market_probabilities_map,
+    model_weight=0.67,
+):
+    if not market_probabilities_map:
+        return dict(
+            model_probabilities
+        )
+
+    market_weight = (
+        1.0 - model_weight
+    )
+
+    blended = {}
+
+    for combo, model_p in (
+        model_probabilities.items()
+    ):
+        market_p = (
+            market_probabilities_map.get(
+                combo
+            )
+        )
+
+        if (
+            market_p is None
+            or model_p <= 0
+            or market_p <= 0
+        ):
+            blended[combo] = (
+                model_p
+            )
+            continue
+
+        blended[combo] = (
+            model_p
+            ** model_weight
+        ) * (
+            market_p
+            ** market_weight
+        )
+
+    total = sum(
+        blended.values()
+    )
+
+    if total <= 0:
+        return dict(
+            model_probabilities
+        )
+
+    return {
+        combo:
+            value / total
+        for combo, value
+        in blended.items()
+    }
+
+
+def evaluate_strategy(
+    rows,
+    strategy,
+):
+    bets = 0
+    races_bet = 0
     hits = 0
 
     stake = 0.0
     returns = 0.0
 
-    payout_known = 0
-
     for row in rows:
-        picks = (
-            row["ranked"][
-                :top_n
-            ]
+        selections = strategy(
+            row
         )
 
-        race_count += 1
+        if not selections:
+            continue
 
-        stake += (
-            100 * top_n
-        )
+        races_bet += 1
 
-        if (
-            row["actual"]
-            in picks
-        ):
-            hits += 1
+        hit_this_race = False
+
+        for combo in selections:
+            bets += 1
+            stake += 100.0
+
+            if combo != row["actual"]:
+                continue
+
+            hit_this_race = True
 
             if np.isfinite(
                 row["payout"]
@@ -570,25 +780,23 @@ def summarize(
                     row["payout"]
                 )
 
-        if np.isfinite(
-            row["payout"]
-        ):
-            payout_known += 1
+        if hit_this_race:
+            hits += 1
 
     return {
-        "races":
-            race_count,
+        "racesBet":
+            races_bet,
 
-        "ticketsPerRace":
-            top_n,
+        "tickets":
+            bets,
 
         "hits":
             hits,
 
         "hitRate":
             (
-                hits / race_count
-                if race_count
+                hits / races_bet
+                if races_bet
                 else 0.0
             ),
 
@@ -604,22 +812,101 @@ def summarize(
                 if stake
                 else 0.0
             ),
-
-        "payoutCoverage":
-            (
-                payout_known
-                / race_count
-                if race_count
-                else 0.0
-            ),
     }
+
+
+def top_n_strategy(n):
+    def strategy(row):
+        return (
+            row["ranked"][:n]
+        )
+
+    return strategy
+
+
+def value_strategy(
+    edge_threshold,
+    min_probability,
+    max_tickets,
+):
+    def strategy(row):
+        candidates = []
+
+        for combo, probability in (
+            row[
+                "blended_probabilities"
+            ].items()
+        ):
+            price = (
+                row["odds"].get(
+                    combo
+                )
+            )
+
+            if (
+                price is None
+                or price <= 1
+            ):
+                continue
+
+            if (
+                probability
+                < min_probability
+            ):
+                continue
+
+            market_implied = (
+                1.0 / price
+            )
+
+            edge = (
+                probability
+                - market_implied
+            )
+
+            if edge < edge_threshold:
+                continue
+
+            score = (
+                probability
+                * price
+            )
+
+            candidates.append(
+                (
+                    score,
+                    combo,
+                )
+            )
+
+        candidates.sort(
+            reverse=True
+        )
+
+        return [
+            combo
+            for _, combo
+            in candidates[
+                :max_tickets
+            ]
+        ]
+
+    return strategy
 
 
 def main():
     config = parse_args()
 
+    model_path = Path(
+        config.model
+    )
+
+    output_path = Path(
+        config.output
+    )
+
     model = json.loads(
-        MODEL_PATH.read_text(
+        model_path.read_text(
             encoding="utf-8"
         )
     )
@@ -639,20 +926,65 @@ def main():
         dtype=float,
     )
 
+    feature_count = len(
+        model["features"]
+    )
+
     if not (
         len(mean)
         == len(scale)
         == len(coefficients)
-        == len(model["features"])
+        == feature_count
     ):
         raise SystemExit(
-            "model dimensions do not match"
+            "model dimensions "
+            "do not match"
         )
 
-    end_date = (
+    model_end_text = (
+        model.get(
+            "dataEndDate"
+        )
+    )
+
+    if not model_end_text:
+        raise SystemExit(
+            "Model does not contain "
+            "dataEndDate. "
+            "Train v8.1 model first."
+        )
+
+    model_end_date = (
+        date.fromisoformat(
+            model_end_text
+        )
+    )
+
+    test_end_date = (
         date.today()
         - timedelta(days=1)
     )
+
+    test_start_date = (
+        test_end_date
+        - timedelta(
+            days=config.days - 1
+        )
+    )
+
+    if (
+        model_end_date
+        >= test_start_date
+    ):
+        raise SystemExit(
+            "DATA LEAKAGE DETECTED: "
+            f"model data ends "
+            f"{model_end_date}, "
+            f"but test starts "
+            f"{test_start_date}. "
+            "Train with --end-offset "
+            f"{config.days} or greater."
+        )
 
     rows = []
 
@@ -660,7 +992,7 @@ def main():
         config.days
     ):
         target = (
-            end_date
+            test_end_date
             - timedelta(
                 days=offset
             )
@@ -682,13 +1014,17 @@ def main():
                 target,
             )
 
+            odds_frame = load_csv(
+                "previews/od3",
+                target,
+            )
+
         except Exception as error:
             print(
                 f"WARN {target}: "
                 f"{error}",
                 flush=True,
             )
-
             continue
 
         if (
@@ -697,16 +1033,16 @@ def main():
         ):
             continue
 
-        result_map = (
-            rows_by_code(
-                results
-            )
+        result_map = rows_by_code(
+            results
         )
 
-        payout_map = (
-            rows_by_code(
-                payouts
-            )
+        payout_map = rows_by_code(
+            payouts
+        )
+
+        odds_map = rows_by_code(
+            odds_frame
         )
 
         added = 0
@@ -725,54 +1061,41 @@ def main():
                 continue
 
             result = (
-                result_map.get(
-                    code
-                )
+                result_map.get(code)
             )
 
             if result is None:
                 continue
 
-            order = (
-                finish_order(
-                    result
-                )
+            order = finish_order(
+                result
             )
 
             if not order:
                 continue
 
-            feature_matrix = (
-                np.vstack(
-                    [
-                        build_features(
-                            card,
-                            lane,
-                        )
-                        for lane
-                        in range(
-                            1,
-                            7,
-                        )
-                    ]
-                )
+            matrix = np.vstack(
+                [
+                    build_features(
+                        card,
+                        lane,
+                    )
+                    for lane
+                    in range(
+                        1,
+                        7,
+                    )
+                ]
             )
 
-            feature_matrix = (
-                np.where(
-                    np.isfinite(
-                        feature_matrix
-                    ),
-                    feature_matrix,
-                    mean,
-                )
+            matrix = np.where(
+                np.isfinite(matrix),
+                matrix,
+                mean,
             )
 
             normalized = (
-                (
-                    feature_matrix
-                    - mean
-                )
+                (matrix - mean)
                 / scale
             )
 
@@ -787,20 +1110,38 @@ def main():
                 )
             )
 
-            trifecta = (
+            model_trifecta = (
                 trifecta_probabilities(
                     lane_probabilities
                 )
             )
 
-            ranked = [
-                combination
-                for (
-                    combination,
-                    _
+            odds_row = (
+                odds_map.get(code)
+            )
+
+            odds = extract_odds(
+                odds_row
+            )
+
+            market = (
+                market_probabilities(
+                    odds
                 )
+            )
+
+            blended = (
+                blended_probabilities(
+                    model_trifecta,
+                    market,
+                )
+            )
+
+            ranked = [
+                combo
+                for combo, _
                 in sorted(
-                    trifecta.items(),
+                    blended.items(),
                     key=lambda item:
                         item[1],
                     reverse=True,
@@ -815,9 +1156,7 @@ def main():
             )
 
             payout_row = (
-                payout_map.get(
-                    code
-                )
+                payout_map.get(code)
             )
 
             if payout_row is None:
@@ -825,14 +1164,6 @@ def main():
 
             payout = payout_for(
                 payout_row
-            )
-
-            actual_rank = (
-                ranked.index(
-                    actual
-                ) + 1
-                if actual in ranked
-                else None
             )
 
             rows.append(
@@ -854,23 +1185,20 @@ def main():
                     "payout":
                         payout,
 
-                    "winnerLane":
-                        order[0],
+                    "odds":
+                        odds,
 
-                    "top1":
-                        ranked[0],
+                    "model_probabilities":
+                        model_trifecta,
+
+                    "market_probabilities":
+                        market,
+
+                    "blended_probabilities":
+                        blended,
 
                     "ranked":
                         ranked,
-
-                    "actualRank":
-                        actual_rank,
-
-                    "actualProbability":
-                        trifecta.get(
-                            actual,
-                            0.0,
-                        ),
                 }
             )
 
@@ -878,62 +1206,158 @@ def main():
 
         print(
             f"{target}: "
-            f"+{added} "
+            f"+{added} races "
             f"total={len(rows)}",
             flush=True,
         )
 
-    if (
-        len(rows)
-        < config.min_races
-    ):
+    if len(rows) < config.min_races:
         raise SystemExit(
-            "not enough races: "
+            f"not enough test races: "
             f"{len(rows)} "
             f"< {config.min_races}"
         )
 
-    venue_groups = (
-        defaultdict(list)
+    odds_covered = sum(
+        bool(row["odds"])
+        for row in rows
     )
+
+    top1 = evaluate_strategy(
+        rows,
+        top_n_strategy(1),
+    )
+
+    top3 = evaluate_strategy(
+        rows,
+        top_n_strategy(3),
+    )
+
+    top5 = evaluate_strategy(
+        rows,
+        top_n_strategy(5),
+    )
+
+    candidate_settings = []
+
+    for edge in (
+        0.005,
+        0.010,
+        0.015,
+        0.020,
+        0.030,
+    ):
+        for minimum_probability in (
+            0.015,
+            0.020,
+            0.025,
+            0.030,
+            0.040,
+        ):
+            for max_tickets in (
+                1,
+                2,
+                3,
+            ):
+                result = evaluate_strategy(
+                    rows,
+                    value_strategy(
+                        edge,
+                        minimum_probability,
+                        max_tickets,
+                    ),
+                )
+
+                candidate_settings.append(
+                    {
+                        "edgeThreshold":
+                            edge,
+
+                        "minProbability":
+                            minimum_probability,
+
+                        "maxTickets":
+                            max_tickets,
+
+                        **result,
+                    }
+                )
+
+    eligible = [
+        item
+        for item
+        in candidate_settings
+        if item["racesBet"] >= 100
+    ]
+
+    if eligible:
+        best = max(
+            eligible,
+            key=lambda item: (
+                item["roi"],
+                item["hits"],
+            ),
+        )
+    else:
+        best = None
+
+    venue_rows = {}
 
     for row in rows:
-        venue_groups[
-            row["venue"]
-        ].append(row)
+        venue_rows.setdefault(
+            row["venue"],
+            [],
+        ).append(row)
 
-    actual_ranks = [
-        row["actualRank"]
-        for row in rows
-        if row["actualRank"]
-        is not None
-    ]
+    by_venue = {}
 
-    lane1_winner_rows = [
-        row
-        for row in rows
-        if row["winnerLane"] == 1
-    ]
+    for venue, subset in (
+        venue_rows.items()
+    ):
+        if len(subset) < 20:
+            continue
 
-    non_lane1_winner_rows = [
-        row
-        for row in rows
-        if row["winnerLane"] != 1
-    ]
+        by_venue[venue] = {
+            "races":
+                len(subset),
 
-    rank_array = np.array(
-        actual_ranks,
-        dtype=float,
-    )
+            "top1":
+                evaluate_strategy(
+                    subset,
+                    top_n_strategy(1),
+                ),
 
-    report = {
+            "top3":
+                evaluate_strategy(
+                    subset,
+                    top_n_strategy(3),
+                ),
+        }
+
+    output = {
         "version":
-            "v8-trifecta-backtest-1",
+            "v8.1-held-out-odds",
 
         "modelVersion":
             model.get(
                 "version"
             ),
+
+        "modelDataStartDate":
+            model.get(
+                "dataStartDate"
+            ),
+
+        "modelDataEndDate":
+            model.get(
+                "dataEndDate"
+            ),
+
+        "testStartDate":
+            test_start_date.isoformat(),
+
+        "testEndDate":
+            test_end_date.isoformat(),
 
         "days":
             config.days,
@@ -941,151 +1365,39 @@ def main():
         "raceCount":
             len(rows),
 
-        "note":
+        "oddsCoverage":
             (
-                "ROI uses official payout "
-                "where available and assumes "
-                "100 yen per selected ticket. "
-                "This evaluates historical "
-                "model ranking and does not "
-                "prove future profitability."
+                odds_covered
+                / len(rows)
             ),
 
         "top1":
-            summarize(
-                rows,
-                1,
-            ),
+            top1,
 
         "top3":
-            summarize(
-                rows,
-                3,
-            ),
+            top3,
 
         "top5":
-            summarize(
-                rows,
-                5,
-            ),
+            top5,
 
-        "actualRank": {
-            "median":
-                float(
-                    np.median(
-                        rank_array
-                    )
-                ),
+        "bestValueStrategy":
+            best,
 
-            "mean":
-                float(
-                    np.mean(
-                        rank_array
-                    )
-                ),
+        "strategySearch":
+            candidate_settings,
 
-            "within1":
-                float(
-                    np.mean(
-                        rank_array <= 1
-                    )
-                ),
-
-            "within3":
-                float(
-                    np.mean(
-                        rank_array <= 3
-                    )
-                ),
-
-            "within5":
-                float(
-                    np.mean(
-                        rank_array <= 5
-                    )
-                ),
-
-            "within10":
-                float(
-                    np.mean(
-                        rank_array <= 10
-                    )
-                ),
-        },
-
-        "winnerLane1": {
-            "raceCount":
-                len(
-                    lane1_winner_rows
-                ),
-
-            "top1":
-                summarize(
-                    lane1_winner_rows,
-                    1,
-                ),
-
-            "top3":
-                summarize(
-                    lane1_winner_rows,
-                    3,
-                ),
-        },
-
-        "winnerNotLane1": {
-            "raceCount":
-                len(
-                    non_lane1_winner_rows
-                ),
-
-            "top1":
-                summarize(
-                    non_lane1_winner_rows,
-                    1,
-                ),
-
-            "top3":
-                summarize(
-                    non_lane1_winner_rows,
-                    3,
-                ),
-        },
-
-        "byVenue": {
-            venue: {
-                "raceCount":
-                    len(group),
-
-                "top1":
-                    summarize(
-                        group,
-                        1,
-                    ),
-
-                "top3":
-                    summarize(
-                        group,
-                        3,
-                    ),
-            }
-
-            for venue, group
-            in sorted(
-                venue_groups.items()
-            )
-
-            if len(group) >= 20
-        },
+        "byVenue":
+            by_venue,
     }
 
-    OUTPUT_PATH.parent.mkdir(
+    output_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    OUTPUT_PATH.write_text(
+    output_path.write_text(
         json.dumps(
-            report,
+            output,
             ensure_ascii=False,
             indent=2,
         ),
@@ -1094,7 +1406,52 @@ def main():
 
     print(
         json.dumps(
-            report,
+            {
+                "version":
+                    output["version"],
+
+                "modelVersion":
+                    output[
+                        "modelVersion"
+                    ],
+
+                "modelDataEndDate":
+                    output[
+                        "modelDataEndDate"
+                    ],
+
+                "testStartDate":
+                    output[
+                        "testStartDate"
+                    ],
+
+                "testEndDate":
+                    output[
+                        "testEndDate"
+                    ],
+
+                "raceCount":
+                    output[
+                        "raceCount"
+                    ],
+
+                "oddsCoverage":
+                    output[
+                        "oddsCoverage"
+                    ],
+
+                "top1":
+                    top1,
+
+                "top3":
+                    top3,
+
+                "top5":
+                    top5,
+
+                "bestValueStrategy":
+                    best,
+            },
             ensure_ascii=False,
             indent=2,
         ),
