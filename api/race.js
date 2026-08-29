@@ -123,7 +123,7 @@ function lookupIPv4(
 
 function fetchOfficial(
   url,
-  timeoutMs=8500
+  timeoutMs=20000
 ){
   return new Promise(
     (resolve,reject)=>{
@@ -148,26 +148,13 @@ function fetchOfficial(
         https.request(
           {
             protocol:'https:',
-
-            hostname:
-              target.hostname,
-
+            hostname:target.hostname,
             port:443,
-
-            path:
-              target.pathname +
-              target.search,
-
+            path:target.pathname + target.search,
             method:'GET',
-
             family:4,
-
-            lookup:
-              lookupIPv4,
-
-            servername:
-              target.hostname,
-
+            lookup:lookupIPv4,
+            servername:target.hostname,
             agent:false,
 
             headers:{
@@ -226,6 +213,7 @@ function fetchOfficial(
                   response.statusCode < 200 ||
                   response.statusCode >= 300
                 ){
+
                   const error=
                     new Error(
                       `HTTP ${response.statusCode}`
@@ -445,12 +433,6 @@ function parseCurrentMeet(
   html,
   racers
 ){
-  /*
-  今節成績はページ構造の変更が多いため、
-  誤った値を入れるより、
-  明確に検出できた場合だけ採用する。
-  */
-
   const page=
     clean(html);
 
@@ -562,12 +544,6 @@ function parseRaceList(html){
   const sections=
     table1Sections(html);
 
-  /*
-  公式出走表:
-  div.table1 の2番目に
-  6艇分のtbodyが入る。
-  */
-
   const raceTable=
     sections[1];
 
@@ -578,8 +554,7 @@ function parseRaceList(html){
       currentMeetDetected:false,
       parserOk:false,
       parsedCount:0,
-      table1Count:
-        sections.length,
+      table1Count:sections.length,
       tbodyCount:0
     };
   }
@@ -597,10 +572,8 @@ function parseRaceList(html){
       currentMeetDetected:false,
       parserOk:false,
       parsedCount:0,
-      table1Count:
-        sections.length,
-      tbodyCount:
-        tbodies.length
+      table1Count:sections.length,
+      tbodyCount:tbodies.length
     };
   }
 
@@ -779,7 +752,7 @@ async function handler(
     const html=
       await fetchOfficial(
         url,
-        8500
+        20000
       );
 
     const parsed=
@@ -804,7 +777,7 @@ async function handler(
         race,
 
         source:
-          'official-racelist-v3',
+          'official-racelist-v4',
 
         transport:
           'node-https-ipv4',
@@ -829,11 +802,13 @@ async function handler(
         error:
           error?.code ===
           'UPSTREAM_TIMEOUT'
-            ? 'race-data-timeout'
-            : (
-                error?.message ||
-                String(error)
-              ),
+            ?
+            'race-data-timeout'
+            :
+            (
+              error?.message ||
+              String(error)
+            ),
 
         code:
           error?.code ||
