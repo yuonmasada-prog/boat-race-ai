@@ -1,3 +1,6 @@
+const https = require('node:https');
+const dns = require('node:dns');
+
 const VENUES={
   '01':'桐生','02':'戸田','03':'江戸川','04':'平和島','05':'多摩川','06':'浜名湖',
   '07':'蒲郡','08':'常滑','09':'津','10':'三国','11':'びわこ','12':'住之江',
@@ -33,115 +36,194 @@ const ORDER=[
 ];
 
 function clean(value){
-
-  return String(
-    value || ''
-  )
-  .replace(
-    /<script[\s\S]*?<\/script>/gi,
-    ' '
-  )
-  .replace(
-    /<style[\s\S]*?<\/style>/gi,
-    ' '
-  )
-  .replace(
-    /<[^>]+>/g,
-    ' '
-  )
-  .replace(
-    /&nbsp;|&#160;/gi,
-    ' '
-  )
-  .replace(
-    /&amp;/gi,
-    '&'
-  )
-  .replace(
-    /\s+/g,
-    ' '
-  )
-  .trim();
-
+  return String(value || '')
+    .replace(/<script[\s\S]*?<\/script>/gi,' ')
+    .replace(/<style[\s\S]*?<\/style>/gi,' ')
+    .replace(/<[^>]+>/g,' ')
+    .replace(/&nbsp;|&#160;/gi,' ')
+    .replace(/&amp;/gi,'&')
+    .replace(/\s+/g,' ')
+    .trim();
 }
 
 function toNumber(value){
-
   const n=
     Number(
-      String(
-        value ?? ''
-      )
-      .replace(
-        /[%,¥,\s]/g,
-        ''
-      )
+      String(value ?? '')
+        .replace(/[%,¥,\s]/g,'')
     );
 
-  return Number.isFinite(
-    n
-  )
-    ?
-    n
-    :
-    null;
-
+  return Number.isFinite(n)
+    ? n
+    : null;
 }
 
-async function fetchWithTimeout(
-  url,
-  timeoutMs=5000
+function lookupIPv4(
+  hostname,
+  options,
+  callback
 ){
+  dns.lookup(
+    hostname,
+    {
+      family:4,
+      all:false
+    },
+    callback
+  );
+}
 
-  const controller=
-    new AbortController();
+function fetchOfficial(
+  url,
+  timeoutMs=20000
+){
+  return new Promise(
+    (resolve,reject)=>{
 
-  const timer=
-    setTimeout(
-      () =>
-        controller.abort(),
-      timeoutMs
-    );
+      const target=
+        new URL(url);
 
-  try{
+      let settled=false;
 
-    const response=
-      await fetch(
-        url,
-        {
-          cache:'no-store',
-          signal:
-            controller.signal
+      const fail=
+        error=>{
+
+          if(settled){
+            return;
+          }
+
+          settled=true;
+          reject(error);
+        };
+
+      const req=
+        https.request(
+          {
+            protocol:'https:',
+
+            hostname:
+              target.hostname,
+
+            port:443,
+
+            path:
+              target.pathname +
+              target.search,
+
+            method:'GET',
+
+            family:4,
+
+            lookup:
+              lookupIPv4,
+
+            servername:
+              target.hostname,
+
+            agent:false,
+
+            headers:{
+              'User-Agent':
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+
+              'Accept':
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+
+              'Accept-Language':
+                'ja-JP,ja;q=0.9',
+
+              'Accept-Encoding':
+                'identity',
+
+              'Cache-Control':
+                'no-cache',
+
+              'Pragma':
+                'no-cache',
+
+              'Connection':
+                'close',
+
+              'Referer':
+                'https://www.boatrace.jp/'
+            }
+          },
+
+          response=>{
+
+            const chunks=[];
+
+            response.on(
+              'data',
+              chunk=>{
+                chunks.push(chunk);
+              }
+            );
+
+            response.on(
+              'end',
+              ()=>{
+
+                if(settled){
+                  return;
+                }
+
+                settled=true;
+
+                const body=
+                  Buffer
+                    .concat(chunks)
+                    .toString('utf8');
+
+                if(
+                  response.statusCode < 200 ||
+                  response.statusCode >= 300
+                ){
+
+                  const error=
+                    new Error(
+                      `HTTP ${response.statusCode}`
+                    );
+
+                  error.code=
+                    'UPSTREAM_HTTP';
+
+                  return reject(error);
+                }
+
+                resolve(body);
+              }
+            );
+          }
+        );
+
+      req.setTimeout(
+        timeoutMs,
+        ()=>{
+
+          const error=
+            new Error(
+              'official-request-timeout'
+            );
+
+          error.code=
+            'UPSTREAM_TIMEOUT';
+
+          req.destroy(error);
         }
       );
 
-    const text=
-      await response.text();
-
-    if(
-      !response.ok
-    ){
-
-      throw new Error(
-        `HTTP ${response.status}`
+      req.on(
+        'error',
+        fail
       );
 
+      req.end();
     }
-
-    return text;
-
-  }finally{
-
-    clearTimeout(
-      timer
-    );
-
-  }
-
+  );
 }
 
 function parseOdds(html){
-
   const values=[];
 
   const regex=
@@ -152,9 +234,7 @@ function parseOdds(html){
   while(
     (
       match=
-        regex.exec(
-          html
-        )
+        regex.exec(html)
     )
   ){
 
@@ -168,19 +248,16 @@ function parseOdds(html){
     values.push(
       value
     );
-
   }
 
-
   const odds={};
-
 
   for(
     let index=0;
     index<
       Math.min(
         values.length,
-        120
+        ORDER.length
       );
     index++
   ){
@@ -188,46 +265,37 @@ function parseOdds(html){
     const odd=
       values[index];
 
-
     if(
-      !Number.isFinite(
-        odd
-      )
-      ||
+      !Number.isFinite(odd) ||
       odd < 1
     ){
-
       continue;
-
     }
-
 
     const combination=
       String(
         ORDER[index]
       );
 
-
     odds[
       `${combination[0]}-${combination[1]}-${combination[2]}`
     ]=
       odd;
-
   }
 
-
-  return odds;
-
+  return {
+    odds,
+    rawOddsPointCount:
+      values.length
+  };
 }
 
 function createMarketProbabilities(
   odds
 ){
-
   const inverse={};
 
   let total=0;
-
 
   for(
     const [
@@ -240,32 +308,19 @@ function createMarketProbabilities(
   ){
 
     if(
-      Number.isFinite(
-        odd
-      )
-      &&
+      Number.isFinite(odd) &&
       odd > 0
     ){
 
-      inverse[
-        combo
-      ]=
-        1 /
-        odd;
-
+      inverse[combo]=
+        1 / odd;
 
       total +=
-        inverse[
-          combo
-        ];
-
+        inverse[combo];
     }
-
   }
 
-
   const probabilities={};
-
 
   for(
     const [
@@ -277,33 +332,22 @@ function createMarketProbabilities(
     )
   ){
 
-    probabilities[
-      combo
-    ]=
+    probabilities[combo]=
       total
-        ?
-        value /
-        total
-        :
-        0;
-
+        ? value / total
+        : 0;
   }
 
-
   return probabilities;
-
 }
-
 
 module.exports=
 async function handler(
   req,
   res
 ){
-
   const started=
     Date.now();
-
 
   try{
 
@@ -317,7 +361,6 @@ async function handler(
         ''
       );
 
-
     const venue=
       String(
         req.query.venue ||
@@ -328,85 +371,78 @@ async function handler(
         '0'
       );
 
-
     const race=
       Number(
         req.query.race ||
         1
       );
 
-
     if(
-      !/^\d{8}$/.test(
-        date
-      )
-      ||
-      !VENUES[
-        venue
-      ]
-      ||
-      !Number.isInteger(
-        race
-      )
-      ||
-      race < 1
-      ||
+      !/^\d{8}$/.test(date) ||
+      !VENUES[venue] ||
+      !Number.isInteger(race) ||
+      race < 1 ||
       race > 12
     ){
 
       return res
         .status(400)
         .json({
-
           ok:false,
-
-          error:
-            '入力値が不正です'
-
+          error:'入力値が不正です'
         });
-
     }
-
 
     const url=
       `https://www.boatrace.jp/owpc/pc/race/odds3t?rno=${race}&jcd=${venue}&hd=${date}`;
 
-
     const html=
-      await fetchWithTimeout(
+      await fetchOfficial(
         url,
-        5000
+        20000
       );
 
-
-    const odds=
+    const parsed=
       parseOdds(
         html
       );
 
+    const odds=
+      parsed.odds;
 
     const oddsCount=
-      Object.keys(
-        odds
-      ).length;
-
+      Object
+        .keys(
+          odds
+        )
+        .length;
 
     if(
+      parsed.rawOddsPointCount !== 120 ||
       oddsCount < 100
     ){
 
       return res
         .status(200)
         .json({
-
           ok:false,
 
           venueName:
-            VENUES[
-              venue
-            ],
+            VENUES[venue],
 
           race,
+
+          source:
+            'official-odds3t-v4',
+
+          transport:
+            'node-https-ipv4',
+
+          htmlLength:
+            html.length,
+
+          rawOddsPointCount:
+            parsed.rawOddsPointCount,
 
           oddsCount,
 
@@ -414,36 +450,42 @@ async function handler(
             'odds-incomplete',
 
           elapsedMs:
-            Date.now()
-            -
+            Date.now() -
             started
-
         });
-
     }
-
 
     const marketProbabilities=
       createMarketProbabilities(
         odds
       );
 
+    res.setHeader(
+      'Cache-Control',
+      'no-store'
+    );
 
     return res
       .status(200)
       .json({
-
         ok:true,
 
         venueName:
-          VENUES[
-            venue
-          ],
+          VENUES[venue],
 
         race,
 
         source:
-          'official-odds3t',
+          'official-odds3t-v4',
+
+        transport:
+          'node-https-ipv4',
+
+        htmlLength:
+          html.length,
+
+        rawOddsPointCount:
+          parsed.rawOddsPointCount,
 
         oddsCount,
 
@@ -452,52 +494,35 @@ async function handler(
         marketProbabilities,
 
         elapsedMs:
-          Date.now()
-          -
+          Date.now() -
           started
-
       });
 
-
-  }catch(
-    error
-  ){
-
-    const timeout=
-      error?.name ===
-      'AbortError';
-
+  }catch(error){
 
     return res
       .status(200)
       .json({
-
         ok:false,
 
         error:
-          timeout
-
+          error?.code ===
+          'UPSTREAM_TIMEOUT'
             ?
-
             'odds-data-timeout'
-
             :
-
             (
-              error?.message
-              ||
-              String(
-                error
-              )
+              error?.message ||
+              String(error)
             ),
 
+        code:
+          error?.code ||
+          null,
+
         elapsedMs:
-          Date.now()
-          -
+          Date.now() -
           started
-
       });
-
   }
-
 };
