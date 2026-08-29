@@ -1,7 +1,10 @@
 {
-  "version": "v8.1-conditional-logit",
-  "trainedAt": "2026-08-29T14:42:09.424566+00:00",
+  "version": "v9.1-conditional-logit-production-latest",
+  "mode": "production",
+  "trainedAt": "2026-08-29T15:57:51.822016+00:00",
   "lookbackDays": 120,
+  "requestedEndOffsetDays": 0,
+  "holdoutDays": 45,
   "endOffsetDays": 0,
   "dataStartDate": "2026-05-01",
   "dataEndDate": "2026-08-28",
@@ -89,5 +92,24 @@
     "winnerInTop3": 0.8666058948647828,
     "logLoss": 1.2312179632046742,
     "brierScore": 0.10062681776189387
+  },
+  "internalValidation": {
+    "races": 3291,
+    "top1Accuracy": 0.5539349741719842,
+    "winnerInTop3": 0.8666058948647828,
+    "logLoss": 1.2312179632046742,
+    "brierScore": 0.10062681776189387
+  },
+  "externalHoldout": {
+    "enabled": false,
+    "days": 0,
+    "purpose": "production model after external evaluation"
+  },
+  "evaluationDesign": {
+    "modelInternalValidation": "chronological final 18% of collected training period",
+    "evaluationModel": "excludes at least 45 recent completed days",
+    "strategyValidation": "first 15 days of external holdout",
+    "finalTest": "last 30 days of external holdout",
+    "productionModel": "may retrain through latest completed data only after evaluation"
   }
 }
