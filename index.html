@@ -3,13 +3,23 @@
 
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<title>BOAT RACE AI v4</title>
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1,viewport-fit=cover"
+>
+
+<title>BOAT RACE AI v5</title>
 
 <style>
+
 :root{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
   background:#07111f;
   color:#fff;
 }
@@ -20,12 +30,26 @@
 
 body{
   margin:0;
-  padding:18px 18px calc(30px + env(safe-area-inset-bottom));
+
+  padding:
+    18px
+    18px
+    calc(
+      30px +
+      env(
+        safe-area-inset-bottom
+      )
+    );
+
   background:#07111f;
 }
 
 .app{
-  width:min(100%,760px);
+  width:min(
+    100%,
+    760px
+  );
+
   margin:0 auto;
 }
 
@@ -36,26 +60,40 @@ h1{
 
 h2{
   margin:0 0 12px;
-  font-size:20px;
 }
 
 .sub{
-  color:#94a7bf;
+  color:#93a7bf;
   font-size:12px;
-  line-height:1.5;
+  line-height:1.55;
 }
 
 .card{
   margin-top:14px;
+
   padding:16px;
+
   background:#101d2e;
-  border:1px solid #263b54;
+
+  border:
+    1px solid
+    #263b54;
+
   border-radius:18px;
 }
 
 .grid{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(
+        0,
+        1fr
+      )
+    );
+
   gap:10px;
 }
 
@@ -63,38 +101,52 @@ input,
 select,
 button{
   width:100%;
+
   min-height:48px;
-  padding:10px 12px;
+
+  padding:
+    10px
+    12px;
+
   border-radius:11px;
+
   font:inherit;
 }
 
 input,
 select{
   color:#fff;
+
   background:#0a1625;
-  border:1px solid #38516e;
+
+  border:
+    1px solid
+    #38516e;
 }
 
 button{
   margin-top:12px;
-  color:#fff;
-  background:#1677ff;
+
   border:0;
-  font-weight:750;
+
+  color:#fff;
+
+  background:#1677ff;
+
+  font-weight:800;
 }
 
-button.secondary{
+.secondary{
   background:#263a53;
 }
 
 .status{
-  font-size:21px;
-  font-weight:800;
+  font-size:22px;
+  font-weight:900;
 }
 
 .good{
-  color:#84f0aa;
+  color:#82efab;
 }
 
 .warn{
@@ -102,124 +154,199 @@ button.secondary{
 }
 
 .bad{
-  color:#ff8787;
+  color:#ff8383;
 }
 
 .pick{
   padding:15px 0;
-  border-bottom:1px solid #2b4059;
-}
 
-.pick:last-child{
-  border-bottom:0;
-}
-
-.rank{
-  font-size:14px;
-  color:#d5dfeb;
+  border-bottom:
+    1px solid
+    #293e58;
 }
 
 .combo{
-  margin-top:2px;
   font-size:31px;
   font-weight:900;
 }
 
 .amount{
-  margin-top:3px;
+  margin-top:4px;
   font-size:18px;
   font-weight:800;
 }
 
 .metrics{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(
+        0,
+        1fr
+      )
+    );
+
   gap:7px;
+
   margin-top:9px;
 }
 
 .metric{
   padding:9px;
+
   background:#0b1726;
+
   border-radius:10px;
 }
 
 .metric small{
   display:block;
-  color:#8398b1;
+
+  color:#879bb3;
+
   font-size:10px;
 }
 
 .metric b{
   display:block;
-  margin-top:2px;
-  font-size:15px;
+
+  margin-top:3px;
+}
+
+.progress{
+  height:10px;
+
+  margin-top:7px;
+
+  overflow:hidden;
+
+  border-radius:100px;
+
+  background:#07111f;
+}
+
+.progress div{
+  width:0;
+  height:100%;
+
+  background:#2384ff;
+}
+
+.api-grid{
+  display:grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(
+        0,
+        1fr
+      )
+    );
+
+  gap:7px;
+
+  margin-top:10px;
+}
+
+.api{
+  padding:9px 6px;
+
+  text-align:center;
+
+  background:#0b1726;
+
+  border-radius:9px;
+
+  font-size:11px;
+}
+
+.api strong{
+  display:block;
+
+  margin-top:3px;
+
+  font-size:12px;
 }
 
 .stats{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(
+        0,
+        1fr
+      )
+    );
+
   gap:8px;
 }
 
 .stat{
   padding:10px;
+
   background:#0b1726;
+
   border-radius:11px;
 }
 
 .stat small{
   display:block;
+
   color:#8fa3ba;
 }
 
 .stat strong{
   display:block;
-  margin-top:2px;
-  font-size:19px;
+
+  margin-top:3px;
+
+  font-size:18px;
 }
 
-.progress{
-  height:10px;
-  margin-top:8px;
-  overflow:hidden;
-  background:#07111f;
+.tag{
+  display:inline-block;
+
+  margin:
+    3px 3px 0 0;
+
+  padding:
+    4px 7px;
+
   border-radius:100px;
-}
 
-.progress > div{
-  height:100%;
-  width:0;
-  background:#2384ff;
-  border-radius:100px;
-}
+  background:#1c3048;
 
-.data-list{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:7px;
-  margin-top:10px;
-}
+  color:#c0cfdf;
 
-.data-item{
-  padding:8px 10px;
-  background:#0b1726;
-  border-radius:9px;
-  font-size:12px;
+  font-size:11px;
 }
 
 table{
   width:100%;
-  border-collapse:collapse;
+
   margin-top:10px;
-  font-size:12px;
+
+  border-collapse:collapse;
+
+  font-size:11px;
 }
 
 th,
 td{
-  padding:7px 4px;
+  padding:
+    7px
+    4px;
+
   text-align:right;
-  border-bottom:1px solid #273b53;
+
+  border-bottom:
+    1px solid
+    #273b53;
 }
 
 th:first-child,
@@ -231,26 +358,10 @@ td:first-child{
   overflow-x:auto;
 }
 
-.tag{
-  display:inline-block;
-  padding:3px 7px;
-  margin:3px 3px 0 0;
-  border-radius:100px;
-  background:#1c3048;
-  color:#b8c9dc;
-  font-size:11px;
-}
-
-.result-box{
-  margin-top:10px;
-  padding:12px;
-  background:#0a1625;
-  border-radius:12px;
-}
-
 .hidden{
   display:none;
 }
+
 </style>
 </head>
 
@@ -258,169 +369,314 @@ td:first-child{
 
 <main class="app">
 
-<h1>BOAT RACE AI</h1>
-<div class="sub">FULL MODEL v4</div>
+<h1>
+BOAT RACE AI
+</h1>
+
+<div class="sub">
+FULL MODEL v5 / SPLIT API
+</div>
+
 
 <section class="card">
 
 <div class="grid">
 
-<input id="date" type="date">
+<input
+  id="date"
+  type="date"
+>
 
-<select id="venue"></select>
+<select
+  id="venue"
+></select>
 
-<select id="race"></select>
+<select
+  id="race"
+></select>
 
-<input id="budget" value="300" inputmode="numeric" placeholder="予算">
+<input
+  id="budget"
+  value="300"
+  inputmode="numeric"
+  placeholder="予算"
+>
 
 </div>
 
-<button id="analyze">分析する</button>
+<button
+  id="analyze"
+>
+分析する
+</button>
 
 </section>
+
 
 <section class="card">
 
-<div id="status" class="status">未分析</div>
+<div
+  id="status"
+  class="status"
+>
+未分析
+</div>
 
-<div id="raceInfo" class="sub"></div>
+<div
+  id="raceInfo"
+  class="sub"
+></div>
 
-<div id="coverageArea" class="hidden">
 
-<div style="margin-top:12px;display:flex;justify-content:space-between;gap:10px;">
-<span>データ取得率</span>
-<strong id="coverage">-</strong>
+<div
+  id="coverageArea"
+  class="hidden"
+  style="margin-top:13px;"
+>
+
+<div
+  style="
+    display:flex;
+    justify-content:space-between;
+  "
+>
+
+<span>
+データ取得率
+</span>
+
+<strong
+  id="coverage"
+>
+-
+</strong>
+
 </div>
 
 <div class="progress">
-<div id="coverageBar"></div>
+
+<div
+  id="coverageBar"
+></div>
+
+</div>
+
+</div>
+
+
+<div class="api-grid">
+
+<div class="api">
+
+出走表
+
+<strong
+  id="raceApi"
+>
+-
+</strong>
+
+</div>
+
+<div class="api">
+
+展示・気象
+
+<strong
+  id="beforeApi"
+>
+-
+</strong>
+
+</div>
+
+<div class="api">
+
+オッズ
+
+<strong
+  id="oddsApi"
+>
+-
+</strong>
+
 </div>
 
 </div>
 
-<div id="picks"></div>
 
-<div id="reason" class="sub" style="margin-top:12px;"></div>
+<div
+  id="picks"
+></div>
+
+
+<div
+  id="reason"
+  class="sub"
+  style="margin-top:12px;"
+></div>
 
 </section>
 
-<section id="analysisCard" class="card hidden">
 
-<h2>解析詳細</h2>
+<section
+  id="detail"
+  class="card hidden"
+>
 
-<div id="dataTags"></div>
+<h2>
+解析詳細
+</h2>
 
-<div class="data-list">
+<div id="tags"></div>
 
-<div class="data-item">
-モデル
-<br>
-<strong id="modelName">-</strong>
-</div>
-
-<div class="data-item">
-モデル比率
-<br>
-<strong id="modelWeight">-</strong>
-</div>
-
-<div class="data-item">
-今節成績
-<br>
-<strong id="meetDetected">-</strong>
-</div>
-
-<div class="data-item">
-風 / 波
-<br>
-<strong id="weatherSummary">-</strong>
-</div>
-
-</div>
 
 <div class="scroll">
 
 <table>
 
 <thead>
+
 <tr>
-<th>艇</th>
-<th>級</th>
-<th>全国勝率</th>
-<th>当地勝率</th>
-<th>平均ST</th>
-<th>F</th>
-<th>M2</th>
-<th>B2</th>
-<th>展示</th>
-<th>展示ST</th>
+
+<th>
+艇
+</th>
+
+<th>
+級
+</th>
+
+<th>
+全国
+</th>
+
+<th>
+当地
+</th>
+
+<th>
+ST
+</th>
+
+<th>
+F
+</th>
+
+<th>
+M2
+</th>
+
+<th>
+B2
+</th>
+
+<th>
+展示
+</th>
+
+<th>
+展ST
+</th>
+
 </tr>
+
 </thead>
 
-<tbody id="racerRows"></tbody>
+<tbody
+  id="rows"
+></tbody>
 
 </table>
 
 </div>
 
-</section>
 
-<section class="card">
-
-<h2>公式結果</h2>
-
-<div class="sub">
-分析したレース終了後に押すと、BOAT RACE公式結果を取得して履歴へ保存します。
-</div>
-
-<button id="fetchResult" class="secondary">
-公式結果を取得
-</button>
-
-<div id="resultBox" class="result-box">
-未取得
-</div>
+<div
+  id="weather"
+  class="sub"
+  style="margin-top:12px;"
+></div>
 
 </section>
 
+
 <section class="card">
 
-<h2>検証・学習履歴</h2>
+<h2>
+検証・学習
+</h2>
 
 <div class="stats">
 
 <div class="stat">
-<small>記録数</small>
-<strong id="historyCount">0</strong>
+
+<small>
+記録数
+</small>
+
+<strong
+  id="historyCount"
+>
+0
+</strong>
+
 </div>
 
 <div class="stat">
-<small>買い目的中率</small>
-<strong id="hitRate">-</strong>
+
+<small>
+的中率
+</small>
+
+<strong
+  id="hitRate"
+>
+-
+</strong>
+
 </div>
 
 <div class="stat">
-<small>仮想回収率</small>
-<strong id="roi">-</strong>
-</div>
+
+<small>
+回収率
+</small>
+
+<strong
+  id="roi"
+>
+-
+</strong>
 
 </div>
 
-<div id="biasText" class="sub" style="margin-top:12px;"></div>
+</div>
 
-<div id="recentHistory" style="margin-top:12px;"></div>
+<div
+  id="biasText"
+  class="sub"
+  style="margin-top:12px;"
+></div>
 
 </section>
 
+
 <p class="sub">
-自動投票は行いません。表示確率は市場オッズとモデル推定を混合した暫定値です。学習履歴は現在この端末内に保存されます。
+
+出走表・展示・オッズを別々のAPIで取得し、
+全重要データが揃った場合のみ予想します。
+重要情報が欠けた場合は予想せず見送ります。
+
 </p>
 
 </main>
 
+
 <script>
 
-const VENUES = [
+const VENUES=[
+
   ['01','桐生'],
   ['02','戸田'],
   ['03','江戸川'],
@@ -445,71 +701,140 @@ const VENUES = [
   ['22','福岡'],
   ['23','唐津'],
   ['24','大村']
+
 ];
 
-const $ = id =>
-  document.getElementById(id);
 
-VENUES.forEach(venue => {
+const ORDER=[
 
-  $('venue').add(
-    new Option(
-      `${venue[0]} ${venue[1]}`,
-      venue[0]
-    )
-  );
+  123,213,312,412,512,612,
+  124,214,314,413,513,613,
+  125,215,315,415,514,614,
+  126,216,316,416,516,615,
 
-});
+  132,231,321,421,521,621,
+  134,234,324,423,523,623,
+  135,235,325,425,524,624,
+  136,236,326,426,526,625,
+
+  142,241,341,431,531,631,
+  143,243,342,432,532,632,
+  145,245,345,435,534,634,
+  146,246,346,436,536,635,
+
+  152,251,351,451,541,641,
+  153,253,352,452,542,642,
+  154,254,354,453,543,643,
+  156,256,356,456,546,645,
+
+  162,261,361,461,561,651,
+  163,263,362,462,562,652,
+  164,264,364,463,563,653,
+  165,265,365,465,564,654
+
+];
+
+
+const PRIOR={
+  1:.56,
+  2:.14,
+  3:.12,
+  4:.10,
+  5:.05,
+  6:.03
+};
+
+
+const GRADE={
+  A1:.42,
+  A2:.18,
+  B1:0,
+  B2:-.18
+};
+
+
+const $=
+  id =>
+    document.getElementById(
+      id
+    );
+
+
+VENUES.forEach(
+  venue => {
+
+    $('venue').add(
+
+      new Option(
+
+        `${venue[0]} ${venue[1]}`,
+
+        venue[0]
+
+      )
+
+    );
+
+  }
+);
+
 
 for(
-  let race = 1;
-  race <= 12;
+  let race=1;
+  race<=12;
   race++
 ){
 
   $('race').add(
+
     new Option(
+
       `${race}R`,
+
       race
+
     )
+
   );
 
 }
 
+
 function todayJst(){
 
-  const now =
-    new Date();
-
-  const jst =
+  const date=
     new Date(
-      now.getTime()
+      Date.now()
       +
       9 * 60 * 60 * 1000
     );
 
-  return jst
+  return date
     .toISOString()
-    .slice(0,10);
+    .slice(
+      0,
+      10
+    );
 
 }
 
-$('date').value =
+
+$('date').value=
   todayJst();
 
-let latestAnalysis =
-  null;
 
-function getHistory(){
+function history(){
 
   try{
 
     return JSON.parse(
+
       localStorage.getItem(
-        'boatrace_v4_history'
+        'boatrace_v5_history'
       )
       ||
       '[]'
+
     );
 
   }catch{
@@ -520,23 +845,14 @@ function getHistory(){
 
 }
 
-function setHistory(history){
 
-  localStorage.setItem(
-    'boatrace_v4_history',
-    JSON.stringify(
-      history.slice(-1000)
-    )
-  );
+function courseBias(){
 
-}
+  const items=
+    history();
 
-function getCourseBias(){
 
-  const history =
-    getHistory();
-
-  const base = {
+  const base={
     1:.56,
     2:.14,
     3:.12,
@@ -545,7 +861,8 @@ function getCourseBias(){
     6:.03
   };
 
-  const wins = {
+
+  const wins={
     1:0,
     2:0,
     3:0,
@@ -554,630 +871,1190 @@ function getCourseBias(){
     6:0
   };
 
-  history.forEach(item => {
 
-    const first =
-      Number(
-        String(
-          item.result || ''
-        )
-        .split('-')[0]
-      );
+  items.forEach(
+    item => {
 
-    if(
-      wins[first] != null
-    ){
+      const first=
+        Number(
+          String(
+            item.result ||
+            ''
+          )
+          .split(
+            '-'
+          )[0]
+        );
 
-      wins[first]++;
+
+      if(
+        wins[first] != null
+      ){
+
+        wins[first]++;
+
+      }
 
     }
+  );
 
-  });
 
-  const priorStrength =
+  const priorCount=
     50;
 
-  const bias = {};
+
+  const bias={};
+
 
   for(
-    let lane = 1;
-    lane <= 6;
+    let lane=1;
+    lane<=6;
     lane++
   ){
 
-    const observed =
+    const rate=
       (
         wins[lane]
         +
-        priorStrength * base[lane]
+        priorCount
+        *
+        base[lane]
       )
       /
       (
-        history.length
+        items.length
         +
-        priorStrength
+        priorCount
       );
 
-    bias[lane] =
+
+    bias[lane]=
       Math.max(
         .82,
         Math.min(
           1.18,
-          observed / base[lane]
+          rate /
+          base[lane]
         )
       );
 
   }
+
 
   return bias;
 
 }
 
-function money(value){
 
-  return new Intl
-    .NumberFormat('ja-JP')
-    .format(
-      Math.round(
-        value || 0
-      )
-    );
+function updateStats(){
 
-}
+  const items=
+    history();
 
-function pct(
-  value,
-  digits = 1
-){
 
-  if(
-    !Number.isFinite(
-      Number(value)
-    )
-  ){
+  $('historyCount')
+    .textContent=
+      items.length;
 
-    return '-';
 
-  }
+  let hit=0;
 
-  return (
-    Number(value)
-    *
-    100
-  )
-  .toFixed(digits)
-  +
-  '%';
+  let stake=0;
 
-}
+  let payout=0;
 
-function safe(
-  value,
-  digits = 2
-){
 
-  if(
-    value == null
-    ||
-    !Number.isFinite(
-      Number(value)
-    )
-  ){
+  items.forEach(
+    item => {
 
-    return '-';
+      const picks=
+        item.picks ||
+        [];
 
-  }
 
-  return Number(value)
-    .toFixed(digits);
+      stake +=
+        picks.reduce(
+          (
+            total,
+            pick
+          ) =>
+            total
+            +
+            Number(
+              pick.amount ||
+              0
+            ),
+          0
+        );
 
-}
 
-function renderStats(){
+      const winner=
+        picks.find(
+          pick =>
+            pick.combo ===
+            item.result
+        );
 
-  const history =
-    getHistory();
-
-  $('historyCount').textContent =
-    history.length;
-
-  let hitCount = 0;
-  let totalStake = 0;
-  let totalReturn = 0;
-
-  history.forEach(item => {
-
-    const picks =
-      item.picks || [];
-
-    const stake =
-      picks.reduce(
-        (total,pick) =>
-          total
-          +
-          Number(
-            pick.amount || 0
-          ),
-        0
-      );
-
-    totalStake +=
-      stake;
-
-    const hit =
-      picks.find(
-        pick =>
-          pick.combo ===
-          item.result
-      );
-
-    if(
-      hit
-    ){
-
-      hitCount++;
 
       if(
-        Number.isFinite(
-          Number(
-            item.payout
-          )
-        )
-        &&
-        Number(
-          item.payout
-        ) > 0
+        winner
       ){
 
-        totalReturn +=
+        hit++;
+
+        payout +=
           Number(
-            item.payout
+            item.payout ||
+            0
           )
           *
           (
             Number(
-              hit.amount
+              winner.amount ||
+              0
             )
             /
             100
           );
 
-      }else{
-
-        totalReturn +=
-          Number(
-            hit.amount
-          )
-          *
-          Number(
-            hit.odds || 0
-          );
-
       }
 
     }
+  );
 
-  });
 
-  $('hitRate').textContent =
-    history.length
-      ?
-      (
-        hitCount
-        /
-        history.length
-        *
-        100
-      )
-      .toFixed(1)
+  $('hitRate')
+    .textContent=
+      items.length
+
+        ?
+
+        (
+          hit /
+          items.length *
+          100
+        )
+        .toFixed(
+          1
+        )
+        +
+        '%'
+
+        :
+
+        '-';
+
+
+  $('roi')
+    .textContent=
+      stake
+
+        ?
+
+        (
+          payout /
+          stake *
+          100
+        )
+        .toFixed(
+          1
+        )
+        +
+        '%'
+
+        :
+
+        '-';
+
+
+  const bias=
+    courseBias();
+
+
+  $('biasText')
+    .textContent=
+
+      '学習中の1着コース補正：'
       +
-      '%'
-      :
-      '-';
-
-  $('roi').textContent =
-    totalStake
-      ?
-      (
-        totalReturn
-        /
-        totalStake
-        *
-        100
-      )
-      .toFixed(1)
-      +
-      '%'
-      :
-      '-';
-
-  const bias =
-    getCourseBias();
-
-  $('biasText').textContent =
-    '学習中の1着コース補正：'
-    +
-    [1,2,3,4,5,6]
-      .map(
-        lane =>
-          `${lane}号 ${bias[lane].toFixed(2)}`
-      )
-      .join(' / ');
-
-  const latest =
-    [...history]
-      .reverse()
-      .slice(0,5);
-
-  $('recentHistory').innerHTML =
-    latest.length
-      ?
-      latest
-        .map(item => {
-
-          const hit =
-            (
-              item.picks || []
-            )
-            .some(
-              pick =>
-                pick.combo ===
-                item.result
-            );
-
-          return `
-<div style="padding:9px 0;border-top:1px solid #293d55;">
-<strong>
-${item.venueName || item.venue}
-${item.race}R
-</strong>
-
-<span class="${hit ? 'good' : 'bad'}">
-${hit ? ' 的中' : ' 不的中'}
-</span>
-
-<div class="sub">
-結果 ${item.result}
-・払戻 ¥${money(item.payout)}
-</div>
-</div>
-`;
-
-        })
-        .join('')
-      :
-      '<div class="sub">履歴なし</div>';
+      [1,2,3,4,5,6]
+        .map(
+          lane =>
+            `${lane}号 ${bias[lane].toFixed(2)}`
+        )
+        .join(
+          ' / '
+        );
 
 }
 
-function renderAnalysisDetails(data){
 
-  $('analysisCard')
-    .classList.remove('hidden');
+updateStats();
 
-  const meta =
-    data.meta || {};
 
-  $('modelName').textContent =
-    meta.model || '-';
+function zScore(
+  values,
+  target
+){
 
-  $('modelWeight').textContent =
-    Number.isFinite(
-      meta.modelWeight
+  const valid=
+    values.filter(
+      Number.isFinite
+    );
+
+
+  if(
+    valid.length < 3
+    ||
+    !Number.isFinite(
+      target
     )
-      ?
+  ){
+
+    return 0;
+
+  }
+
+
+  const mean=
+    valid.reduce(
       (
-        meta.modelWeight * 100
-      )
-      .toFixed(0)
-      +
-      '% AI / '
-      +
+        total,
+        value
+      ) =>
+        total + value,
+      0
+    )
+    /
+    valid.length;
+
+
+  const variance=
+    valid.reduce(
       (
-        (1 - meta.modelWeight) * 100
+        total,
+        value
+      ) =>
+        total
+        +
+        (
+          value -
+          mean
+        ) ** 2,
+      0
+    )
+    /
+    valid.length;
+
+
+  return (
+    target -
+    mean
+  )
+  /
+  (
+    Math.sqrt(
+      variance
+    )
+    ||
+    1
+  );
+
+}
+
+
+function racerValues(
+  racers,
+  key
+){
+
+  return Object.values(
+    racers
+  )
+  .map(
+    racer =>
+      racer[key]
+  );
+
+}
+
+
+function meetScore(
+  races
+){
+
+  if(
+    !Array.isArray(
+      races
+    )
+    ||
+    races.length === 0
+  ){
+
+    return 0;
+
+  }
+
+
+  const recent=
+    races.slice(
+      -6
+    );
+
+
+  const finishes=
+    recent.filter(
+      race =>
+        Number.isFinite(
+          race.finish
+        )
+    );
+
+
+  if(
+    !finishes.length
+  ){
+
+    return 0;
+
+  }
+
+
+  const avgFinish=
+    finishes.reduce(
+      (
+        total,
+        race
+      ) =>
+        total +
+        race.finish,
+      0
+    )
+    /
+    finishes.length;
+
+
+  let score=
+    (
+      3.5 -
+      avgFinish
+    )
+    *
+    .09;
+
+
+  const starts=
+    recent.filter(
+      race =>
+        Number.isFinite(
+          race.st
+        )
+    );
+
+
+  if(
+    starts.length
+  ){
+
+    const avgSt=
+      starts.reduce(
+        (
+          total,
+          race
+        ) =>
+          total +
+          race.st,
+        0
       )
-      .toFixed(0)
-      +
-      '% 市場'
-      :
-      '-';
+      /
+      starts.length;
 
-  $('meetDetected').textContent =
-    meta.currentMeetDetected
-      ?
-      '取得済み'
-      :
-      '未取得';
 
-  const weather =
-    meta.weather || {};
-
-  $('weatherSummary').textContent =
-    `${weather.windSpeed ?? '-'}m / ${weather.waveHeight ?? '-'}cm`;
-
-  const tags = [
-    '全国勝率',
-    '全国2連率',
-    '全国3連率',
-    '当地勝率',
-    '当地2連率',
-    '当地3連率',
-    '平均ST',
-    'F/L',
-    'モーター',
-    'ボート',
-    '今節成績',
-    '展示タイム',
-    '展示ST',
-    '展示進入',
-    'チルト',
-    '部品交換',
-    '気象',
-    '120通りオッズ',
-    '結果学習'
-  ];
-
-  $('dataTags').innerHTML =
-    tags
-      .map(
-        tag =>
-          `<span class="tag">${tag}</span>`
+    score +=
+      (
+        .16 -
+        avgSt
       )
-      .join('');
+      *
+      .45;
 
-  const racers =
-    meta.racers || {};
+  }
 
-  const exhibition =
-    meta.exhibition || {};
 
-  let rows = '';
+  return Math.max(
+    -.30,
+    Math.min(
+      .30,
+      score
+    )
+  );
+
+}
+
+
+function laneStrength(
+  lane,
+  racer,
+  exhibition,
+  racers,
+  exhibitions,
+  bias
+){
+
+  let score=
+    Math.log(
+      PRIOR[lane]
+      *
+      bias[lane]
+    );
+
+
+  score +=
+    GRADE[
+      racer.grade
+    ]
+    ||
+    0;
+
+
+  score +=
+    .20 *
+    zScore(
+      racerValues(
+        racers,
+        'nationalWin'
+      ),
+      racer.nationalWin
+    );
+
+
+  score +=
+    .08 *
+    zScore(
+      racerValues(
+        racers,
+        'national2'
+      ),
+      racer.national2
+    );
+
+
+  score +=
+    .08 *
+    zScore(
+      racerValues(
+        racers,
+        'national3'
+      ),
+      racer.national3
+    );
+
+
+  score +=
+    .13 *
+    zScore(
+      racerValues(
+        racers,
+        'localWin'
+      ),
+      racer.localWin
+    );
+
+
+  score +=
+    .06 *
+    zScore(
+      racerValues(
+        racers,
+        'local2'
+      ),
+      racer.local2
+    );
+
+
+  score +=
+    .05 *
+    zScore(
+      racerValues(
+        racers,
+        'local3'
+      ),
+      racer.local3
+    );
+
+
+  score +=
+    .13 *
+    zScore(
+      racerValues(
+        racers,
+        'motor2'
+      ),
+      racer.motor2
+    );
+
+
+  score +=
+    .06 *
+    zScore(
+      racerValues(
+        racers,
+        'motor3'
+      ),
+      racer.motor3
+    );
+
+
+  score +=
+    .07 *
+    zScore(
+      racerValues(
+        racers,
+        'boat2'
+      ),
+      racer.boat2
+    );
+
+
+  score +=
+    .04 *
+    zScore(
+      racerValues(
+        racers,
+        'boat3'
+      ),
+      racer.boat3
+    );
+
+
+  score -=
+    .11 *
+    zScore(
+      racerValues(
+        racers,
+        'avgSt'
+      ),
+      racer.avgSt
+    );
+
+
+  score -=
+    Math.min(
+      .32,
+      (
+        racer.fCount ||
+        0
+      )
+      *
+      .13
+    );
+
+
+  score -=
+    Math.min(
+      .16,
+      (
+        racer.lCount ||
+        0
+      )
+      *
+      .08
+    );
+
+
+  score +=
+    meetScore(
+      racer.currentMeet
+    );
+
+
+  const exTimes=
+    Object.values(
+      exhibitions
+    )
+    .map(
+      item =>
+        item.exTime
+    );
+
+
+  score -=
+    .19 *
+    zScore(
+      exTimes,
+      exhibition.exTime
+    );
+
+
+  const exStarts=
+    Object.values(
+      exhibitions
+    )
+    .map(
+      item =>
+        item.exSt
+    );
+
+
+  score -=
+    .11 *
+    zScore(
+      exStarts,
+      exhibition.exSt
+    );
+
+
+  if(
+    exhibition.exFlying
+  ){
+
+    score -=
+      .03;
+
+  }
+
+
+  if(
+    exhibition.isMiss
+  ){
+
+    score -=
+      .18;
+
+  }
+
+
+  return score;
+
+}
+
+
+function modelProbabilities(
+  strengths
+){
+
+  const weights={};
+
 
   for(
-    let lane = 1;
-    lane <= 6;
+    let lane=1;
+    lane<=6;
     lane++
   ){
 
-    const racer =
-      racers[lane] || {};
-
-    const before =
-      exhibition[lane] || {};
-
-    rows += `
-<tr>
-<td>${lane}</td>
-<td>${racer.grade || '-'}</td>
-<td>${safe(racer.nationalWin)}</td>
-<td>${safe(racer.localWin)}</td>
-<td>${safe(racer.avgSt)}</td>
-<td>${racer.fCount ?? 0}</td>
-<td>${safe(racer.motor2)}</td>
-<td>${safe(racer.boat2)}</td>
-<td>${safe(before.exTime)}</td>
-<td>${safe(before.exSt)}</td>
-</tr>
-`;
+    weights[lane]=
+      Math.exp(
+        strengths[lane]
+      );
 
   }
 
-  $('racerRows').innerHTML =
-    rows;
+
+  const total=
+    Object.values(
+      weights
+    )
+    .reduce(
+      (
+        sum,
+        value
+      ) =>
+        sum +
+        value,
+      0
+    );
+
+
+  const result={};
+
+
+  for(
+    const value
+    of ORDER
+  ){
+
+    const s=
+      String(
+        value
+      );
+
+
+    const a=
+      Number(
+        s[0]
+      );
+
+
+    const b=
+      Number(
+        s[1]
+      );
+
+
+    const c=
+      Number(
+        s[2]
+      );
+
+
+    const p1=
+      weights[a]
+      /
+      total;
+
+
+    const total2=
+      total -
+      weights[a];
+
+
+    const p2=
+      weights[b]
+      /
+      total2;
+
+
+    const total3=
+      total2 -
+      weights[b];
+
+
+    const p3=
+      weights[c]
+      /
+      total3;
+
+
+    result[
+      `${a}-${b}-${c}`
+    ]=
+      p1 *
+      p2 *
+      p3;
+
+  }
+
+
+  return result;
 
 }
 
-function renderPicks(data){
 
-  if(
-    data.skip
+function blend(
+  model,
+  market,
+  modelWeight
+){
+
+  const result={};
+
+  let total=0;
+
+
+  for(
+    const value
+    of ORDER
   ){
 
-    $('status').textContent =
-      '見送り';
+    const s=
+      String(
+        value
+      );
 
-    $('status').className =
-      'status warn';
 
-    $('picks').innerHTML =
-      '';
+    const key=
+      `${s[0]}-${s[1]}-${s[2]}`;
 
-    return;
+
+    const m=
+      Math.max(
+        model[key] ||
+        0,
+        1e-9
+      );
+
+
+    const q=
+      Math.max(
+        market[key] ||
+        0,
+        1e-9
+      );
+
+
+    const probability=
+      Math.pow(
+        m,
+        modelWeight
+      )
+      *
+      Math.pow(
+        q,
+        1 -
+        modelWeight
+      );
+
+
+    result[key]=
+      probability;
+
+
+    total +=
+      probability;
 
   }
 
-  $('status').textContent =
-    '候補あり';
 
-  $('status').className =
-    'status good';
+  for(
+    const key
+    of Object.keys(
+      result
+    )
+  ){
 
-  const labels = [
-    '◎ 本命',
-    '○ 対抗',
-    '▲ 穴'
-  ];
+    result[key] /=
+      total;
 
-  $('picks').innerHTML =
-    (
-      data.picks || []
+  }
+
+
+  return result;
+
+}
+
+
+function chooseBets(
+  odds,
+  probabilities,
+  market,
+  budget
+){
+
+  const units=
+    Math.floor(
+      budget /
+      100
+    );
+
+
+  if(
+    units < 1
+  ){
+
+    return [];
+
+  }
+
+
+  let rows=
+    Object.entries(
+      odds
     )
     .map(
       (
-        pick,
-        index
+        [
+          combo,
+          odd
+        ]
       ) => {
 
-        const market =
-          Number(
-            pick.marketP
+        const p=
+          probabilities[
+            combo
+          ]
+          ||
+          0;
+
+
+        const marketP=
+          market[
+            combo
+          ]
+          ||
+          0;
+
+
+        const divergence=
+          marketP > 0
+
+            ?
+
+            p /
+            marketP
+
+            :
+
+            1;
+
+
+        let penalty=
+          1;
+
+
+        if(
+          odd > 100
+        ){
+          penalty=.5;
+        }
+
+        else if(
+          odd > 60
+        ){
+          penalty=.68;
+        }
+
+        else if(
+          odd > 30
+        ){
+          penalty=.82;
+        }
+
+
+        const edge=
+          Math.max(
+            .8,
+            Math.min(
+              1.25,
+              divergence
+            )
           );
 
-        const ai =
-          Number(
-            pick.p
-          );
 
-        const diff =
-          (
-            ai -
-            market
-          )
-          *
-          100;
+        return {
 
-        return `
-<div class="pick">
+          combo,
 
-<div class="rank">
-${labels[index] || '候補'}
-</div>
+          odds:
+            odd,
 
-<div class="combo">
-${pick.combo}
-</div>
+          p,
 
-<div class="amount">
-¥${money(pick.amount)}
-・
-${Number(pick.odds).toFixed(1)}倍
-</div>
+          marketP,
 
-<div class="metrics">
+          divergence,
 
-<div class="metric">
-<small>統合推定確率</small>
-<b>${pct(pick.p)}</b>
-</div>
+          score:
+            p
+            *
+            Math.pow(
+              edge,
+              .3
+            )
+            *
+            penalty
 
-<div class="metric">
-<small>市場確率</small>
-<b>${pct(pick.marketP)}</b>
-</div>
-
-<div class="metric">
-<small>市場との差</small>
-<b class="${diff >= 0 ? 'good' : 'bad'}">
-${diff >= 0 ? '+' : ''}
-${diff.toFixed(1)}pt
-</b>
-</div>
-
-<div class="metric">
-<small>払戻目安</small>
-<b>
-¥${money(
-  Number(pick.amount)
-  *
-  Number(pick.odds)
-)}
-</b>
-</div>
-
-</div>
-
-</div>
-`;
+        };
 
       }
-    )
-    .join('');
+    );
+
+
+  rows=
+    rows.filter(
+      row =>
+        row.odds <=
+        (
+          units <= 3
+            ?
+            80
+            :
+            150
+        )
+    );
+
+
+  rows.sort(
+    (
+      a,
+      b
+    ) =>
+      b.score -
+      a.score
+  );
+
+
+  const selected=
+    rows
+      .filter(
+        row =>
+          row.p >=
+          .025
+      )
+      .slice(
+        0,
+        Math.min(
+          3,
+          units
+        )
+      );
+
+
+  if(
+    units <= 3
+  ){
+
+    return selected.map(
+      row => ({
+        ...row,
+        amount:100
+      })
+    );
+
+  }
+
+
+  let remaining=
+    units;
+
+
+  const totalP=
+    selected.reduce(
+      (
+        total,
+        row
+      ) =>
+        total +
+        row.p,
+      0
+    );
+
+
+  return selected.map(
+    (
+      row,
+      index
+    ) => {
+
+      let use=
+        index ===
+        selected.length -
+        1
+
+          ?
+
+          remaining
+
+          :
+
+          Math.max(
+            1,
+            Math.floor(
+              units
+              *
+              row.p
+              /
+              totalP
+            )
+          );
+
+
+      use=
+        Math.min(
+          use,
+          remaining
+          -
+          (
+            selected.length
+            -
+            index
+            -
+            1
+          )
+        );
+
+
+      remaining -=
+        use;
+
+
+      return {
+
+        ...row,
+
+        amount:
+          use *
+          100
+
+      };
+
+    }
+  );
 
 }
 
-$('analyze').onclick =
+
+function safe(
+  value,
+  digits=2
+){
+
+  return Number.isFinite(
+    Number(
+      value
+    )
+  )
+
+    ?
+
+    Number(
+      value
+    )
+    .toFixed(
+      digits
+    )
+
+    :
+
+    '-';
+
+}
+
+
+function pct(value){
+
+  return (
+    Number(
+      value ||
+      0
+    )
+    *
+    100
+  )
+  .toFixed(
+    1
+  )
+  +
+  '%';
+
+}
+
+
+$('analyze')
+  .onclick=
 async function(){
 
-  $('status').textContent =
-    '公式データ取得・解析中…';
+  $('status')
+    .textContent=
+      '3系統から公式データ取得中…';
 
-  $('status').className =
-    'status';
 
-  $('picks').innerHTML =
-    '';
+  $('status')
+    .className=
+      'status';
 
-  $('reason').textContent =
-    '';
 
-  $('analysisCard')
-    .classList.add('hidden');
+  $('picks')
+    .innerHTML=
+      '';
 
-  try{
 
-    const bias =
-      getCourseBias();
+  $('detail')
+    .classList.add(
+      'hidden'
+    );
 
-    const query =
-      new URLSearchParams({
 
-        date:
-          $('date').value,
-
-        venue:
-          $('venue').value,
-
-        race:
-          $('race').value,
-
-        budget:
-          $('budget').value,
-
-        b1:
-          String(
-            bias[1]
-          ),
-
-        b2:
-          String(
-            bias[2]
-          ),
-
-        b3:
-          String(
-            bias[3]
-          ),
-
-        b4:
-          String(
-            bias[4]
-          ),
-
-        b5:
-          String(
-            bias[5]
-          ),
-
-        b6:
-          String(
-            bias[6]
-          )
-
-      });
-
-    const response =
-      await fetch(
-        '/api/predict?'
-        +
-        query.toString()
-      );
-
-    const data =
-      await response.json();
-
-    if(
-      !response.ok
-    ){
-
-      throw new Error(
-        data.error
-        ||
-        '解析に失敗しました'
-      );
-
-    }
-
-    latestAnalysis = {
+  const query=
+    new URLSearchParams({
 
       date:
         $('date').value,
@@ -1186,240 +2063,868 @@ async function(){
         $('venue').value,
 
       race:
-        Number(
-          $('race').value
-        ),
+        $('race').value
 
-      budget:
-        Number(
-          $('budget').value
-        ),
+    });
 
-      ...data
 
-    };
+  const url=
+    query.toString();
 
-    $('raceInfo').textContent =
-      `${data.venueName} ${data.race}R`
-      +
-      ` / オッズ ${data.oddsCount}通り`
-      +
-      ` / ${data.meta?.model || ''}`;
 
-    const coverage =
-      Number(
-        data.meta?.coverage || 0
-      );
+  /*
+  3本を別々の
+  Vercel Functionとして並列実行
+  */
 
-    $('coverageArea')
-      .classList.remove('hidden');
 
-    $('coverage').textContent =
-      `${coverage}%`;
+  const results=
+    await Promise.allSettled([
 
-    $('coverageBar').style.width =
-      `${coverage}%`;
+      fetch(
+        '/api/race?'
+        +
+        url
+      )
+      .then(
+        response =>
+          response.json()
+      ),
 
-    renderPicks(data);
+      fetch(
+        '/api/before?'
+        +
+        url
+      )
+      .then(
+        response =>
+          response.json()
+      ),
 
-    $('reason').textContent =
-      data.reason || '';
+      fetch(
+        '/api/odds?'
+        +
+        url
+      )
+      .then(
+        response =>
+          response.json()
+      )
 
-    renderAnalysisDetails(data);
+    ]);
 
-  }catch(error){
 
-    $('status').textContent =
-      'エラー';
+  const raceData=
+    results[0].status
+    ===
+    'fulfilled'
 
-    $('status').className =
-      'status bad';
+      ?
 
-    $('reason').textContent =
-      error.message;
+      results[0].value
 
-  }
+      :
 
-};
+      {
+        ok:false
+      };
 
-$('fetchResult').onclick =
-async function(){
+
+  const beforeData=
+    results[1].status
+    ===
+    'fulfilled'
+
+      ?
+
+      results[1].value
+
+      :
+
+      {
+        ok:false
+      };
+
+
+  const oddsData=
+    results[2].status
+    ===
+    'fulfilled'
+
+      ?
+
+      results[2].value
+
+      :
+
+      {
+        ok:false
+      };
+
+
+  $('raceApi')
+    .textContent=
+      raceData.ok
+        ?
+        'OK'
+        :
+        '失敗';
+
+
+  $('beforeApi')
+    .textContent=
+      beforeData.ok
+        ?
+        'OK'
+        :
+        '失敗';
+
+
+  $('oddsApi')
+    .textContent=
+      oddsData.ok
+        ?
+        'OK'
+        :
+        '失敗';
+
+
+  /*
+  1つでも重要APIが失敗したら
+  予想は出さない
+  */
+
 
   if(
-    !latestAnalysis
+    !raceData.ok
+    ||
+    !beforeData.ok
+    ||
+    !oddsData.ok
   ){
 
-    $('resultBox').textContent =
-      '先に対象レースを分析してください。';
+    $('status')
+      .textContent=
+        '見送り';
+
+
+    $('status')
+      .className=
+        'status warn';
+
+
+    $('reason')
+      .textContent=
+        '重要データがすべて揃わなかったため、精度を落とした予想は出しません。';
+
+
+    $('raceInfo')
+      .textContent=
+        `${$('venue').selectedOptions[0].text} ${$('race').value}R`;
+
+
+    $('coverageArea')
+      .classList.remove(
+        'hidden'
+      );
+
+
+    $('coverage')
+      .textContent=
+        '不足';
+
+
+    $('coverageBar')
+      .style.width=
+        '0%';
+
 
     return;
 
   }
 
-  $('resultBox').textContent =
-    '公式結果を取得中…';
 
-  try{
+  const racers=
+    raceData.racers;
 
-    const query =
-      new URLSearchParams({
 
-        action:
-          'result',
+  const exhibitions=
+    beforeData.boats;
 
-        date:
-          latestAnalysis.date,
 
-        venue:
-          latestAnalysis.venue,
+  /*
+  重要項目の完全性確認
+  */
 
-        race:
-          String(
-            latestAnalysis.race
-          )
 
-      });
+  const critical=[];
 
-    const response =
-      await fetch(
-        '/api/predict?'
-        +
-        query.toString()
-      );
 
-    const data =
-      await response.json();
+  for(
+    let lane=1;
+    lane<=6;
+    lane++
+  ){
 
-    if(
-      !response.ok
-    ){
+    const racer=
+      racers[lane];
 
-      throw new Error(
-        data.error
-        ||
-        '結果取得エラー'
-      );
 
+    const exhibition=
+      exhibitions[lane];
+
+
+    if(!racer.grade){
+      critical.push('級別');
     }
 
-    if(
-      !data.ready
-    ){
-
-      $('resultBox').textContent =
-        'まだ公式結果が確定していません。';
-
-      return;
-
-    }
-
-    $('resultBox').innerHTML =
-      `
-<strong style="font-size:24px;">
-${data.combo}
-</strong>
-
-<br>
-
-3連単払戻
-<strong>
-¥${money(data.payout)}
-</strong>
-
-<br>
-
-<span class="sub">
-人気：${data.popularity ?? '-'}
-</span>
-`;
-
-    const history =
-      getHistory();
-
-    const key =
-      `${latestAnalysis.date}_${latestAnalysis.venue}_${latestAnalysis.race}`;
-
-    const record = {
-
-      key,
-
-      date:
-        latestAnalysis.date,
-
-      venue:
-        latestAnalysis.venue,
-
-      venueName:
-        latestAnalysis.venueName,
-
-      race:
-        latestAnalysis.race,
-
-      budget:
-        latestAnalysis.budget,
-
-      picks:
-        latestAnalysis.picks || [],
-
-      result:
-        data.combo,
-
-      payout:
-        data.payout,
-
-      popularity:
-        data.popularity,
-
-      coverage:
-        latestAnalysis.meta?.coverage,
-
-      model:
-        latestAnalysis.meta?.model,
-
-      snapshot:
-        latestAnalysis.snapshot || null,
-
-      savedAt:
-        new Date()
-          .toISOString()
-
-    };
-
-    const index =
-      history.findIndex(
-        item =>
-          item.key === key
-      );
 
     if(
-      index >= 0
+      racer.avgSt == null
     ){
-
-      history[index] =
-        record;
-
-    }else{
-
-      history.push(record);
-
+      critical.push('平均ST');
     }
 
-    setHistory(history);
 
-    renderStats();
+    if(
+      racer.nationalWin == null
+    ){
+      critical.push('全国勝率');
+    }
 
-  }catch(error){
 
-    $('resultBox').textContent =
-      error.message;
+    if(
+      racer.motor2 == null
+    ){
+      critical.push('モーター');
+    }
+
+
+    if(
+      racer.boat2 == null
+    ){
+      critical.push('ボート');
+    }
+
+
+    if(
+      exhibition.exTime == null
+    ){
+      critical.push('展示タイム');
+    }
+
+
+    if(
+      exhibition.exSt == null
+    ){
+      critical.push('展示ST');
+    }
+
+
+    if(
+      exhibition.exCourse == null
+    ){
+      critical.push('展示進入');
+    }
 
   }
 
-};
 
-renderStats();
+  if(
+    critical.length
+  ){
+
+    $('status')
+      .textContent=
+        '見送り';
+
+
+    $('status')
+      .className=
+        'status warn';
+
+
+    $('reason')
+      .textContent=
+        '重要項目が欠損しているため予想しません。';
+
+
+    return;
+
+  }
+
+
+  /*
+  データ取得率
+  */
+
+
+  let total=0;
+
+  let obtained=0;
+
+
+  const racerFields=[
+
+    'grade',
+    'avgSt',
+    'nationalWin',
+    'national2',
+    'national3',
+    'localWin',
+    'local2',
+    'local3',
+    'motor2',
+    'motor3',
+    'boat2',
+    'boat3'
+
+  ];
+
+
+  for(
+    let lane=1;
+    lane<=6;
+    lane++
+  ){
+
+    racerFields.forEach(
+      field => {
+
+        total++;
+
+
+        if(
+          racers[
+            lane
+          ][field] != null
+        ){
+
+          obtained++;
+
+        }
+
+      }
+    );
+
+
+    [
+      'exTime',
+      'exSt',
+      'exCourse'
+    ]
+    .forEach(
+      field => {
+
+        total++;
+
+
+        if(
+          exhibitions[
+            lane
+          ][field] != null
+        ){
+
+          obtained++;
+
+        }
+
+      }
+    );
+
+  }
+
+
+  total++;
+
+
+  if(
+    raceData.currentMeetDetected
+  ){
+
+    obtained++;
+
+  }
+
+
+  total++;
+
+
+  if(
+    beforeData.weather.windSpeed != null
+    &&
+    beforeData.weather.waveHeight != null
+  ){
+
+    obtained++;
+
+  }
+
+
+  const coverage=
+    Math.round(
+      obtained /
+      total *
+      100
+    );
+
+
+  $('coverageArea')
+    .classList.remove(
+      'hidden'
+    );
+
+
+  $('coverage')
+    .textContent=
+      `${coverage}%`;
+
+
+  $('coverageBar')
+    .style.width=
+      `${coverage}%`;
+
+
+  if(
+    coverage < 85
+  ){
+
+    $('status')
+      .textContent=
+        '見送り';
+
+
+    $('status')
+      .className=
+        'status warn';
+
+
+    $('reason')
+      .textContent=
+        'データ取得率85%未満のため、精度優先で見送ります。';
+
+
+    return;
+
+  }
+
+
+  const bias=
+    courseBias();
+
+
+  const strengths={};
+
+
+  for(
+    let lane=1;
+    lane<=6;
+    lane++
+  ){
+
+    strengths[lane]=
+      laneStrength(
+
+        lane,
+
+        racers[lane],
+
+        exhibitions[lane],
+
+        racers,
+
+        exhibitions,
+
+        bias
+
+      );
+
+  }
+
+
+  const model=
+    modelProbabilities(
+      strengths
+    );
+
+
+  const market=
+    oddsData
+      .marketProbabilities;
+
+
+  let modelWeight=
+    coverage >= 95
+      ?
+      .60
+      :
+      coverage >= 90
+        ?
+        .57
+        :
+        .53;
+
+
+  const finalProbabilities=
+    blend(
+
+      model,
+
+      market,
+
+      modelWeight
+
+    );
+
+
+  const budget=
+    Number(
+      $('budget').value
+    );
+
+
+  const picks=
+    chooseBets(
+
+      oddsData.odds,
+
+      finalProbabilities,
+
+      market,
+
+      budget
+
+    );
+
+
+  if(
+    !picks.length
+    ||
+    (
+      budget <= 500
+      &&
+      Math.max(
+        ...picks.map(
+          pick =>
+            pick.p
+        )
+      )
+      <
+      .04
+    )
+  ){
+
+    $('status')
+      .textContent=
+        '見送り';
+
+
+    $('status')
+      .className=
+        'status warn';
+
+
+    $('reason')
+      .textContent=
+        'データは揃いましたが、有力な買い条件を満たさないため見送ります。';
+
+
+    return;
+
+  }
+
+
+  $('status')
+    .textContent=
+      '候補あり';
+
+
+  $('status')
+    .className=
+      'status good';
+
+
+  $('raceInfo')
+    .textContent=
+
+      `${raceData.venueName} ${raceData.race}R`
+      +
+      ` / オッズ ${oddsData.oddsCount}通り`
+      +
+      ` / full-v5-split`;
+
+
+  const labels=[
+
+    '◎ 本命',
+    '○ 対抗',
+    '▲ 穴'
+
+  ];
+
+
+  $('picks')
+    .innerHTML=
+
+      picks
+      .map(
+        (
+          pick,
+          index
+        ) => {
+
+          const diff=
+            (
+              pick.p -
+              pick.marketP
+            )
+            *
+            100;
+
+
+          return `
+
+<div class="pick">
+
+<div>
+${labels[index]}
+</div>
+
+<div class="combo">
+${pick.combo}
+</div>
+
+<div class="amount">
+
+¥${pick.amount}
+・
+${Number(
+  pick.odds
+).toFixed(
+  1
+)}
+倍
+
+</div>
+
+<div class="metrics">
+
+<div class="metric">
+
+<small>
+統合確率
+</small>
+
+<b>
+${pct(
+  pick.p
+)}
+</b>
+
+</div>
+
+<div class="metric">
+
+<small>
+市場確率
+</small>
+
+<b>
+${pct(
+  pick.marketP
+)}
+</b>
+
+</div>
+
+<div class="metric">
+
+<small>
+差
+</small>
+
+<b>
+${diff >= 0 ? '+' : ''}
+${diff.toFixed(1)}
+pt
+</b>
+
+</div>
+
+<div class="metric">
+
+<small>
+払戻目安
+</small>
+
+<b>
+¥${Math.round(
+  pick.amount
+  *
+  pick.odds
+)}
+</b>
+
+</div>
+
+</div>
+
+</div>
+
+`;
+
+        }
+      )
+      .join(
+        ''
+      );
+
+
+  $('reason')
+    .textContent=
+      '出走表・展示・気象・120通りオッズの重要データが揃った状態で統合予想しています。';
+
+
+  $('detail')
+    .classList.remove(
+      'hidden'
+    );
+
+
+  $('tags')
+    .innerHTML=
+
+      [
+        '全国勝率',
+        '全国2連率',
+        '全国3連率',
+        '当地勝率',
+        '当地2連率',
+        '当地3連率',
+        '平均ST',
+        'F/L',
+        'モーター',
+        'ボート',
+        '今節成績',
+        '展示タイム',
+        '展示ST',
+        '展示進入',
+        '気象',
+        '120通りオッズ',
+        '市場補正',
+        '結果学習'
+      ]
+      .map(
+        text =>
+          `<span class="tag">${text}</span>`
+      )
+      .join(
+        ''
+      );
+
+
+  let rows='';
+
+
+  for(
+    let lane=1;
+    lane<=6;
+    lane++
+  ){
+
+    const racer=
+      racers[lane];
+
+
+    const exhibition=
+      exhibitions[lane];
+
+
+    rows += `
+
+<tr>
+
+<td>
+${lane}
+</td>
+
+<td>
+${racer.grade}
+</td>
+
+<td>
+${safe(
+  racer.nationalWin
+)}
+</td>
+
+<td>
+${safe(
+  racer.localWin
+)}
+</td>
+
+<td>
+${safe(
+  racer.avgSt
+)}
+</td>
+
+<td>
+${racer.fCount}
+</td>
+
+<td>
+${safe(
+  racer.motor2
+)}
+</td>
+
+<td>
+${safe(
+  racer.boat2
+)}
+</td>
+
+<td>
+${safe(
+  exhibition.exTime
+)}
+</td>
+
+<td>
+${safe(
+  exhibition.exSt
+)}
+</td>
+
+</tr>
+
+`;
+
+  }
+
+
+  $('rows')
+    .innerHTML=
+      rows;
+
+
+  $('weather')
+    .textContent=
+
+      `気温 ${beforeData.weather.temperature ?? '-'}℃`
+      +
+      ` / 水温 ${beforeData.weather.waterTemperature ?? '-'}℃`
+      +
+      ` / 風 ${beforeData.weather.windSpeed ?? '-'}m`
+      +
+      ` / 波 ${beforeData.weather.waveHeight ?? '-'}cm`;
+
+};
 
 </script>
 
 </body>
+
 </html>
