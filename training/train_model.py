@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import math
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -15,109 +17,72 @@ import requests
 BASE = "https://boatracecsv.github.io/data"
 OUT = Path("model/model.json")
 
-
 FEATURES = [
-    "lane1",
-    "lane2",
-    "lane3",
-    "lane4",
-    "lane5",
-    "lane6",
-
-    "grade_a1",
-    "grade_a2",
-    "grade_b1",
-    "grade_b2",
-
+    "lane1", "lane2", "lane3", "lane4", "lane5", "lane6",
+    "grade_a1", "grade_a2", "grade_b1", "grade_b2",
     "avg_st",
-
-    "national_win",
-    "national2",
-    "national3",
-
-    "local_win",
-    "local2",
-    "local3",
-
-    "motor2",
-    "motor3",
-
-    "boat2",
-    "boat3",
-
-    "f_count",
-    "l_count",
-
-    "meet_avg_finish",
-    "meet_avg_st",
-    "meet_count",
-
-    "ex_time",
-    "ex_st",
-    "ex_course_shift",
-
-    "wind",
-    "wave",
-    "temperature",
-    "water_temperature",
+    "national_win", "national2", "national3",
+    "local_win", "local2", "local3",
+    "motor2", "motor3",
+    "boat2", "boat3",
+    "f_count", "l_count",
+    "meet_avg_finish", "meet_avg_st", "meet_count",
+    "ex_time", "ex_st", "ex_course_shift",
+    "wind", "wave", "temperature", "water_temperature",
 ]
 
-
-session = requests.Session()
-
-session.headers.update(
-    {
-        "User-Agent":
-            "boat-race-ai-v7-trainer/1.0",
-
-        "Accept":
-            "text/csv,text/plain,*/*",
-    }
-)
+HEADERS = {
+    "User-Agent": "boat-race-ai-v7-trainer/2.0",
+    "Accept": "text/csv,text/plain,*/*",
+}
 
 
 def parse_args():
+    p = argparse.ArgumentParser()
 
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
+    p.add_argument(
         "--days",
         type=int,
-        default=180
+        default=120,
     )
 
-    parser.add_argument(
+    p.add_argument(
         "--min-races",
         type=int,
-        default=500
+        default=500,
     )
 
-    parser.add_argument(
+    p.add_argument(
         "--epochs",
         type=int,
-        default=1800
+        default=300,
     )
 
-    parser.add_argument(
+    p.add_argument(
         "--lr",
         type=float,
-        default=0.035
+        default=0.035,
     )
 
-    parser.add_argument(
+    p.add_argument(
         "--l2",
         type=float,
-        default=0.002
+        default=0.002,
     )
 
-    return parser.parse_args()
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+    )
+
+    return p.parse_args()
 
 
 def fetch_csv(
     kind: str,
-    day: date
+    day: date,
 ):
-
     url = (
         f"{BASE}/"
         f"{kind}/"
@@ -125,59 +90,40 @@ def fetch_csv(
     )
 
     try:
-
-        response = session.get(
+        response = requests.get(
             url,
-            timeout=20
+            headers=HEADERS,
+            timeout=20,
         )
 
-    except requests.RequestException:
+        if response.status_code == 404:
+            return None
 
-        return None
+        response.raise_for_status()
 
-
-    if response.status_code == 404:
-
-        return None
-
-
-    response.raise_for_status()
-
-
-    if not response.text.strip():
-
-        return None
-
-
-    try:
+        if not response.text.strip():
+            return None
 
         return pd.read_csv(
-            pd.io.common.StringIO(
+            io.StringIO(
                 response.text
             ),
-            dtype=str
+            dtype=str,
         )
 
-    except Exception:
+    except Exception as exc:
+        print(
+            f"WARN fetch failed "
+            f"{kind} {day}: {exc}",
+            flush=True,
+        )
 
         return None
 
 
 def num(value):
-
     if value is None:
-
         return np.nan
-
-
-    if (
-        isinstance(value, float)
-        and
-        math.isnan(value)
-    ):
-
-        return np.nan
-
 
     text = (
         str(value)
@@ -185,61 +131,55 @@ def num(value):
         .replace(",", "")
     )
 
+    if (
+        not text
+        or
+        text.lower() == "nan"
+    ):
+        return np.nan
 
     match = re.search(
         r"-?\d+(?:\.\d+)?",
-        text
+        text,
     )
 
-
     if not match:
-
         return np.nan
-
 
     return float(
         match.group(0)
     )
 
 
-def first(
-    row,
-    names
-):
-
-    for name in names:
-
-        if name in row.index:
-
-            return row[name]
-
-
-    return None
-
-
 def boat_value(
     row,
     lane: int,
-    suffixes
+    *suffixes,
 ):
-
     for suffix in suffixes:
-
         key = (
             f"艇{lane}_"
             f"{suffix}"
         )
 
         if key in row.index:
+            return row.get(key)
 
-            return row[key]
+    return None
 
+
+def first_value(
+    row,
+    *names,
+):
+    for name in names:
+        if name in row.index:
+            return row.get(name)
 
     return None
 
 
 def grade_flags(value):
-
     grade = (
         str(value or "")
         .strip()
@@ -248,45 +188,66 @@ def grade_flags(value):
 
     return [
         float(
-            grade == name
+            grade == candidate
         )
-        for name
-        in (
+        for candidate in (
             "A1",
             "A2",
             "B1",
-            "B2"
+            "B2",
         )
     ]
 
 
 def meet_features(
     row,
-    lane: int
+    lane: int,
 ):
-
     finishes = []
     starts = []
-
     count = 0
 
-
-    for day in range(
+    for day_number in range(
         1,
-        8
+        8,
     ):
-
-        for run in range(
+        for run_number in range(
             1,
-            3
+            3,
         ):
-
             prefix = (
                 f"艇{lane}_"
-                f"節D{day}"
-                f"走{run}_"
+                f"節D{day_number}"
+                f"走{run_number}_"
             )
 
+            values = [
+                row.get(
+                    prefix + key
+                )
+                for key in (
+                    "R番号",
+                    "進入",
+                    "枠",
+                    "ST",
+                    "着順",
+                )
+            ]
+
+            has_data = any(
+                value is not None
+                and
+                str(value).strip()
+                not in (
+                    "",
+                    "nan",
+                )
+                for value
+                in values
+            )
+
+            if has_data:
+                count += 1
 
             finish = num(
                 row.get(
@@ -296,7 +257,6 @@ def meet_features(
                 )
             )
 
-
             start = num(
                 row.get(
                     prefix
@@ -305,58 +265,19 @@ def meet_features(
                 )
             )
 
-
-            has_data = False
-
-
-            for suffix in (
-                "R番号",
-                "進入",
-                "枠",
-                "ST",
-                "着順"
-            ):
-
-                value = row.get(
-                    prefix
-                    +
-                    suffix
-                )
-
-
-                if (
-                    value is not None
-                    and
-                    str(value).strip()
-                ):
-
-                    has_data = True
-
-                    break
-
-
-            if has_data:
-
-                count += 1
-
-
             if (
                 np.isfinite(finish)
                 and
                 1 <= finish <= 6
             ):
-
                 finishes.append(
                     finish
                 )
 
-
             if np.isfinite(start):
-
                 starts.append(
                     start
                 )
-
 
     return (
         float(
@@ -380,71 +301,44 @@ def build_feature(
     stt,
     tkz,
     sui,
-    lane: int
+    lane: int,
 ):
-
-    grade = boat_value(
-        card,
-        lane,
-        [
-            "級別",
-            "級"
-        ]
-    )
-
-
-    grade_values = grade_flags(
-        grade
-    )
-
-
     (
         meet_finish,
         meet_st,
-        meet_count
+        meet_count,
     ) = meet_features(
         card,
-        lane
+        lane,
     )
-
 
     ex_course = num(
         boat_value(
             stt,
             lane,
-            [
-                "コース",
-                "進入"
-            ]
+            "コース",
+            "進入",
         )
     )
-
 
     ex_st = num(
         boat_value(
             stt,
             lane,
-            [
-                "スタート展示",
-                "展示ST"
-            ]
+            "スタート展示",
+            "展示ST",
         )
     )
-
 
     ex_time = num(
         boat_value(
             tkz,
             lane,
-            [
-                "展示タイム"
-            ]
+            "展示タイム",
         )
     )
 
-
     values = [
-
         *[
             float(
                 lane == number
@@ -452,175 +346,140 @@ def build_feature(
             for number
             in range(
                 1,
-                7
+                7,
             )
         ],
 
-        *grade_values,
-
+        *grade_flags(
+            boat_value(
+                card,
+                lane,
+                "級別",
+                "級",
+            )
+        ),
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "全国平均ST",
-                    "平均ST"
-                ]
+                "全国平均ST",
+                "平均ST",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "全国勝率"
-                ]
+                "全国勝率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "全国2連対率",
-                    "全国2連率"
-                ]
+                "全国2連対率",
+                "全国2連率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "全国3連対率",
-                    "全国3連率"
-                ]
+                "全国3連対率",
+                "全国3連率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "当地勝率"
-                ]
+                "当地勝率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "当地2連対率",
-                    "当地2連率"
-                ]
+                "当地2連対率",
+                "当地2連率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "当地3連対率",
-                    "当地3連率"
-                ]
+                "当地3連対率",
+                "当地3連率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "モーター2連対率",
-                    "モーター2連率"
-                ]
+                "モーター2連対率",
+                "モーター2連率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "モーター3連対率",
-                    "モーター3連率"
-                ]
+                "モーター3連対率",
+                "モーター3連率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "ボート2連対率",
-                    "ボート2連率"
-                ]
+                "ボート2連対率",
+                "ボート2連率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "ボート3連対率",
-                    "ボート3連率"
-                ]
+                "ボート3連対率",
+                "ボート3連率",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "F本数",
-                    "F"
-                ]
+                "F本数",
+                "F",
             )
         ),
-
 
         num(
             boat_value(
                 card,
                 lane,
-                [
-                    "L本数",
-                    "L"
-                ]
+                "L本数",
+                "L",
             )
         ),
-
 
         meet_finish,
         meet_st,
         meet_count,
 
-
         ex_time,
         ex_st,
-
 
         (
             ex_course
@@ -632,61 +491,60 @@ def build_feature(
         )
         else np.nan,
 
-
         num(
-            first(
+            first_value(
                 sui,
-                [
-                    "風速(m)",
-                    "風速"
-                ]
+                "風速(m)",
+                "風速",
             )
         ),
 
-
         num(
-            first(
+            first_value(
                 sui,
-                [
-                    "波の高さ(cm)",
-                    "波高",
-                    "波の高さ"
-                ]
+                "波の高さ(cm)",
+                "波高",
+                "波の高さ",
             )
         ),
 
-
         num(
-            first(
+            first_value(
                 sui,
-                [
-                    "気温(℃)",
-                    "気温"
-                ]
+                "気温(℃)",
+                "気温",
             )
         ),
 
-
         num(
-            first(
+            first_value(
                 sui,
-                [
-                    "水温(℃)",
-                    "水温"
-                ]
+                "水温(℃)",
+                "水温",
             )
         ),
     ]
 
-
-    return np.asarray(
+    array = np.asarray(
         values,
-        dtype=float
+        dtype=float,
     )
 
+    if (
+        array.shape[0]
+        !=
+        len(FEATURES)
+    ):
+        raise RuntimeError(
+            "feature length mismatch: "
+            f"{array.shape[0]} "
+            f"!= {len(FEATURES)}"
+        )
 
-def map_by_code(df):
+    return array
 
+
+def latest_by_code(df):
     if (
         df is None
         or
@@ -695,30 +553,233 @@ def map_by_code(df):
         "レースコード"
         not in df.columns
     ):
-
         return {}
 
+    result = {}
 
-    return {
+    for _, row in df.iterrows():
+        code = str(
+            row.get(
+                "レースコード",
+                "",
+            )
+        ).strip()
 
-        str(
-            row[
-                "レースコード"
-            ]
+        if code:
+            result[code] = row
+
+    return result
+
+
+def detect_winner(row):
+    for name in (
+        "1着_艇番",
+        "1着艇番",
+        "1着_枠",
+        "1着枠",
+    ):
+        if name not in row.index:
+            continue
+
+        value = num(
+            row.get(name)
+        )
+
+        if (
+            np.isfinite(value)
+            and
+            1 <= value <= 6
         ):
-        row
+            return int(value)
 
-        for _,
-        row
-        in df.iterrows()
+    for lane in range(
+        1,
+        7,
+    ):
+        for suffix in (
+            "着順",
+            "順位",
+            "結果",
+        ):
+            key = (
+                f"艇{lane}_"
+                f"{suffix}"
+            )
+
+            if key not in row.index:
+                continue
+
+            value = num(
+                row.get(key)
+            )
+
+            if (
+                np.isfinite(value)
+                and
+                int(value) == 1
+            ):
+                return lane
+
+    for column in row.index:
+        name = str(column)
+
+        if (
+            "1着" not in name
+            or
+            (
+                "艇" not in name
+                and
+                "枠" not in name
+            )
+        ):
+            continue
+
+        value = num(
+            row.get(column)
+        )
+
+        if (
+            np.isfinite(value)
+            and
+            1 <= value <= 6
+        ):
+            return int(value)
+
+    return None
+
+
+def load_day(day: date):
+    kinds = {
+        "cards":
+            "programs/race_cards",
+
+        "results":
+            "results/realtime",
+
+        "stt":
+            "previews/stt",
+
+        "tkz":
+            "previews/tkz",
+
+        "sui":
+            "previews/sui",
     }
 
+    data = {
+        name:
+            fetch_csv(
+                kind,
+                day,
+            )
 
-def collect(days: int):
+        for name, kind
+        in kinds.items()
+    }
+
+    cards = data["cards"]
+    results = data["results"]
+
+    if (
+        cards is None
+        or
+        results is None
+    ):
+        return (
+            day,
+            [],
+        )
+
+    result_map = latest_by_code(
+        results
+    )
+
+    stt_map = latest_by_code(
+        data["stt"]
+    )
+
+    tkz_map = latest_by_code(
+        data["tkz"]
+    )
+
+    sui_map = latest_by_code(
+        data["sui"]
+    )
+
+    empty = pd.Series(
+        dtype=object
+    )
 
     races = []
 
+    for _, card in cards.iterrows():
+        code = str(
+            card.get(
+                "レースコード",
+                "",
+            )
+        ).strip()
 
+        result = result_map.get(
+            code
+        )
+
+        if result is None:
+            continue
+
+        winner = detect_winner(
+            result
+        )
+
+        if winner is None:
+            continue
+
+        features = np.vstack(
+            [
+                build_feature(
+                    card,
+                    stt_map.get(
+                        code,
+                        empty,
+                    ),
+                    tkz_map.get(
+                        code,
+                        empty,
+                    ),
+                    sui_map.get(
+                        code,
+                        empty,
+                    ),
+                    lane,
+                )
+
+                for lane
+                in range(
+                    1,
+                    7,
+                )
+            ]
+        )
+
+        races.append(
+            (
+                code,
+                day.isoformat(),
+                features,
+                winner - 1,
+            )
+        )
+
+    return (
+        day,
+        races,
+    )
+
+
+def collect(
+    days: int,
+    workers: int,
+):
     end = (
         date.today()
         -
@@ -727,219 +788,84 @@ def collect(days: int):
         )
     )
 
-
-    start = (
+    dates = [
         end
         -
         timedelta(
-            days=days - 1
-        )
-    )
-
-
-    for offset in range(
-        days
-    ):
-
-        day = (
-            start
-            +
-            timedelta(
-                days=offset
-            )
+            days=index
         )
 
+        for index
+        in range(days)
+    ]
 
-        cards = fetch_csv(
-            "programs/race_cards",
-            day
+    all_races = []
+
+    with ThreadPoolExecutor(
+        max_workers=max(
+            1,
+            workers,
         )
+    ) as executor:
 
+        futures = {
+            executor.submit(
+                load_day,
+                target_day,
+            ):
+                target_day
 
-        results = fetch_csv(
-            "results/realtime",
-            day
-        )
+            for target_day
+            in dates
+        }
 
-
-        if (
-            cards is None
-            or
-            results is None
+        for future in as_completed(
+            futures
         ):
+            target_day = futures[
+                future
+            ]
 
-            continue
+            try:
+                _,
+                races = future.result()
 
-
-        stt = fetch_csv(
-            "previews/stt",
-            day
-        )
-
-
-        tkz = fetch_csv(
-            "previews/tkz",
-            day
-        )
-
-
-        sui = fetch_csv(
-            "previews/sui",
-            day
-        )
-
-
-        result_map = map_by_code(
-            results
-        )
-
-
-        stt_map = map_by_code(
-            stt
-        )
-
-
-        tkz_map = map_by_code(
-            tkz
-        )
-
-
-        sui_map = map_by_code(
-            sui
-        )
-
-
-        for _,
-        card
-        in cards.iterrows():
-
-
-            code = str(
-                card.get(
-                    "レースコード",
-                    ""
+                all_races.extend(
+                    races
                 )
-            )
 
-
-            result = result_map.get(
-                code
-            )
-
-
-            if result is None:
-
-                continue
-
-
-            winner_value = num(
-                first(
-                    result,
-                    [
-                        "1着_艇番"
-                    ]
+                print(
+                    (
+                        f"{target_day}: "
+                        f"+{len(races)} races "
+                        f"/ total="
+                        f"{len(all_races)}"
+                    ),
+                    flush=True,
                 )
-            )
 
-
-            if not np.isfinite(
-                winner_value
-            ):
-
-                continue
-
-
-            winner = int(
-                winner_value
-            )
-
-
-            if (
-                winner < 1
-                or
-                winner > 6
-            ):
-
-                continue
-
-
-            stt_row = stt_map.get(
-                code,
-                pd.Series(
-                    dtype=object
+            except Exception as exc:
+                print(
+                    (
+                        "WARN day failed "
+                        f"{target_day}: "
+                        f"{exc}"
+                    ),
+                    flush=True,
                 )
-            )
 
-
-            tkz_row = tkz_map.get(
-                code,
-                pd.Series(
-                    dtype=object
-                )
-            )
-
-
-            sui_row = sui_map.get(
-                code,
-                pd.Series(
-                    dtype=object
-                )
-            )
-
-
-            features = np.vstack(
-                [
-                    build_feature(
-                        card,
-                        stt_row,
-                        tkz_row,
-                        sui_row,
-                        lane
-                    )
-
-                    for lane
-                    in range(
-                        1,
-                        7
-                    )
-                ]
-            )
-
-
-            races.append(
-                (
-                    code,
-                    day.isoformat(),
-                    features,
-                    winner - 1
-                )
-            )
-
-
-        print(
-            (
-                f"{day}: "
-                f"total races="
-                f"{len(races)}"
-            ),
-            flush=True
-        )
-
-
-    races.sort(
+    all_races.sort(
         key=lambda item:
             item[0]
     )
 
-
-    return races
+    return all_races
 
 
 def impute_and_scale(
     train_races,
-    test_races
+    test_races,
 ):
-
     flat = np.vstack(
         [
             race[2]
@@ -948,59 +874,49 @@ def impute_and_scale(
         ]
     )
 
-
     means = np.nanmean(
         flat,
-        axis=0
+        axis=0,
     )
-
 
     means = np.where(
         np.isfinite(means),
         means,
-        0.0
+        0.0,
     )
-
 
     filled = np.where(
         np.isfinite(flat),
         flat,
-        means
+        means,
     )
-
 
     scales = np.std(
         filled,
-        axis=0
+        axis=0,
     )
-
 
     scales = np.where(
         scales > 1e-8,
         scales,
-        1.0
+        1.0,
     )
 
-
     def transform(races):
-
         output = []
-
 
         for (
             code,
             race_date,
             values,
-            winner
+            winner,
         ) in races:
-
 
             values = np.where(
                 np.isfinite(values),
                 values,
-                means
+                means,
             )
-
 
             values = (
                 values
@@ -1008,54 +924,44 @@ def impute_and_scale(
                 means
             ) / scales
 
-
             output.append(
                 (
                     code,
                     race_date,
                     values,
-                    winner
+                    winner,
                 )
             )
 
-
         return output
-
 
     return (
         transform(
             train_races
         ),
-
         transform(
             test_races
         ),
-
         means,
-        scales
+        scales,
     )
 
 
 def softmax(values):
-
     centered = (
         values
         -
         np.max(values)
     )
 
-
-    exponential = np.exp(
+    exp_values = np.exp(
         centered
     )
 
-
     return (
-        exponential
+        exp_values
         /
-        np.sum(
-            exponential
-        )
+        np.sum(exp_values)
     )
 
 
@@ -1063,115 +969,85 @@ def train_conditional_logit(
     races,
     epochs,
     learning_rate,
-    l2
+    l2,
 ):
-
-    feature_count = len(
-        FEATURES
-    )
-
-
     weights = np.zeros(
-        feature_count,
-        dtype=float
+        len(FEATURES),
+        dtype=float,
     )
 
-
-    first_moment = np.zeros(
-        feature_count,
-        dtype=float
+    first_moment = np.zeros_like(
+        weights
     )
 
-
-    second_moment = np.zeros(
-        feature_count,
-        dtype=float
+    second_moment = np.zeros_like(
+        weights
     )
-
 
     beta1 = 0.9
     beta2 = 0.999
-
     epsilon = 1e-8
-
-    step = 0
-
 
     random = np.random.default_rng(
         42
     )
 
-
     for epoch in range(
         1,
-        epochs + 1
+        epochs + 1,
     ):
+        gradient = np.zeros_like(
+            weights
+        )
 
+        loss = 0.0
 
         order = random.permutation(
             len(races)
         )
 
-
-        gradient = np.zeros_like(
-            weights
-        )
-
-
-        loss = 0.0
-
-
         for index in order:
-
-
-            _,
-            _,
-            values,
-            winner = races[index]
-
+            (
+                _,
+                _,
+                values,
+                winner,
+            ) = races[index]
 
             probabilities = softmax(
-                values @ weights
+                values
+                @
+                weights
             )
 
-
-            loss += -math.log(
+            loss -= math.log(
                 max(
                     probabilities[
                         winner
                     ],
-                    1e-12
+                    1e-12,
                 )
             )
 
-
-            expected = (
+            gradient += (
                 probabilities
                 @
                 values
-            )
-
-
-            gradient += (
-                expected
                 -
                 values[
                     winner
                 ]
             )
 
-
-        gradient /= len(
-            races
-        )
-
-
-        gradient += (
+        gradient = (
+            gradient
+            /
+            len(races)
+            +
             l2
             *
             weights
         )
-
 
         loss = (
             loss
@@ -1189,10 +1065,6 @@ def train_conditional_logit(
             )
         )
 
-
-        step += 1
-
-
         first_moment = (
             beta1
             *
@@ -1206,7 +1078,6 @@ def train_conditional_logit(
             *
             gradient
         )
-
 
         second_moment = (
             beta2
@@ -1226,17 +1097,15 @@ def train_conditional_logit(
             )
         )
 
-
         first_corrected = (
             first_moment
             /
             (
                 1
                 -
-                beta1 ** step
+                beta1 ** epoch
             )
         )
-
 
         second_corrected = (
             second_moment
@@ -1244,10 +1113,9 @@ def train_conditional_logit(
             (
                 1
                 -
-                beta2 ** step
+                beta2 ** epoch
             )
         )
-
 
         weights -= (
             learning_rate
@@ -1263,65 +1131,60 @@ def train_conditional_logit(
             )
         )
 
-
         if (
             epoch == 1
             or
-            epoch % 100 == 0
+            epoch % 50 == 0
+            or
+            epoch == epochs
         ):
-
             print(
                 (
                     f"epoch="
                     f"{epoch} "
                     f"loss="
-                    f"{loss:.5f}"
+                    f"{loss:.6f}"
                 ),
-                flush=True
+                flush=True,
             )
-
 
     return weights
 
 
 def evaluate(
     races,
-    weights
+    weights,
 ):
-
     if not races:
-
         return {}
-
 
     hits = 0
     top3 = 0
     loss = 0.0
-
+    brier = 0.0
 
     for (
         _,
         _,
         values,
-        winner
+        winner,
     ) in races:
 
-
         probabilities = softmax(
-            values @ weights
+            values
+            @
+            weights
         )
-
 
         order = np.argsort(
             -probabilities
         )
 
-
         hits += int(
-            order[0] ==
+            order[0]
+            ==
             winner
         )
-
 
         top3 += int(
             winner
@@ -1329,49 +1192,78 @@ def evaluate(
             order[:3]
         )
 
-
-        loss += -math.log(
+        loss -= math.log(
             max(
                 probabilities[
                     winner
                 ],
-                1e-12
+                1e-12,
             )
         )
 
+        target = np.zeros(
+            6
+        )
 
-    count = len(
+        target[
+            winner
+        ] = 1.0
+
+        brier += float(
+            np.mean(
+                (
+                    probabilities
+                    -
+                    target
+                )
+                **
+                2
+            )
+        )
+
+    race_count = len(
         races
     )
 
-
     return {
         "races":
-            count,
+            race_count,
 
         "top1Accuracy":
-            hits / count,
+            hits
+            /
+            race_count,
 
         "winnerInTop3":
-            top3 / count,
+            top3
+            /
+            race_count,
 
         "logLoss":
-            loss / count,
+            loss
+            /
+            race_count,
+
+        "brierScore":
+            brier
+            /
+            race_count,
     }
 
 
 def main():
-
     args = parse_args()
 
-
     races = collect(
-        args.days
+        args.days,
+        args.workers,
     )
 
-
-    if len(races) < args.min_races:
-
+    if (
+        len(races)
+        <
+        args.min_races
+    ):
         raise SystemExit(
             (
                 "not enough races: "
@@ -1381,74 +1273,63 @@ def main():
             )
         )
 
-
-    split = max(
-        1,
-        int(
-            len(races)
-            *
-            0.82
-        )
+    split = min(
+        len(races) - 1,
+        max(
+            1,
+            int(
+                len(races)
+                *
+                0.82
+            ),
+        ),
     )
 
-
-    train_races = races[
+    train_raw = races[
         :split
     ]
 
-
-    test_races = races[
+    test_raw = races[
         split:
     ]
-
 
     (
         train_races,
         test_races,
         means,
-        scales
+        scales,
     ) = impute_and_scale(
-        train_races,
-        test_races
+        train_raw,
+        test_raw,
     )
-
 
     weights = train_conditional_logit(
         train_races,
         args.epochs,
         args.lr,
-        args.l2
+        args.l2,
     )
-
-
-    train_metrics = evaluate(
-        train_races,
-        weights
-    )
-
-
-    test_metrics = evaluate(
-        test_races,
-        weights
-    )
-
 
     model = {
-
         "version":
-            "v7-conditional-logit",
+            "v7-conditional-logit-2",
 
         "trainedAt":
             datetime.now(
                 timezone.utc
-            )
-            .isoformat(),
+            ).isoformat(),
 
         "lookbackDays":
             args.days,
 
         "raceCount":
             len(races),
+
+        "trainRaceCount":
+            len(train_races),
+
+        "validationRaceCount":
+            len(test_races),
 
         "features":
             FEATURES,
@@ -1462,44 +1343,51 @@ def main():
         "coefficients":
             weights.tolist(),
 
-        "validation":
-            test_metrics,
-
         "training":
-            train_metrics,
+            evaluate(
+                train_races,
+                weights,
+            ),
+
+        "validation":
+            evaluate(
+                test_races,
+                weights,
+            ),
 
         "notes":
             (
-                "Winner conditional-logit model. "
-                "Race-wise softmax training; "
-                "trifecta inference uses "
+                "Chronological split. "
+                "Winner conditional-logit model "
+                "with race-wise softmax. "
+                "Trifecta inference can use "
                 "Plackett-Luce ordering."
-            )
+            ),
     }
-
 
     OUT.parent.mkdir(
         parents=True,
-        exist_ok=True
+        exist_ok=True,
     )
-
 
     OUT.write_text(
         json.dumps(
             model,
             ensure_ascii=False,
-            indent=2
+            indent=2,
         ),
-        encoding="utf-8"
+        encoding="utf-8",
     )
-
 
     print(
         json.dumps(
-            test_metrics,
+            model[
+                "validation"
+            ],
             ensure_ascii=False,
-            indent=2
-        )
+            indent=2,
+        ),
+        flush=True,
     )
 
 
