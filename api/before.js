@@ -24,19 +24,23 @@ function clean(value){
 }
 
 function compact(value){
-  return clean(value).replace(/\s+/g,' ').trim();
+  return clean(value)
+    .replace(/\s+/g,' ')
+    .trim();
 }
 
 function numberFrom(value){
-  const match=String(value ?? '')
-    .replace(/,/g,'')
-    .match(/-?\d+(?:\.\d+)?/);
+  const match=
+    String(value ?? '')
+      .replace(/,/g,'')
+      .match(/-?\d+(?:\.\d+)?/);
 
   if(!match){
     return null;
   }
 
-  const n=Number(match[0]);
+  const n=
+    Number(match[0]);
 
   return Number.isFinite(n)
     ? n
@@ -78,7 +82,7 @@ function lookupIPv4(
 
 function fetchOfficial(
   url,
-  timeoutMs=8500
+  timeoutMs=20000
 ){
   return new Promise(
     (resolve,reject)=>{
@@ -867,7 +871,7 @@ async function handler(
     const html=
       await fetchOfficial(
         url,
-        8500
+        20000
       );
 
     const parsed=
@@ -892,7 +896,7 @@ async function handler(
         race,
 
         source:
-          'official-beforeinfo-v3',
+          'official-beforeinfo-v4',
 
         transport:
           'node-https-ipv4',
