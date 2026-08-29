@@ -19,7 +19,12 @@ import requests
 
 
 BASE = "https://boatracecsv.github.io/data"
-DEFAULT_MODEL_PATH = Path("model/model.json")
+
+DEFAULT_MODEL_PATH = Path(
+    "model/model.json"
+)
+
+DEFAULT_HOLDOUT_DAYS = 45
 
 FEATURES = [
     "lane1",
@@ -47,17 +52,23 @@ HEADERS = {
         "text/csv,text/plain,*/*",
 }
 
-# v9の外部評価期間。
-#
-# 昨日
-# ├─ final test 30日
-# ├─ validation 15日
-# └─ それ以前だけをモデル学習に利用
-DEFAULT_HOLDOUT_DAYS = 45
-
 
 def args():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--mode",
+        choices=[
+            "evaluation",
+            "production",
+        ],
+        default="evaluation",
+        help=(
+            "evaluation reserves the external "
+            "45-day holdout. production trains "
+            "through the latest completed data."
+        ),
+    )
 
     parser.add_argument(
         "--days",
@@ -68,11 +79,10 @@ def args():
     parser.add_argument(
         "--end-offset",
         type=int,
-        default=DEFAULT_HOLDOUT_DAYS,
+        default=None,
         help=(
-            "Completed recent days excluded "
-            "from model training. "
-            "v9 requires at least 45."
+            "Optional manual number of recent "
+            "completed days to exclude."
         ),
     )
 
@@ -81,8 +91,8 @@ def args():
         type=int,
         default=DEFAULT_HOLDOUT_DAYS,
         help=(
-            "Minimum untouched period reserved "
-            "for strategy validation/final test."
+            "Minimum external holdout used "
+            "by evaluation mode."
         ),
     )
 
@@ -118,8 +128,9 @@ def args():
         default=0.002,
     )
 
-    # 旧workflowとの互換性用。
-    # 現コードは直列収集なので値は保持のみ。
+    # 旧workflow互換。
+    # 現在の取得処理は直列なので
+    # worker値そのものは使用しない。
     parser.add_argument(
         "--workers",
         type=int,
@@ -178,10 +189,11 @@ def number(value):
         text,
     )
 
-    return (
-        float(match.group())
-        if match
-        else np.nan
+    if not match:
+        return np.nan
+
+    return float(
+        match.group()
     )
 
 
@@ -191,7 +203,9 @@ def value(
     names,
 ):
     for name in names:
-        key = f"艇{lane}_{name}"
+        key = (
+            f"艇{lane}_{name}"
+        )
 
         if key in row.index:
             return row.get(key)
@@ -235,8 +249,14 @@ def meet(
     finishes = []
     starts = []
 
-    for day_no in range(1, 8):
-        for run in range(1, 3):
+    for day_no in range(
+        1,
+        8,
+    ):
+        for run in range(
+            1,
+            3,
+        ):
             prefix = (
                 f"艇{lane}_"
                 f"節D{day_no}"
@@ -268,14 +288,29 @@ def meet(
                     start
                 )
 
-    return (
-        float(np.mean(finishes))
+    meet_finish = (
+        float(
+            np.mean(
+                finishes
+            )
+        )
         if finishes
-        else np.nan,
+        else np.nan
+    )
 
-        float(np.mean(starts))
+    meet_start = (
+        float(
+            np.mean(
+                starts
+            )
+        )
         if starts
-        else np.nan,
+        else np.nan
+    )
+
+    return (
+        meet_finish,
+        meet_start,
     )
 
 
@@ -294,9 +329,13 @@ def features(
     return np.array(
         [
             *[
-                float(lane == n)
-                for n
-                in range(1, 7)
+                float(
+                    lane == n
+                )
+                for n in range(
+                    1,
+                    7,
+                )
             ],
 
             number(
@@ -382,8 +421,13 @@ def features(
 
 
 def winner(row):
-    for lane in range(1, 7):
-        key = f"艇{lane}_着順"
+    for lane in range(
+        1,
+        7,
+    ):
+        key = (
+            f"艇{lane}_着順"
+        )
 
         if key not in row.index:
             continue
@@ -434,9 +478,11 @@ def load_day(target):
 
     except Exception as exc:
         print(
-            f"WARN {target}: {exc}",
+            f"WARN {target}: "
+            f"{exc}",
             flush=True,
         )
+
         return []
 
     if (
@@ -467,7 +513,9 @@ def load_day(target):
             continue
 
         result = (
-            result_map.get(code)
+            result_map.get(
+                code
+            )
         )
 
         if result is None:
@@ -487,7 +535,10 @@ def load_day(target):
                     lane,
                 )
                 for lane
-                in range(1, 7)
+                in range(
+                    1,
+                    7,
+                )
             ]
         )
 
@@ -507,22 +558,21 @@ def collect(
     days,
     end_offset,
 ):
-    # 例:
-    # 8/30実行・45日holdoutの場合
-    # 最新学習日は7/15。
-    #
-    # 7/16〜7/30 validation
-    # 7/31〜8/29 final test
     end = (
         date.today()
         - timedelta(
-            days=1 + end_offset
+            days=(
+                1
+                + end_offset
+            )
         )
     )
 
     races = []
 
-    for offset in range(days):
+    for offset in range(
+        days
+    ):
         target = (
             end
             - timedelta(
@@ -530,8 +580,10 @@ def collect(
             )
         )
 
-        day_races = load_day(
-            target
+        day_races = (
+            load_day(
+                target
+            )
         )
 
         races.extend(
@@ -561,7 +613,9 @@ def smoke():
         - timedelta(days=1)
     )
 
-    for offset in range(7):
+    for offset in range(
+        7
+    ):
         target = (
             end
             - timedelta(
@@ -589,7 +643,10 @@ def smoke():
             len(FEATURES),
         )
 
-        if matrix.shape != expected:
+        if (
+            matrix.shape
+            != expected
+        ):
             raise SystemExit(
                 "bad feature shape "
                 f"{matrix.shape}"
@@ -608,9 +665,48 @@ def smoke():
     )
 
 
+def resolve_end_offset(
+    config,
+):
+    """
+    evaluation:
+      外部検証45日を絶対に保護する。
+
+    production:
+      デフォルト0。
+      --end-offsetを明示した場合のみ
+      その値を使用する。
+    """
+
+    if (
+        config.mode
+        == "evaluation"
+    ):
+        requested = (
+            0
+            if config.end_offset
+            is None
+            else config.end_offset
+        )
+
+        return max(
+            requested,
+            config.holdout_days,
+            DEFAULT_HOLDOUT_DAYS,
+        )
+
+    if (
+        config.end_offset
+        is None
+    ):
+        return 0
+
+    return config.end_offset
+
+
 def prepare(
     train_raw,
-    internal_validation_raw,
+    validation_raw,
 ):
     flat = np.vstack(
         [
@@ -682,9 +778,11 @@ def prepare(
         transform(
             train_raw
         ),
+
         transform(
-            internal_validation_raw
+            validation_raw
         ),
+
         mean,
         scale,
     )
@@ -696,12 +794,12 @@ def softmax(scores):
         - np.max(scores)
     )
 
-    exp = np.exp(
+    exp_scores = np.exp(
         scores
     )
 
     total = np.sum(
-        exp
+        exp_scores
     )
 
     if total <= 0:
@@ -710,7 +808,10 @@ def softmax(scores):
             1.0 / len(scores),
         )
 
-    return exp / total
+    return (
+        exp_scores
+        / total
+    )
 
 
 def train(
@@ -727,8 +828,10 @@ def train(
     for epoch in range(
         epochs
     ):
-        gradient = np.zeros_like(
-            weights
+        gradient = (
+            np.zeros_like(
+                weights
+            )
         )
 
         loss = 0.0
@@ -739,7 +842,8 @@ def train(
 
             probabilities = (
                 softmax(
-                    matrix @ weights
+                    matrix
+                    @ weights
                 )
             )
 
@@ -763,11 +867,13 @@ def train(
         )
 
         gradient += (
-            l2 * weights
+            l2
+            * weights
         )
 
         weights -= (
-            lr * gradient
+            lr
+            * gradient
         )
 
         if (
@@ -781,7 +887,8 @@ def train(
             )
         ):
             print(
-                f"epoch={epoch + 1} "
+                f"epoch="
+                f"{epoch + 1} "
                 f"loss="
                 f"{loss / len(dataset):.6f}",
                 flush=True,
@@ -805,6 +912,7 @@ def evaluate(
 
     hits = 0
     top3 = 0
+
     log_loss = 0.0
     brier = 0.0
 
@@ -812,8 +920,11 @@ def evaluate(
         matrix = race[2]
         target = race[3]
 
-        probabilities = softmax(
-            matrix @ weights
+        probabilities = (
+            softmax(
+                matrix
+                @ weights
+            )
         )
 
         order = np.argsort(
@@ -821,7 +932,8 @@ def evaluate(
         )
 
         hits += int(
-            order[0] == target
+            order[0]
+            == target
         )
 
         top3 += int(
@@ -839,6 +951,7 @@ def evaluate(
         )
 
         truth = np.zeros(6)
+
         truth[target] = 1.0
 
         brier += np.mean(
@@ -877,27 +990,53 @@ def main():
         smoke()
         return
 
-    if (
-        config.days < 1
-        or config.end_offset < 0
-        or config.holdout_days < 1
-    ):
+    if config.days < 1:
         raise SystemExit(
-            "days must be >= 1; "
-            "offset must be >= 0; "
-            "holdout must be >= 1"
+            "days must be >= 1"
         )
 
-    # workflow側に古い --end-offset 30 等が
-    # 残っていても、最低45日を必ず確保する。
-    effective_end_offset = max(
-        config.end_offset,
-        config.holdout_days,
-        DEFAULT_HOLDOUT_DAYS,
+    if config.holdout_days < 0:
+        raise SystemExit(
+            "holdout-days must "
+            "be >= 0"
+        )
+
+    if (
+        config.end_offset
+        is not None
+        and config.end_offset < 0
+    ):
+        raise SystemExit(
+            "end-offset must "
+            "be >= 0"
+        )
+
+    effective_end_offset = (
+        resolve_end_offset(
+            config
+        )
     )
+
+    if (
+        config.mode
+        == "evaluation"
+        and effective_end_offset
+        < DEFAULT_HOLDOUT_DAYS
+    ):
+        raise SystemExit(
+            "evaluation mode must "
+            "reserve at least "
+            f"{DEFAULT_HOLDOUT_DAYS} days"
+        )
 
     print(
         "\n=== BOAT RACE AI v9 TRAIN ===",
+        flush=True,
+    )
+
+    print(
+        "mode               : "
+        f"{config.mode}",
         flush=True,
     )
 
@@ -914,7 +1053,7 @@ def main():
     )
 
     print(
-        "external holdout   : "
+        "holdout days       : "
         f"{config.holdout_days}",
         flush=True,
     )
@@ -940,13 +1079,14 @@ def main():
             f"< {config.min_races}"
         )
 
-    # これは外部15日validationとは別物。
+    # モデル内部の時間順validation。
     #
-    # 学習対象となる古いデータの中だけで
-    # モデル自体の汎化性能を確認するための
-    # internal validation。
+    # これは外部15日validationとは別。
+    # 外部45日はevaluation modeでは
+    # collect段階で完全に除外されている。
     split = int(
-        len(races) * 0.82
+        len(races)
+        * 0.82
     )
 
     if (
@@ -961,18 +1101,18 @@ def main():
         races[:split]
     )
 
-    internal_validation_raw = (
+    validation_raw = (
         races[split:]
     )
 
     (
         train_set,
-        internal_validation_set,
+        validation_set,
         mean,
         scale,
     ) = prepare(
         train_raw,
-        internal_validation_raw,
+        validation_raw,
     )
 
     weights = train(
@@ -989,15 +1129,58 @@ def main():
 
     internal_validation = (
         evaluate(
-            internal_validation_set,
+            validation_set,
             weights,
         )
     )
 
+    if (
+        config.mode
+        == "evaluation"
+    ):
+        version = (
+            "v9.1-conditional-logit-"
+            "evaluation-holdout45"
+        )
+
+        external_holdout = {
+            "enabled": True,
+            "days":
+                effective_end_offset,
+
+            "strategyValidationDays":
+                15,
+
+            "finalTestDays":
+                30,
+
+            "purpose":
+                "untouched external "
+                "strategy evaluation",
+        }
+
+    else:
+        version = (
+            "v9.1-conditional-logit-"
+            "production-latest"
+        )
+
+        external_holdout = {
+            "enabled": False,
+            "days":
+                effective_end_offset,
+
+            "purpose":
+                "production model after "
+                "external evaluation",
+        }
+
     model = {
         "version":
-            "v9.0-conditional-logit-"
-            "holdout45",
+            version,
+
+        "mode":
+            config.mode,
 
         "trainedAt":
             datetime.now(
@@ -1016,12 +1199,6 @@ def main():
         "endOffsetDays":
             effective_end_offset,
 
-        "externalValidationDays":
-            15,
-
-        "externalFinalTestDays":
-            30,
-
         "dataStartDate":
             races[0][1],
 
@@ -1036,7 +1213,7 @@ def main():
 
         "validationRaceCount":
             len(
-                internal_validation_set
+                validation_set
             ),
 
         "features":
@@ -1054,28 +1231,37 @@ def main():
         "training":
             training,
 
-        # index.htmlとの互換性維持。
-        # これは学習期間内のinternal validation。
+        # 既存UI/APIとの互換用。
         "validation":
             internal_validation,
 
+        "internalValidation":
+            internal_validation,
+
+        "externalHoldout":
+            external_holdout,
+
         "evaluationDesign": {
-            "internalValidation":
-                "chronological 18% "
-                "within training-period data",
+            "modelInternalValidation":
+                "chronological final 18% "
+                "of collected training period",
 
-            "externalHoldout":
-                "45 untouched recent "
-                "completed days",
+            "evaluationModel":
+                "excludes at least "
+                "45 recent completed days",
 
-            "strategyValidationDays":
-                15,
+            "strategyValidation":
+                "first 15 days "
+                "of external holdout",
 
-            "finalTestDays":
-                30,
+            "finalTest":
+                "last 30 days "
+                "of external holdout",
 
-            "finalTestUsage":
-                "frozen strategy evaluation only",
+            "productionModel":
+                "may retrain through "
+                "latest completed data "
+                "only after evaluation",
         },
     }
 
@@ -1106,7 +1292,14 @@ def main():
         json.dumps(
             {
                 "version":
-                    model["version"],
+                    model[
+                        "version"
+                    ],
+
+                "mode":
+                    model[
+                        "mode"
+                    ],
 
                 "dataStartDate":
                     model[
@@ -1123,7 +1316,7 @@ def main():
                         "raceCount"
                     ],
 
-                "effectiveEndOffsetDays":
+                "endOffsetDays":
                     model[
                         "endOffsetDays"
                     ],
@@ -1133,6 +1326,9 @@ def main():
 
                 "internalValidation":
                     internal_validation,
+
+                "externalHoldout":
+                    external_holdout,
             },
             ensure_ascii=False,
             indent=2,
