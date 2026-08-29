@@ -1,0 +1,645 @@
+{
+  "version": "v8-trifecta-backtest-1",
+  "modelVersion": "v7.4-conditional-logit",
+  "days": 30,
+  "raceCount": 4762,
+  "note": "ROI uses official payout where available and assumes 100 yen per selected ticket. This evaluates historical model ranking and does not prove future profitability.",
+  "top1": {
+    "races": 4762,
+    "ticketsPerRace": 1,
+    "hits": 464,
+    "hitRate": 0.09743805123897523,
+    "stake": 476200.0,
+    "return": 382280.0,
+    "roi": 0.8027719445611088,
+    "payoutCoverage": 1.0
+  },
+  "top3": {
+    "races": 4762,
+    "ticketsPerRace": 3,
+    "hits": 1063,
+    "hitRate": 0.22322553548929022,
+    "stake": 1428600.0,
+    "return": 1030300.0,
+    "roi": 0.7211955760884783,
+    "payoutCoverage": 1.0
+  },
+  "top5": {
+    "races": 4762,
+    "ticketsPerRace": 5,
+    "hits": 1553,
+    "hitRate": 0.3261234775304494,
+    "stake": 2381000.0,
+    "return": 1812870.0,
+    "roi": 0.761390172196556,
+    "payoutCoverage": 1.0
+  },
+  "actualRank": {
+    "median": 11.0,
+    "mean": 21.602267954640908,
+    "within1": 0.09743805123897523,
+    "within3": 0.22322553548929022,
+    "within5": 0.3261234775304494,
+    "within10": 0.48110037799244015
+  },
+  "winnerLane1": {
+    "raceCount": 2571,
+    "top1": {
+      "races": 2571,
+      "ticketsPerRace": 1,
+      "hits": 432,
+      "hitRate": 0.16802800466744458,
+      "stake": 257100.0,
+      "return": 334880.0,
+      "roi": 1.3025281991443018,
+      "payoutCoverage": 1.0
+    },
+    "top3": {
+      "races": 2571,
+      "ticketsPerRace": 3,
+      "hits": 937,
+      "hitRate": 0.3644496304939712,
+      "stake": 771300.0,
+      "return": 831490.0,
+      "roi": 1.0780370802541164,
+      "payoutCoverage": 1.0
+    }
+  },
+  "winnerNotLane1": {
+    "raceCount": 2191,
+    "top1": {
+      "races": 2191,
+      "ticketsPerRace": 1,
+      "hits": 32,
+      "hitRate": 0.01460520310360566,
+      "stake": 219100.0,
+      "return": 47400.0,
+      "roi": 0.21633957097215883,
+      "payoutCoverage": 1.0
+    },
+    "top3": {
+      "races": 2191,
+      "ticketsPerRace": 3,
+      "hits": 126,
+      "hitRate": 0.05750798722044728,
+      "stake": 657300.0,
+      "return": 198810.0,
+      "roi": 0.3024646280237335,
+      "payoutCoverage": 1.0
+    }
+  },
+  "byVenue": {
+    "01": {
+      "raceCount": 192,
+      "top1": {
+        "races": 192,
+        "ticketsPerRace": 1,
+        "hits": 16,
+        "hitRate": 0.08333333333333333,
+        "stake": 19200.0,
+        "return": 15910.0,
+        "roi": 0.8286458333333333,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 192,
+        "ticketsPerRace": 3,
+        "hits": 38,
+        "hitRate": 0.19791666666666666,
+        "stake": 57600.0,
+        "return": 41310.0,
+        "roi": 0.7171875,
+        "payoutCoverage": 1.0
+      }
+    },
+    "02": {
+      "raceCount": 167,
+      "top1": {
+        "races": 167,
+        "ticketsPerRace": 1,
+        "hits": 11,
+        "hitRate": 0.0658682634730539,
+        "stake": 16700.0,
+        "return": 15770.0,
+        "roi": 0.944311377245509,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 167,
+        "ticketsPerRace": 3,
+        "hits": 28,
+        "hitRate": 0.16766467065868262,
+        "stake": 50100.0,
+        "return": 37160.0,
+        "roi": 0.7417165668662674,
+        "payoutCoverage": 1.0
+      }
+    },
+    "03": {
+      "raceCount": 144,
+      "top1": {
+        "races": 144,
+        "ticketsPerRace": 1,
+        "hits": 6,
+        "hitRate": 0.041666666666666664,
+        "stake": 14400.0,
+        "return": 5310.0,
+        "roi": 0.36875,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 144,
+        "ticketsPerRace": 3,
+        "hits": 18,
+        "hitRate": 0.125,
+        "stake": 43200.0,
+        "return": 21000.0,
+        "roi": 0.4861111111111111,
+        "payoutCoverage": 1.0
+      }
+    },
+    "04": {
+      "raceCount": 228,
+      "top1": {
+        "races": 228,
+        "ticketsPerRace": 1,
+        "hits": 11,
+        "hitRate": 0.04824561403508772,
+        "stake": 22800.0,
+        "return": 11380.0,
+        "roi": 0.49912280701754386,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 228,
+        "ticketsPerRace": 3,
+        "hits": 30,
+        "hitRate": 0.13157894736842105,
+        "stake": 68400.0,
+        "return": 30960.0,
+        "roi": 0.45263157894736844,
+        "payoutCoverage": 1.0
+      }
+    },
+    "05": {
+      "raceCount": 204,
+      "top1": {
+        "races": 204,
+        "ticketsPerRace": 1,
+        "hits": 19,
+        "hitRate": 0.09313725490196079,
+        "stake": 20400.0,
+        "return": 16360.0,
+        "roi": 0.8019607843137255,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 204,
+        "ticketsPerRace": 3,
+        "hits": 45,
+        "hitRate": 0.22058823529411764,
+        "stake": 61200.0,
+        "return": 43540.0,
+        "roi": 0.711437908496732,
+        "payoutCoverage": 1.0
+      }
+    },
+    "06": {
+      "raceCount": 216,
+      "top1": {
+        "races": 216,
+        "ticketsPerRace": 1,
+        "hits": 23,
+        "hitRate": 0.10648148148148148,
+        "stake": 21600.0,
+        "return": 18340.0,
+        "roi": 0.8490740740740741,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 216,
+        "ticketsPerRace": 3,
+        "hits": 46,
+        "hitRate": 0.21296296296296297,
+        "stake": 64800.0,
+        "return": 43660.0,
+        "roi": 0.6737654320987654,
+        "payoutCoverage": 1.0
+      }
+    },
+    "07": {
+      "raceCount": 144,
+      "top1": {
+        "races": 144,
+        "ticketsPerRace": 1,
+        "hits": 18,
+        "hitRate": 0.125,
+        "stake": 14400.0,
+        "return": 15000.0,
+        "roi": 1.0416666666666667,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 144,
+        "ticketsPerRace": 3,
+        "hits": 43,
+        "hitRate": 0.2986111111111111,
+        "stake": 43200.0,
+        "return": 42630.0,
+        "roi": 0.9868055555555556,
+        "payoutCoverage": 1.0
+      }
+    },
+    "08": {
+      "raceCount": 216,
+      "top1": {
+        "races": 216,
+        "ticketsPerRace": 1,
+        "hits": 19,
+        "hitRate": 0.08796296296296297,
+        "stake": 21600.0,
+        "return": 14760.0,
+        "roi": 0.6833333333333333,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 216,
+        "ticketsPerRace": 3,
+        "hits": 54,
+        "hitRate": 0.25,
+        "stake": 64800.0,
+        "return": 49080.0,
+        "roi": 0.7574074074074074,
+        "payoutCoverage": 1.0
+      }
+    },
+    "09": {
+      "raceCount": 192,
+      "top1": {
+        "races": 192,
+        "ticketsPerRace": 1,
+        "hits": 26,
+        "hitRate": 0.13541666666666666,
+        "stake": 19200.0,
+        "return": 15560.0,
+        "roi": 0.8104166666666667,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 192,
+        "ticketsPerRace": 3,
+        "hits": 46,
+        "hitRate": 0.23958333333333334,
+        "stake": 57600.0,
+        "return": 33810.0,
+        "roi": 0.5869791666666667,
+        "payoutCoverage": 1.0
+      }
+    },
+    "10": {
+      "raceCount": 240,
+      "top1": {
+        "races": 240,
+        "ticketsPerRace": 1,
+        "hits": 30,
+        "hitRate": 0.125,
+        "stake": 24000.0,
+        "return": 23220.0,
+        "roi": 0.9675,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 240,
+        "ticketsPerRace": 3,
+        "hits": 55,
+        "hitRate": 0.22916666666666666,
+        "stake": 72000.0,
+        "return": 48610.0,
+        "roi": 0.6751388888888888,
+        "payoutCoverage": 1.0
+      }
+    },
+    "11": {
+      "raceCount": 156,
+      "top1": {
+        "races": 156,
+        "ticketsPerRace": 1,
+        "hits": 14,
+        "hitRate": 0.08974358974358974,
+        "stake": 15600.0,
+        "return": 15050.0,
+        "roi": 0.9647435897435898,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 156,
+        "ticketsPerRace": 3,
+        "hits": 34,
+        "hitRate": 0.21794871794871795,
+        "stake": 46800.0,
+        "return": 37000.0,
+        "roi": 0.7905982905982906,
+        "payoutCoverage": 1.0
+      }
+    },
+    "12": {
+      "raceCount": 144,
+      "top1": {
+        "races": 144,
+        "ticketsPerRace": 1,
+        "hits": 13,
+        "hitRate": 0.09027777777777778,
+        "stake": 14400.0,
+        "return": 10130.0,
+        "roi": 0.7034722222222223,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 144,
+        "ticketsPerRace": 3,
+        "hits": 31,
+        "hitRate": 0.2152777777777778,
+        "stake": 43200.0,
+        "return": 30170.0,
+        "roi": 0.6983796296296296,
+        "payoutCoverage": 1.0
+      }
+    },
+    "13": {
+      "raceCount": 252,
+      "top1": {
+        "races": 252,
+        "ticketsPerRace": 1,
+        "hits": 26,
+        "hitRate": 0.10317460317460317,
+        "stake": 25200.0,
+        "return": 17870.0,
+        "roi": 0.7091269841269842,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 252,
+        "ticketsPerRace": 3,
+        "hits": 52,
+        "hitRate": 0.20634920634920634,
+        "stake": 75600.0,
+        "return": 43030.0,
+        "roi": 0.5691798941798942,
+        "payoutCoverage": 1.0
+      }
+    },
+    "14": {
+      "raceCount": 156,
+      "top1": {
+        "races": 156,
+        "ticketsPerRace": 1,
+        "hits": 15,
+        "hitRate": 0.09615384615384616,
+        "stake": 15600.0,
+        "return": 15340.0,
+        "roi": 0.9833333333333333,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 156,
+        "ticketsPerRace": 3,
+        "hits": 37,
+        "hitRate": 0.23717948717948717,
+        "stake": 46800.0,
+        "return": 42390.0,
+        "roi": 0.9057692307692308,
+        "payoutCoverage": 1.0
+      }
+    },
+    "15": {
+      "raceCount": 228,
+      "top1": {
+        "races": 228,
+        "ticketsPerRace": 1,
+        "hits": 28,
+        "hitRate": 0.12280701754385964,
+        "stake": 22800.0,
+        "return": 22390.0,
+        "roi": 0.9820175438596491,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 228,
+        "ticketsPerRace": 3,
+        "hits": 52,
+        "hitRate": 0.22807017543859648,
+        "stake": 68400.0,
+        "return": 51000.0,
+        "roi": 0.7456140350877193,
+        "payoutCoverage": 1.0
+      }
+    },
+    "16": {
+      "raceCount": 192,
+      "top1": {
+        "races": 192,
+        "ticketsPerRace": 1,
+        "hits": 13,
+        "hitRate": 0.06770833333333333,
+        "stake": 19200.0,
+        "return": 13790.0,
+        "roi": 0.7182291666666667,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 192,
+        "ticketsPerRace": 3,
+        "hits": 33,
+        "hitRate": 0.171875,
+        "stake": 57600.0,
+        "return": 30880.0,
+        "roi": 0.5361111111111111,
+        "payoutCoverage": 1.0
+      }
+    },
+    "17": {
+      "raceCount": 192,
+      "top1": {
+        "races": 192,
+        "ticketsPerRace": 1,
+        "hits": 14,
+        "hitRate": 0.07291666666666667,
+        "stake": 19200.0,
+        "return": 11080.0,
+        "roi": 0.5770833333333333,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 192,
+        "ticketsPerRace": 3,
+        "hits": 46,
+        "hitRate": 0.23958333333333334,
+        "stake": 57600.0,
+        "return": 40180.0,
+        "roi": 0.6975694444444445,
+        "payoutCoverage": 1.0
+      }
+    },
+    "18": {
+      "raceCount": 240,
+      "top1": {
+        "races": 240,
+        "ticketsPerRace": 1,
+        "hits": 22,
+        "hitRate": 0.09166666666666666,
+        "stake": 24000.0,
+        "return": 17910.0,
+        "roi": 0.74625,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 240,
+        "ticketsPerRace": 3,
+        "hits": 53,
+        "hitRate": 0.22083333333333333,
+        "stake": 72000.0,
+        "return": 52060.0,
+        "roi": 0.7230555555555556,
+        "payoutCoverage": 1.0
+      }
+    },
+    "19": {
+      "raceCount": 240,
+      "top1": {
+        "races": 240,
+        "ticketsPerRace": 1,
+        "hits": 26,
+        "hitRate": 0.10833333333333334,
+        "stake": 24000.0,
+        "return": 18720.0,
+        "roi": 0.78,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 240,
+        "ticketsPerRace": 3,
+        "hits": 64,
+        "hitRate": 0.26666666666666666,
+        "stake": 72000.0,
+        "return": 54550.0,
+        "roi": 0.7576388888888889,
+        "payoutCoverage": 1.0
+      }
+    },
+    "20": {
+      "raceCount": 228,
+      "top1": {
+        "races": 228,
+        "ticketsPerRace": 1,
+        "hits": 25,
+        "hitRate": 0.10964912280701754,
+        "stake": 22800.0,
+        "return": 19530.0,
+        "roi": 0.8565789473684211,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 228,
+        "ticketsPerRace": 3,
+        "hits": 64,
+        "hitRate": 0.2807017543859649,
+        "stake": 68400.0,
+        "return": 71450.0,
+        "roi": 1.0445906432748537,
+        "payoutCoverage": 1.0
+      }
+    },
+    "21": {
+      "raceCount": 192,
+      "top1": {
+        "races": 192,
+        "ticketsPerRace": 1,
+        "hits": 23,
+        "hitRate": 0.11979166666666667,
+        "stake": 19200.0,
+        "return": 17220.0,
+        "roi": 0.896875,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 192,
+        "ticketsPerRace": 3,
+        "hits": 42,
+        "hitRate": 0.21875,
+        "stake": 57600.0,
+        "return": 38310.0,
+        "roi": 0.6651041666666667,
+        "payoutCoverage": 1.0
+      }
+    },
+    "22": {
+      "raceCount": 204,
+      "top1": {
+        "races": 204,
+        "ticketsPerRace": 1,
+        "hits": 24,
+        "hitRate": 0.11764705882352941,
+        "stake": 20400.0,
+        "return": 18920.0,
+        "roi": 0.9274509803921569,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 204,
+        "ticketsPerRace": 3,
+        "hits": 50,
+        "hitRate": 0.24509803921568626,
+        "stake": 61200.0,
+        "return": 49930.0,
+        "roi": 0.8158496732026144,
+        "payoutCoverage": 1.0
+      }
+    },
+    "23": {
+      "raceCount": 192,
+      "top1": {
+        "races": 192,
+        "ticketsPerRace": 1,
+        "hits": 14,
+        "hitRate": 0.07291666666666667,
+        "stake": 19200.0,
+        "return": 10280.0,
+        "roi": 0.5354166666666667,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 192,
+        "ticketsPerRace": 3,
+        "hits": 46,
+        "hitRate": 0.23958333333333334,
+        "stake": 57600.0,
+        "return": 46250.0,
+        "roi": 0.8029513888888888,
+        "payoutCoverage": 1.0
+      }
+    },
+    "24": {
+      "raceCount": 203,
+      "top1": {
+        "races": 203,
+        "ticketsPerRace": 1,
+        "hits": 28,
+        "hitRate": 0.13793103448275862,
+        "stake": 20300.0,
+        "return": 22440.0,
+        "roi": 1.1054187192118226,
+        "payoutCoverage": 1.0
+      },
+      "top3": {
+        "races": 203,
+        "ticketsPerRace": 3,
+        "hits": 56,
+        "hitRate": 0.27586206896551724,
+        "stake": 60900.0,
+        "return": 51340.0,
+        "roi": 0.8430213464696223,
+        "payoutCoverage": 1.0
+      }
+    }
+  }
+}

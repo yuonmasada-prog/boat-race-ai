@@ -1,6 +1,6 @@
 {
   "version": "v7.4-conditional-logit",
-  "trainedAt": "2026-08-29T09:22:26.714993+00:00",
+  "trainedAt": "2026-08-29T10:18:31.111459+00:00",
   "lookbackDays": 120,
   "raceCount": 18280,
   "trainRaceCount": 14989,
