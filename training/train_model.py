@@ -5,7 +5,12 @@ import io
 import json
 import math
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import (
+    date,
+    datetime,
+    timedelta,
+    timezone,
+)
 from pathlib import Path
 
 import numpy as np
@@ -17,50 +22,122 @@ BASE = "https://boatracecsv.github.io/data"
 DEFAULT_MODEL_PATH = Path("model/model.json")
 
 FEATURES = [
-    "lane1", "lane2", "lane3", "lane4", "lane5", "lane6",
-    "avg_st", "national_win", "national2",
-    "local_win", "local2",
-    "motor2", "boat2",
-    "meet_avg_finish", "meet_avg_st",
+    "lane1",
+    "lane2",
+    "lane3",
+    "lane4",
+    "lane5",
+    "lane6",
+    "avg_st",
+    "national_win",
+    "national2",
+    "local_win",
+    "local2",
+    "motor2",
+    "boat2",
+    "meet_avg_finish",
+    "meet_avg_st",
 ]
 
 HEADERS = {
-    "User-Agent": "boat-race-ai-v8.1",
-    "Accept": "text/csv,text/plain,*/*",
+    "User-Agent":
+        "boat-race-ai-v9-trainer",
+
+    "Accept":
+        "text/csv,text/plain,*/*",
 }
+
+# v9の外部評価期間。
+#
+# 昨日
+# ├─ final test 30日
+# ├─ validation 15日
+# └─ それ以前だけをモデル学習に利用
+DEFAULT_HOLDOUT_DAYS = 45
 
 
 def args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--days", type=int, default=120)
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=120,
+    )
 
     parser.add_argument(
         "--end-offset",
         type=int,
-        default=0,
-        help="Exclude recent completed days from training",
+        default=DEFAULT_HOLDOUT_DAYS,
+        help=(
+            "Completed recent days excluded "
+            "from model training. "
+            "v9 requires at least 45."
+        ),
+    )
+
+    parser.add_argument(
+        "--holdout-days",
+        type=int,
+        default=DEFAULT_HOLDOUT_DAYS,
+        help=(
+            "Minimum untouched period reserved "
+            "for strategy validation/final test."
+        ),
     )
 
     parser.add_argument(
         "--output",
         type=str,
-        default=str(DEFAULT_MODEL_PATH),
+        default=str(
+            DEFAULT_MODEL_PATH
+        ),
     )
 
-    parser.add_argument("--min-races", type=int, default=500)
-    parser.add_argument("--epochs", type=int, default=300)
-    parser.add_argument("--lr", type=float, default=0.035)
-    parser.add_argument("--l2", type=float, default=0.002)
-    parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--smoke-test", action="store_true")
+    parser.add_argument(
+        "--min-races",
+        type=int,
+        default=500,
+    )
+
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=300,
+    )
+
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=0.035,
+    )
+
+    parser.add_argument(
+        "--l2",
+        type=float,
+        default=0.002,
+    )
+
+    # 旧workflowとの互換性用。
+    # 現コードは直列収集なので値は保持のみ。
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+    )
+
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+    )
 
     return parser.parse_args()
 
 
 def csv(kind, target):
     url = (
-        f"{BASE}/{kind}/"
+        f"{BASE}/"
+        f"{kind}/"
         f"{target:%Y/%m/%d}.csv"
     )
 
@@ -70,24 +147,35 @@ def csv(kind, target):
         timeout=20,
     )
 
-    if response.status_code == 404:
+    if (
+        response.status_code == 404
+        or not response.text.strip()
+    ):
         return None
 
     response.raise_for_status()
 
-    if not response.text.strip():
-        return None
-
     return pd.read_csv(
-        io.StringIO(response.text),
+        io.StringIO(
+            response.text
+        ),
         dtype=str,
     )
 
 
 def number(value):
+    if value is None:
+        return np.nan
+
+    text = (
+        str(value)
+        .replace(",", "")
+        .strip()
+    )
+
     match = re.search(
         r"-?\d+(?:\.\d+)?",
-        str(value or "").strip(),
+        text,
     )
 
     return (
@@ -97,7 +185,11 @@ def number(value):
     )
 
 
-def value(row, lane, names):
+def value(
+    row,
+    lane,
+    names,
+):
     for name in names:
         key = f"艇{lane}_{name}"
 
@@ -111,17 +203,23 @@ def by_code(frame):
     if (
         frame is None
         or frame.empty
-        or "レースコード" not in frame
+        or "レースコード"
+        not in frame.columns
     ):
         return {}
 
     result = {}
 
-    for index in range(len(frame)):
+    for index in range(
+        len(frame)
+    ):
         row = frame.iloc[index]
 
         code = str(
-            row.get("レースコード", "")
+            row.get(
+                "レースコード",
+                "",
+            )
         ).strip()
 
         if code:
@@ -130,46 +228,65 @@ def by_code(frame):
     return result
 
 
-def meet(card, lane):
+def meet(
+    card,
+    lane,
+):
     finishes = []
     starts = []
 
     for day_no in range(1, 8):
         for run in range(1, 3):
             prefix = (
-                f"艇{lane}_節D"
-                f"{day_no}走{run}_"
+                f"艇{lane}_"
+                f"節D{day_no}"
+                f"走{run}_"
             )
 
             finish = number(
-                card.get(prefix + "着順")
+                card.get(
+                    prefix + "着順"
+                )
             )
 
             start = number(
-                card.get(prefix + "ST")
+                card.get(
+                    prefix + "ST"
+                )
             )
 
             if (
                 np.isfinite(finish)
                 and 1 <= finish <= 6
             ):
-                finishes.append(finish)
+                finishes.append(
+                    finish
+                )
 
             if np.isfinite(start):
-                starts.append(start)
+                starts.append(
+                    start
+                )
 
     return (
-        np.mean(finishes)
+        float(np.mean(finishes))
         if finishes
         else np.nan,
-        np.mean(starts)
+
+        float(np.mean(starts))
         if starts
         else np.nan,
     )
 
 
-def features(card, lane):
-    meet_finish, meet_st = meet(
+def features(
+    card,
+    lane,
+):
+    (
+        meet_finish,
+        meet_st,
+    ) = meet(
         card,
         lane,
     )
@@ -178,14 +295,18 @@ def features(card, lane):
         [
             *[
                 float(lane == n)
-                for n in range(1, 7)
+                for n
+                in range(1, 7)
             ],
 
             number(
                 value(
                     card,
                     lane,
-                    ["全国平均ST", "平均ST"],
+                    [
+                        "全国平均ST",
+                        "平均ST",
+                    ],
                 )
             ),
 
@@ -193,7 +314,9 @@ def features(card, lane):
                 value(
                     card,
                     lane,
-                    ["全国勝率"],
+                    [
+                        "全国勝率",
+                    ],
                 )
             ),
 
@@ -201,7 +324,10 @@ def features(card, lane):
                 value(
                     card,
                     lane,
-                    ["全国2連対率", "全国2連率"],
+                    [
+                        "全国2連対率",
+                        "全国2連率",
+                    ],
                 )
             ),
 
@@ -209,7 +335,9 @@ def features(card, lane):
                 value(
                     card,
                     lane,
-                    ["当地勝率"],
+                    [
+                        "当地勝率",
+                    ],
                 )
             ),
 
@@ -217,7 +345,10 @@ def features(card, lane):
                 value(
                     card,
                     lane,
-                    ["当地2連対率", "当地2連率"],
+                    [
+                        "当地2連対率",
+                        "当地2連率",
+                    ],
                 )
             ),
 
@@ -254,16 +385,18 @@ def winner(row):
     for lane in range(1, 7):
         key = f"艇{lane}_着順"
 
-        if key in row.index:
-            place = number(
-                row.get(key)
-            )
+        if key not in row.index:
+            continue
 
-            if (
-                np.isfinite(place)
-                and int(place) == 1
-            ):
-                return lane - 1
+        place = number(
+            row.get(key)
+        )
+
+        if (
+            np.isfinite(place)
+            and int(place) == 1
+        ):
+            return lane - 1
 
     for key in (
         "1着_艇番",
@@ -271,16 +404,18 @@ def winner(row):
         "1着_枠",
         "1着枠",
     ):
-        if key in row.index:
-            lane = number(
-                row.get(key)
-            )
+        if key not in row.index:
+            continue
 
-            if (
-                np.isfinite(lane)
-                and 1 <= lane <= 6
-            ):
-                return int(lane) - 1
+        lane = number(
+            row.get(key)
+        )
+
+        if (
+            np.isfinite(lane)
+            and 1 <= lane <= 6
+        ):
+            return int(lane) - 1
 
     return None
 
@@ -304,14 +439,21 @@ def load_day(target):
         )
         return []
 
-    if cards is None or results is None:
+    if (
+        cards is None
+        or results is None
+    ):
         return []
 
-    result_map = by_code(results)
+    result_map = by_code(
+        results
+    )
 
     races = []
 
-    for index in range(len(cards)):
+    for index in range(
+        len(cards)
+    ):
         card = cards.iloc[index]
 
         code = str(
@@ -321,19 +463,29 @@ def load_day(target):
             )
         ).strip()
 
-        result = result_map.get(code)
+        if not code:
+            continue
+
+        result = (
+            result_map.get(code)
+        )
 
         if result is None:
             continue
 
-        first = winner(result)
+        first = winner(
+            result
+        )
 
         if first is None:
             continue
 
         matrix = np.vstack(
             [
-                features(card, lane)
+                features(
+                    card,
+                    lane,
+                )
                 for lane
                 in range(1, 7)
             ]
@@ -351,7 +503,16 @@ def load_day(target):
     return races
 
 
-def collect(days, end_offset=0):
+def collect(
+    days,
+    end_offset,
+):
+    # 例:
+    # 8/30実行・45日holdoutの場合
+    # 最新学習日は7/15。
+    #
+    # 7/16〜7/30 validation
+    # 7/31〜8/29 final test
     end = (
         date.today()
         - timedelta(
@@ -364,12 +525,18 @@ def collect(days, end_offset=0):
     for offset in range(days):
         target = (
             end
-            - timedelta(days=offset)
+            - timedelta(
+                days=offset
+            )
         )
 
-        day_races = load_day(target)
+        day_races = load_day(
+            target
+        )
 
-        races.extend(day_races)
+        races.extend(
+            day_races
+        )
 
         print(
             f"{target}: "
@@ -397,10 +564,14 @@ def smoke():
     for offset in range(7):
         target = (
             end
-            - timedelta(days=offset)
+            - timedelta(
+                days=offset
+            )
         )
 
-        races = load_day(target)
+        races = load_day(
+            target
+        )
 
         print(
             f"Smoke {target}: "
@@ -420,7 +591,7 @@ def smoke():
 
         if matrix.shape != expected:
             raise SystemExit(
-                f"bad feature shape "
+                "bad feature shape "
                 f"{matrix.shape}"
             )
 
@@ -439,16 +610,19 @@ def smoke():
 
 def prepare(
     train_raw,
-    validation_raw,
+    internal_validation_raw,
 ):
     flat = np.vstack(
         [
             race[2]
-            for race in train_raw
+            for race
+            in train_raw
         ]
     )
 
-    with np.errstate(all="ignore"):
+    with np.errstate(
+        all="ignore"
+    ):
         mean = np.nanmean(
             flat,
             axis=0,
@@ -482,7 +656,9 @@ def prepare(
 
         for race in dataset:
             matrix = np.where(
-                np.isfinite(race[2]),
+                np.isfinite(
+                    race[2]
+                ),
                 race[2],
                 mean,
             )
@@ -503,8 +679,12 @@ def prepare(
         return output
 
     return (
-        transform(train_raw),
-        transform(validation_raw),
+        transform(
+            train_raw
+        ),
+        transform(
+            internal_validation_raw
+        ),
         mean,
         scale,
     )
@@ -516,12 +696,21 @@ def softmax(scores):
         - np.max(scores)
     )
 
-    exp = np.exp(scores)
-
-    return (
-        exp
-        / np.sum(exp)
+    exp = np.exp(
+        scores
     )
+
+    total = np.sum(
+        exp
+    )
+
+    if total <= 0:
+        return np.full(
+            len(scores),
+            1.0 / len(scores),
+        )
+
+    return exp / total
 
 
 def train(
@@ -535,7 +724,9 @@ def train(
         dtype=float,
     )
 
-    for epoch in range(epochs):
+    for epoch in range(
+        epochs
+    ):
         gradient = np.zeros_like(
             weights
         )
@@ -546,23 +737,30 @@ def train(
             matrix = race[2]
             target = race[3]
 
-            probabilities = softmax(
-                matrix @ weights
+            probabilities = (
+                softmax(
+                    matrix @ weights
+                )
             )
 
             loss -= math.log(
                 max(
-                    probabilities[target],
+                    probabilities[
+                        target
+                    ],
                     1e-12,
                 )
             )
 
             gradient += (
-                probabilities @ matrix
+                probabilities
+                @ matrix
                 - matrix[target]
             )
 
-        gradient /= len(dataset)
+        gradient /= len(
+            dataset
+        )
 
         gradient += (
             l2 * weights
@@ -574,8 +772,13 @@ def train(
 
         if (
             epoch == 0
-            or (epoch + 1) % 50 == 0
-            or epoch + 1 == epochs
+            or (
+                epoch + 1
+            ) % 50 == 0
+            or (
+                epoch + 1
+                == epochs
+            )
         ):
             print(
                 f"epoch={epoch + 1} "
@@ -591,6 +794,15 @@ def evaluate(
     dataset,
     weights,
 ):
+    if not dataset:
+        return {
+            "races": 0,
+            "top1Accuracy": 0.0,
+            "winnerInTop3": 0.0,
+            "logLoss": 0.0,
+            "brierScore": 0.0,
+        }
+
     hits = 0
     top3 = 0
     log_loss = 0.0
@@ -613,12 +825,15 @@ def evaluate(
         )
 
         top3 += int(
-            target in order[:3]
+            target
+            in order[:3]
         )
 
         log_loss -= math.log(
             max(
-                probabilities[target],
+                probabilities[
+                    target
+                ],
                 1e-12,
             )
         )
@@ -633,10 +848,13 @@ def evaluate(
             ) ** 2
         )
 
-    count = len(dataset)
+    count = len(
+        dataset
+    )
 
     return {
-        "races": count,
+        "races":
+            count,
 
         "top1Accuracy":
             hits / count,
@@ -662,39 +880,99 @@ def main():
     if (
         config.days < 1
         or config.end_offset < 0
+        or config.holdout_days < 1
     ):
         raise SystemExit(
-            "days must be >= 1 "
-            "and end-offset must be >= 0"
+            "days must be >= 1; "
+            "offset must be >= 0; "
+            "holdout must be >= 1"
         )
+
+    # workflow側に古い --end-offset 30 等が
+    # 残っていても、最低45日を必ず確保する。
+    effective_end_offset = max(
+        config.end_offset,
+        config.holdout_days,
+        DEFAULT_HOLDOUT_DAYS,
+    )
+
+    print(
+        "\n=== BOAT RACE AI v9 TRAIN ===",
+        flush=True,
+    )
+
+    print(
+        "lookback days      : "
+        f"{config.days}",
+        flush=True,
+    )
+
+    print(
+        "requested offset   : "
+        f"{config.end_offset}",
+        flush=True,
+    )
+
+    print(
+        "external holdout   : "
+        f"{config.holdout_days}",
+        flush=True,
+    )
+
+    print(
+        "effective offset   : "
+        f"{effective_end_offset}",
+        flush=True,
+    )
 
     races = collect(
         config.days,
-        config.end_offset,
+        effective_end_offset,
     )
 
-    if len(races) < config.min_races:
+    if (
+        len(races)
+        < config.min_races
+    ):
         raise SystemExit(
-            f"not enough races: "
+            "not enough races: "
             f"{len(races)} "
             f"< {config.min_races}"
         )
 
+    # これは外部15日validationとは別物。
+    #
+    # 学習対象となる古いデータの中だけで
+    # モデル自体の汎化性能を確認するための
+    # internal validation。
     split = int(
         len(races) * 0.82
     )
 
-    train_raw = races[:split]
-    validation_raw = races[split:]
+    if (
+        split <= 0
+        or split >= len(races)
+    ):
+        raise SystemExit(
+            "invalid internal split"
+        )
+
+    train_raw = (
+        races[:split]
+    )
+
+    internal_validation_raw = (
+        races[split:]
+    )
 
     (
         train_set,
-        validation_set,
+        internal_validation_set,
         mean,
         scale,
     ) = prepare(
         train_raw,
-        validation_raw,
+        internal_validation_raw,
     )
 
     weights = train(
@@ -709,14 +987,17 @@ def main():
         weights,
     )
 
-    validation = evaluate(
-        validation_set,
-        weights,
+    internal_validation = (
+        evaluate(
+            internal_validation_set,
+            weights,
+        )
     )
 
     model = {
         "version":
-            "v8.1-conditional-logit",
+            "v9.0-conditional-logit-"
+            "holdout45",
 
         "trainedAt":
             datetime.now(
@@ -726,8 +1007,20 @@ def main():
         "lookbackDays":
             config.days,
 
-        "endOffsetDays":
+        "requestedEndOffsetDays":
             config.end_offset,
+
+        "holdoutDays":
+            config.holdout_days,
+
+        "endOffsetDays":
+            effective_end_offset,
+
+        "externalValidationDays":
+            15,
+
+        "externalFinalTestDays":
+            30,
 
         "dataStartDate":
             races[0][1],
@@ -742,7 +1035,9 @@ def main():
             len(train_set),
 
         "validationRaceCount":
-            len(validation_set),
+            len(
+                internal_validation_set
+            ),
 
         "features":
             FEATURES,
@@ -759,8 +1054,29 @@ def main():
         "training":
             training,
 
+        # index.htmlとの互換性維持。
+        # これは学習期間内のinternal validation。
         "validation":
-            validation,
+            internal_validation,
+
+        "evaluationDesign": {
+            "internalValidation":
+                "chronological 18% "
+                "within training-period data",
+
+            "externalHoldout":
+                "45 untouched recent "
+                "completed days",
+
+            "strategyValidationDays":
+                15,
+
+            "finalTestDays":
+                30,
+
+            "finalTestUsage":
+                "frozen strategy evaluation only",
+        },
     }
 
     output_path = Path(
@@ -782,8 +1098,42 @@ def main():
     )
 
     print(
+        "\n=== MODEL SUMMARY ===",
+        flush=True,
+    )
+
+    print(
         json.dumps(
-            model,
+            {
+                "version":
+                    model["version"],
+
+                "dataStartDate":
+                    model[
+                        "dataStartDate"
+                    ],
+
+                "dataEndDate":
+                    model[
+                        "dataEndDate"
+                    ],
+
+                "raceCount":
+                    model[
+                        "raceCount"
+                    ],
+
+                "effectiveEndOffsetDays":
+                    model[
+                        "endOffsetDays"
+                    ],
+
+                "training":
+                    training,
+
+                "internalValidation":
+                    internal_validation,
+            },
             ensure_ascii=False,
             indent=2,
         ),
