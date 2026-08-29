@@ -6,34 +6,20 @@
   name="viewport"
   content="width=device-width,initial-scale=1,viewport-fit=cover"
 >
-<title>BOAT RACE AI v8.2</title>
+<title>BOAT RACE AI v8.3</title>
 
 <style>
 :root{
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   background:#07111f;
   color:#fff;
 }
 
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box}
 
 body{
   margin:0;
-  padding:
-    18px
-    18px
-    calc(
-      32px +
-      env(safe-area-inset-bottom)
-    );
-
+  padding:18px 18px calc(32px + env(safe-area-inset-bottom));
   background:#07111f;
 }
 
@@ -48,7 +34,7 @@ h1{
 }
 
 h2{
-  margin:0 0 12px;
+  margin:0 0 10px;
 }
 
 .sub{
@@ -60,25 +46,21 @@ h2{
 .card{
   margin-top:14px;
   padding:16px;
-
-  border:
-    1px solid
-    #263b54;
-
+  border:1px solid #263b54;
   border-radius:18px;
-
   background:#101d2e;
 }
 
+.hero{
+  border-color:#356da7;
+  background:#10233a;
+}
+
+.hidden{display:none!important}
+
 .grid{
   display:grid;
-
-  grid-template-columns:
-    repeat(
-      2,
-      minmax(0,1fr)
-    );
-
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:10px;
 }
 
@@ -88,9 +70,7 @@ button{
   width:100%;
   min-height:48px;
   padding:10px 12px;
-
   border-radius:11px;
-
   font:inherit;
 }
 
@@ -98,19 +78,14 @@ input,
 select{
   color:#fff;
   background:#0a1625;
-
-  border:
-    1px solid
-    #38516e;
+  border:1px solid #38516e;
 }
 
 button{
   margin-top:12px;
   border:0;
-
   color:#fff;
   background:#1677ff;
-
   font-weight:800;
 }
 
@@ -127,44 +102,92 @@ button:disabled{
   font-weight:900;
 }
 
-.good{
-  color:#82efab;
+.good{color:#82efab}
+.warn{color:#ffd76c}
+.bad{color:#ff8383}
+
+.mode{
+  display:inline-block;
+  margin-top:8px;
+  padding:5px 9px;
+  border-radius:100px;
+  font-size:11px;
+  font-weight:800;
+  background:#1b3048;
 }
 
-.warn{
-  color:#ffd76c;
+.mode.pre{color:#ffd76c}
+.mode.live{color:#82efab}
+
+.recommend-title{
+  font-size:12px;
+  color:#91a6bd;
 }
 
-.bad{
-  color:#ff8383;
+.recommend-main{
+  margin-top:3px;
+  font-size:28px;
+  font-weight:900;
 }
 
-.hidden{
-  display:none;
+.recommend-meta{
+  margin-top:7px;
+  font-size:13px;
+  line-height:1.7;
+}
+
+.rank{
+  display:inline-block;
+  min-width:28px;
+  padding:4px 7px;
+  margin-right:7px;
+  text-align:center;
+  border-radius:100px;
+  background:#213b59;
+  font-size:11px;
+  font-weight:900;
+}
+
+.candidate{
+  margin-top:10px;
+  padding:13px;
+  border:1px solid #294763;
+  border-radius:14px;
+  background:#0b1726;
+}
+
+.candidate-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+
+.candidate-name{
+  font-size:19px;
+  font-weight:900;
+}
+
+.candidate-grade{
+  padding:4px 8px;
+  border-radius:100px;
+  background:#1c3048;
+  font-size:12px;
+  font-weight:900;
 }
 
 .api-grid{
   display:grid;
-
-  grid-template-columns:
-    repeat(
-      4,
-      minmax(0,1fr)
-    );
-
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:7px;
   margin-top:12px;
 }
 
 .api{
   padding:9px 4px;
-
   text-align:center;
-
   background:#0b1726;
-
   border-radius:9px;
-
   font-size:10px;
 }
 
@@ -177,49 +200,20 @@ button:disabled{
 .progress{
   height:10px;
   margin-top:7px;
-
   overflow:hidden;
-
   border-radius:100px;
-
   background:#07111f;
 }
 
 .progress div{
   width:0;
   height:100%;
-
   background:#2384ff;
-}
-
-.mode{
-  display:inline-block;
-
-  margin-top:8px;
-  padding:5px 9px;
-
-  border-radius:100px;
-
-  font-size:11px;
-  font-weight:800;
-
-  background:#1b3048;
-}
-
-.mode.pre{
-  color:#ffd76c;
-}
-
-.mode.live{
-  color:#82efab;
 }
 
 .pick{
   padding:15px 0;
-
-  border-bottom:
-    1px solid
-    #293e58;
+  border-bottom:1px solid #293e58;
 }
 
 .pick:last-child{
@@ -233,37 +227,26 @@ button:disabled{
 
 .amount{
   margin-top:4px;
-
   font-size:18px;
   font-weight:800;
 }
 
 .metrics{
   display:grid;
-
-  grid-template-columns:
-    repeat(
-      2,
-      minmax(0,1fr)
-    );
-
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:7px;
   margin-top:9px;
 }
 
 .metric{
   padding:9px;
-
   background:#0b1726;
-
   border-radius:10px;
 }
 
 .metric small{
   display:block;
-
   color:#879bb3;
-
   font-size:10px;
 }
 
@@ -275,9 +258,7 @@ button:disabled{
 .model-box{
   margin-top:12px;
   padding:12px;
-
   background:#0b1726;
-
   border-radius:12px;
 }
 
@@ -288,42 +269,26 @@ button:disabled{
 
 .tag{
   display:inline-block;
-
-  margin:
-    4px
-    3px
-    0
-    0;
-
+  margin:4px 3px 0 0;
   padding:4px 7px;
-
   border-radius:100px;
-
   background:#1c3048;
-
   color:#c0cfdf;
-
   font-size:11px;
 }
 
 table{
   width:100%;
   margin-top:10px;
-
   border-collapse:collapse;
-
   font-size:11px;
 }
 
 th,
 td{
   padding:7px 4px;
-
   text-align:right;
-
-  border-bottom:
-    1px solid
-    #273b53;
+  border-bottom:1px solid #273b53;
 }
 
 th:first-child,
@@ -331,75 +296,11 @@ td:first-child{
   text-align:left;
 }
 
-.scroll{
-  overflow-x:auto;
-}
+.scroll{overflow-x:auto}
 
-.alt-title{
-  font-size:18px;
-  font-weight:900;
-}
-
-.alt{
-  margin-top:10px;
-  padding:13px;
-
-  background:#0b1726;
-
-  border:
-    1px solid
-    #2a4665;
-
-  border-radius:14px;
-}
-
-.alt-head{
-  display:flex;
-
-  justify-content:
-    space-between;
-
-  align-items:center;
-
-  gap:10px;
-}
-
-.alt-race{
-  font-size:20px;
-  font-weight:900;
-}
-
-.alt-time{
-  color:#ffd76c;
-  font-size:12px;
-}
-
-.alt-score{
-  margin-top:6px;
-
-  color:#91a6bd;
-
-  font-size:11px;
-}
-
-.alt button{
-  margin-top:9px;
-  min-height:42px;
-}
-
-.scan-state{
-  margin-top:8px;
-}
-
-@media(
-  max-width:420px
-){
+@media(max-width:420px){
   .api-grid{
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0,1fr)
-      );
+    grid-template-columns:repeat(2,minmax(0,1fr));
   }
 }
 </style>
@@ -409,16 +310,64 @@ td:first-child{
 
 <main class="app">
 
-<h1>
-  BOAT RACE AI
-</h1>
+<h1>BOAT RACE AI</h1>
 
 <div class="sub">
-  v8.2 /
-  PRE-RACE +
-  LIVE RECALCULATION +
-  RACE SCANNER
+  v8.3 / ENTRY-FIRST RACE SELECTOR
 </div>
+
+
+<section
+  id="recommendCard"
+  class="card hero"
+>
+
+  <div class="recommend-title">
+    🔥 今エントリーするなら
+  </div>
+
+  <div
+    id="recommendMain"
+    class="recommend-main"
+  >
+    候補を検索中…
+  </div>
+
+  <div
+    id="recommendMeta"
+    class="recommend-meta sub"
+  >
+    現在エントリー可能なレースを全会場から検索しています。
+  </div>
+
+  <button
+    id="findBest"
+  >
+    今のおすすめを再検索
+  </button>
+
+</section>
+
+
+<section
+  id="candidateCard"
+  class="card hidden"
+>
+
+  <h2>
+    エントリー候補
+  </h2>
+
+  <div class="sub">
+    現在買えるレースのうち、一次スクリーニングを通過したものだけを表示します。
+    最終買い目は本ML分析後に判定します。
+  </div>
+
+  <div
+    id="candidateList"
+  ></div>
+
+</section>
 
 
 <section class="card">
@@ -430,13 +379,9 @@ td:first-child{
       type="date"
     >
 
-    <select
-      id="venue"
-    ></select>
+    <select id="venue"></select>
 
-    <select
-      id="race"
-    ></select>
+    <select id="race"></select>
 
     <input
       id="budget"
@@ -450,7 +395,7 @@ td:first-child{
   <button
     id="analyze"
   >
-    分析・最新情報で再計算
+    このレースを分析・再計算
   </button>
 
 </section>
@@ -509,18 +454,14 @@ td:first-child{
         利用可能データ取得率
       </span>
 
-      <strong
-        id="coverage"
-      >
+      <strong id="coverage">
         -
       </strong>
 
     </div>
 
     <div class="progress">
-      <div
-        id="coverageBar"
-      ></div>
+      <div id="coverageBar"></div>
     </div>
 
     <div
@@ -536,36 +477,28 @@ td:first-child{
 
     <div class="api">
       出走表
-      <strong
-        id="raceApi"
-      >
+      <strong id="raceApi">
         -
       </strong>
     </div>
 
     <div class="api">
       展示・気象
-      <strong
-        id="beforeApi"
-      >
+      <strong id="beforeApi">
         -
       </strong>
     </div>
 
     <div class="api">
       オッズ
-      <strong
-        id="oddsApi"
-      >
+      <strong id="oddsApi">
         -
       </strong>
     </div>
 
     <div class="api">
       MLモデル
-      <strong
-        id="modelApi"
-      >
+      <strong id="modelApi">
         -
       </strong>
     </div>
@@ -579,27 +512,6 @@ td:first-child{
     id="reason"
     class="sub"
     style="margin-top:12px"
-  ></div>
-
-</section>
-
-
-<section
-  id="alternatives"
-  class="card hidden"
->
-
-  <div class="alt-title">
-    他会場の候補レース
-  </div>
-
-  <div
-    id="scanState"
-    class="sub scan-state"
-  ></div>
-
-  <div
-    id="alternativeList"
   ></div>
 
 </section>
@@ -621,7 +533,6 @@ td:first-child{
     <table>
 
       <thead>
-
         <tr>
           <th>艇</th>
           <th>選手</th>
@@ -633,12 +544,9 @@ td:first-child{
           <th>展示</th>
           <th>ML1着</th>
         </tr>
-
       </thead>
 
-      <tbody
-        id="rows"
-      ></tbody>
+      <tbody id="rows"></tbody>
 
     </table>
 
@@ -654,15 +562,10 @@ td:first-child{
 
 
 <p class="sub">
-  展示・直前気象が未公開でも、
-  出走表と学習モデルを使って
-  事前予想を行います。
-  展示公開後に再分析すると
-  直前情報を自動的に追加して
-  再計算します。
-  見送り時には当日の他会場から
-  次の分析候補を探索します。
-  表示値はモデル推定であり、
+  「今のおすすめ」は、締切まで余裕があり、
+  3連単オッズが取得でき、事前評価を通過したレースを
+  全会場から探したうえで、本MLモデルによる詳細分析まで
+  通過したレースを表示します。
   的中や利益を保証するものではありません。
 </p>
 
@@ -700,14 +603,12 @@ const VENUES = [
 
 
 const $ = id =>
-  document.getElementById(
-    id
-  );
+  document.getElementById(id);
 
 
 let trainedModel = null;
-
-let scanRunning = false;
+let busy = false;
+let scanCandidates = [];
 
 
 VENUES.forEach(
@@ -744,11 +645,8 @@ function todayJst(){
     Date.now() +
     9 * 60 * 60 * 1000
   )
-  .toISOString()
-  .slice(
-    0,
-    10
-  );
+    .toISOString()
+    .slice(0,10);
 
 }
 
@@ -770,9 +668,7 @@ function finite(value){
   const number =
     Number(value);
 
-  return Number.isFinite(
-    number
-  )
+  return Number.isFinite(number)
     ? number
     : null;
 
@@ -800,23 +696,16 @@ function pct(
 ){
 
   return (
-    safe(value) *
-    100
-  ).toFixed(
-    digits
-  ) + '%';
+    safe(value) * 100
+  ).toFixed(digits) + '%';
 
 }
 
 
-function softmax(
-  scores
-){
+function softmax(scores){
 
   const max =
-    Math.max(
-      ...scores
-    );
+    Math.max(...scores);
 
   const exp =
     scores.map(
@@ -828,10 +717,7 @@ function softmax(
 
   const total =
     exp.reduce(
-      (
-        sum,
-        value
-      ) =>
+      (sum,value) =>
         sum + value,
       0
     );
@@ -844,28 +730,43 @@ function softmax(
 }
 
 
-async function fetchJson(
-  url
-){
+async function fetchJson(url){
 
-  const response =
-    await fetch(
-      url,
-      {
-        cache:
-          'no-store'
-      }
+  const controller =
+    new AbortController();
+
+  const timer =
+    setTimeout(
+      () =>
+        controller.abort(),
+      32000
     );
 
-  if(
-    !response.ok
-  ){
-    throw new Error(
-      `HTTP ${response.status}`
-    );
+  try{
+
+    const response =
+      await fetch(
+        url,
+        {
+          cache:'no-store',
+          signal:
+            controller.signal
+        }
+      );
+
+    if(!response.ok){
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+    return await response.json();
+
+  }finally{
+
+    clearTimeout(timer);
+
   }
-
-  return response.json();
 
 }
 
@@ -899,80 +800,49 @@ async function loadModel(){
       );
     }
 
-    const count =
-      model.features.length;
-
-    if(
-      model.mean.length !==
-        count ||
-      model.scale.length !==
-        count ||
-      model.coefficients.length !==
-        count
-    ){
-      throw new Error(
-        'model-shape-invalid'
-      );
-    }
-
     trainedModel =
       model;
 
-    $('modelApi')
-      .textContent =
-        'OK';
+    $('modelApi').textContent =
+      'OK';
 
-    $('modelApi')
-      .className =
-        'good';
+    $('modelApi').className =
+      'good';
 
     const validation =
-      model.validation ||
-      {};
+      model.validation || {};
 
-    $('modelInfo')
-      .innerHTML =
-        `${model.version}<br>` +
-        `学習 ` +
-        `${Number(
-          model.raceCount || 0
-        ).toLocaleString()}` +
-        `レース / ` +
-        `検証Top1 ` +
-        `${pct(
-          validation
-            .top1Accuracy
-        )} / ` +
-        `Top3 ` +
-        `${pct(
-          validation
-            .winnerInTop3
-        )}<br>` +
-        `最終学習 ` +
-        `${String(
-          model.trainedAt ||
-          '-'
-        )}`;
+    $('modelInfo').innerHTML =
+      `${model.version}<br>` +
+      `学習 ${Number(
+        model.raceCount || 0
+      ).toLocaleString()}レース / ` +
+      `検証Top1 ${pct(
+        validation.top1Accuracy
+      )} / ` +
+      `Top3 ${pct(
+        validation.winnerInTop3
+      )}<br>` +
+      `最終学習 ${
+        String(
+          model.trainedAt || '-'
+        )
+      }`;
 
     return true;
 
   }catch(error){
 
-    trainedModel =
-      null;
+    trainedModel = null;
 
-    $('modelApi')
-      .textContent =
-        '失敗';
+    $('modelApi').textContent =
+      '失敗';
 
-    $('modelApi')
-      .className =
-        'bad';
+    $('modelApi').className =
+      'bad';
 
-    $('modelInfo')
-      .textContent =
-        `モデル読込失敗: ` +
-        `${error.message}`;
+    $('modelInfo').textContent =
+      `モデル読込失敗: ${error.message}`;
 
     return false;
 
@@ -991,17 +861,13 @@ function normalizeRacers(
     )
       ? raceData.racers
       : Object.values(
-          raceData?.racers ||
-          {}
+          raceData?.racers || {}
         );
 
   return raw
     .filter(Boolean)
     .sort(
-      (
-        a,
-        b
-      ) =>
+      (a,b) =>
         Number(a.lane) -
         Number(b.lane)
     );
@@ -1009,9 +875,7 @@ function normalizeRacers(
 }
 
 
-function meetStats(
-  racer
-){
+function meetStats(racer){
 
   const items =
     Array.isArray(
@@ -1024,9 +888,7 @@ function meetStats(
     items
       .map(
         item =>
-          finite(
-            item.finish
-          )
+          finite(item.finish)
       )
       .filter(
         value =>
@@ -1039,9 +901,7 @@ function meetStats(
     items
       .map(
         item =>
-          finite(
-            item.st
-          )
+          finite(item.st)
       )
       .filter(
         value =>
@@ -1053,10 +913,7 @@ function meetStats(
     finish:
       finishes.length
         ? finishes.reduce(
-            (
-              sum,
-              value
-            ) =>
+            (sum,value) =>
               sum + value,
             0
           ) /
@@ -1066,104 +923,66 @@ function meetStats(
     st:
       starts.length
         ? starts.reduce(
-            (
-              sum,
-              value
-            ) =>
+            (sum,value) =>
               sum + value,
             0
           ) /
           starts.length
-        : null,
-
-    count:
-      items.length
+        : null
 
   };
 
 }
 
 
-function rawFeatureMap(
-  racer
-){
+function rawFeatureMap(racer){
 
   const lane =
-    Number(
-      racer.lane
-    );
+    Number(racer.lane);
 
   const meet =
-    meetStats(
-      racer
-    );
+    meetStats(racer);
 
   return {
 
     lane1:
-      lane === 1
-        ? 1
-        : 0,
+      lane === 1 ? 1 : 0,
 
     lane2:
-      lane === 2
-        ? 1
-        : 0,
+      lane === 2 ? 1 : 0,
 
     lane3:
-      lane === 3
-        ? 1
-        : 0,
+      lane === 3 ? 1 : 0,
 
     lane4:
-      lane === 4
-        ? 1
-        : 0,
+      lane === 4 ? 1 : 0,
 
     lane5:
-      lane === 5
-        ? 1
-        : 0,
+      lane === 5 ? 1 : 0,
 
     lane6:
-      lane === 6
-        ? 1
-        : 0,
+      lane === 6 ? 1 : 0,
 
     avg_st:
-      finite(
-        racer.avgSt
-      ),
+      finite(racer.avgSt),
 
     national_win:
-      finite(
-        racer.nationalWin
-      ),
+      finite(racer.nationalWin),
 
     national2:
-      finite(
-        racer.national2
-      ),
+      finite(racer.national2),
 
     local_win:
-      finite(
-        racer.localWin
-      ),
+      finite(racer.localWin),
 
     local2:
-      finite(
-        racer.local2
-      ),
+      finite(racer.local2),
 
     motor2:
-      finite(
-        racer.motor2
-      ),
+      finite(racer.motor2),
 
     boat2:
-      finite(
-        racer.boat2
-      ),
+      finite(racer.boat2),
 
     meet_avg_finish:
       meet.finish,
@@ -1180,9 +999,7 @@ function modelLaneProbabilities(
   racers
 ){
 
-  if(
-    !trainedModel
-  ){
+  if(!trainedModel){
     throw new Error(
       'model-not-loaded'
     );
@@ -1193,65 +1010,47 @@ function modelLaneProbabilities(
       racer => {
 
         const raw =
-          rawFeatureMap(
-            racer
-          );
+          rawFeatureMap(racer);
 
         let score = 0;
 
         trainedModel
           .features
           .forEach(
-            (
-              name,
-              index
-            ) => {
+            (name,index) => {
 
               let value =
                 finite(
                   raw[name]
                 );
 
-              if(
-                value === null
-              ){
+              if(value === null){
                 value =
                   trainedModel
-                    .mean[
-                      index
-                    ];
+                    .mean[index];
               }
 
               const scale =
                 Math.abs(
                   trainedModel
-                    .scale[
-                      index
-                    ]
-                ) >
-                1e-9
+                    .scale[index]
+                ) > 1e-9
                   ? trainedModel
-                      .scale[
-                        index
-                      ]
+                      .scale[index]
                   : 1;
 
               const z =
                 (
                   value -
                   trainedModel
-                    .mean[
-                      index
-                    ]
+                    .mean[index]
                 ) /
                 scale;
 
               score +=
                 z *
                 trainedModel
-                  .coefficients[
-                    index
-                  ];
+                  .coefficients[index];
 
             }
           );
@@ -1261,9 +1060,7 @@ function modelLaneProbabilities(
       }
     );
 
-  return softmax(
-    scores
-  );
+  return softmax(scores);
 
 }
 
@@ -1273,9 +1070,7 @@ function getBeforeBoat(
   lane
 ){
 
-  if(
-    !before?.boats
-  ){
+  if(!before?.boats){
     return null;
   }
 
@@ -1304,9 +1099,7 @@ function getBeforeBoat(
   }
 
   return (
-    before.boats[
-      lane
-    ] ||
+    before.boats[lane] ||
     before.boats[
       String(lane)
     ] ||
@@ -1323,15 +1116,12 @@ function liveAdjustment(
 
   let adjustment = 0;
 
-  if(
-    beforeBoat
-  ){
+  if(beforeBoat){
 
     const exTime =
       finite(
         beforeBoat.exTime ??
-        beforeBoat
-          .exhibitionTime
+        beforeBoat.exhibitionTime
       );
 
     const exSt =
@@ -1346,42 +1136,28 @@ function liveAdjustment(
         beforeBoat.course
       );
 
-    if(
-      exTime !== null
-    ){
+    if(exTime !== null){
       adjustment +=
-        (
-          6.80 -
-          exTime
-        ) *
+        (6.80 - exTime) *
         0.35;
     }
 
-    if(
-      exSt !== null
-    ){
+    if(exSt !== null){
       adjustment +=
-        (
-          0.16 -
-          exSt
-        ) *
+        (0.16 - exSt) *
         1.4;
     }
 
     if(
       exCourse !== null &&
       exCourse !==
-        Number(
-          racer.lane
-        )
+        Number(racer.lane)
     ){
 
       adjustment +=
         Math.log(
           (
-            Number(
-              racer.lane
-            ) +
+            Number(racer.lane) +
             0.5
           ) /
           (
@@ -1394,10 +1170,8 @@ function liveAdjustment(
     }
 
     if(
-      beforeBoat
-        .exFlying ||
-      beforeBoat
-        .flying
+      beforeBoat.exFlying ||
+      beforeBoat.flying
     ){
       adjustment -=
         0.08;
@@ -1410,8 +1184,7 @@ function liveAdjustment(
       safe(
         racer.fCount ??
         racer.F
-      ) *
-      0.04,
+      ) * 0.04,
       0.12
     );
 
@@ -1431,30 +1204,18 @@ function adjustedLaneProbabilities(
       racers
     );
 
-  if(
-    !useLive
-  ){
+  if(!useLive){
     return base;
   }
 
   const scores =
     base.map(
-      (
-        probability,
-        index
-      ) => {
+      (probability,index) => {
 
         const lane =
           Number(
-            racers[index]
-              .lane ||
+            racers[index].lane ||
             index + 1
-          );
-
-        const beforeBoat =
-          getBeforeBoat(
-            before,
-            lane
           );
 
         return (
@@ -1466,16 +1227,17 @@ function adjustedLaneProbabilities(
           ) +
           liveAdjustment(
             racers[index],
-            beforeBoat
+            getBeforeBoat(
+              before,
+              lane
+            )
           )
         );
 
       }
     );
 
-  return softmax(
-    scores
-  );
+  return softmax(scores);
 
 }
 
@@ -1498,9 +1260,7 @@ function trifectaProbabilities(
       second++
     ){
 
-      if(
-        second === first
-      ){
+      if(second === first){
         continue;
       }
 
@@ -1537,21 +1297,15 @@ function trifectaProbabilities(
           ] /
           Math.max(
             1 -
-            laneProb[
-              first - 1
-            ] -
-            laneProb[
-              second - 1
-            ],
+            laneProb[first - 1] -
+            laneProb[second - 1],
             1e-9
           );
 
         output[
           `${first}${second}${third}`
         ] =
-          p1 *
-          p2 *
-          p3;
+          p1 * p2 * p3;
 
       }
 
@@ -1560,33 +1314,22 @@ function trifectaProbabilities(
   }
 
   const total =
-    Object.values(
-      output
-    )
-    .reduce(
-      (
-        sum,
-        value
-      ) =>
-        sum + value,
-      0
-    );
+    Object.values(output)
+      .reduce(
+        (sum,value) =>
+          sum + value,
+        0
+      );
 
-  if(
-    total > 0
-  ){
+  if(total > 0){
 
-    Object.keys(
-      output
-    )
-    .forEach(
-      combo => {
-
-        output[combo] /=
-          total;
-
-      }
-    );
+    Object.keys(output)
+      .forEach(
+        combo => {
+          output[combo] /=
+            total;
+        }
+      );
 
   }
 
@@ -1600,11 +1343,9 @@ function normalizeMarket(
 ){
 
   if(
-    oddsData
-      ?.marketProbabilities &&
+    oddsData?.marketProbabilities &&
     Object.keys(
-      oddsData
-        .marketProbabilities
+      oddsData.marketProbabilities
     ).length
   ){
     return oddsData
@@ -1612,60 +1353,44 @@ function normalizeMarket(
   }
 
   const rawOdds =
-    oddsData?.odds ||
-    {};
+    oddsData?.odds || {};
 
   const market = {};
 
   let total = 0;
 
-  Object.entries(
-    rawOdds
-  )
-  .forEach(
-    (
-      [
-        combo,
-        value
-      ]
-    ) => {
-
-      const odd =
-        finite(
-          value
-        );
-
-      if(
-        odd !== null &&
-        odd > 0
-      ){
-
-        market[combo] =
-          1 / odd;
-
-        total +=
-          market[combo];
-
-      }
-
-    }
-  );
-
-  if(
-    total > 0
-  ){
-
-    Object.keys(
-      market
-    )
+  Object.entries(rawOdds)
     .forEach(
-      combo => {
+      ([combo,value]) => {
 
-        market[combo] /=
-          total;
+        const odd =
+          finite(value);
+
+        if(
+          odd !== null &&
+          odd > 0
+        ){
+
+          market[combo] =
+            1 / odd;
+
+          total +=
+            market[combo];
+
+        }
 
       }
     );
+
+  if(total > 0){
+
+    Object.keys(market)
+      .forEach(
+        combo => {
+          market[combo] /=
+            total;
+        }
+      );
 
   }
 
@@ -1690,77 +1415,52 @@ function combineMarket(
 
   const output = {};
 
-  const modelWeight =
-    0.67;
-
-  const marketWeight =
-    0.33;
-
-  Object.keys(
-    modelProb
-  )
-  .forEach(
-    combo => {
-
-      const model =
-        Math.max(
-          modelProb[
-            combo
-          ] || 0,
-          1e-12
-        );
-
-      const market =
-        Math.max(
-          marketProb[
-            combo
-          ] || 0,
-          1e-12
-        );
-
-      output[
-        combo
-      ] =
-        Math.pow(
-          model,
-          modelWeight
-        ) *
-        Math.pow(
-          market,
-          marketWeight
-        );
-
-    }
-  );
-
-  const total =
-    Object.values(
-      output
-    )
-    .reduce(
-      (
-        sum,
-        value
-      ) =>
-        sum + value,
-      0
-    );
-
-  if(
-    total > 0
-  ){
-
-    Object.keys(
-      output
-    )
+  Object.keys(modelProb)
     .forEach(
       combo => {
 
-        output[combo] /=
-          total;
+        const model =
+          Math.max(
+            modelProb[combo] || 0,
+            1e-12
+          );
+
+        const market =
+          Math.max(
+            marketProb[combo] || 0,
+            1e-12
+          );
+
+        output[combo] =
+          Math.pow(
+            model,
+            0.67
+          ) *
+          Math.pow(
+            market,
+            0.33
+          );
 
       }
     );
+
+  const total =
+    Object.values(output)
+      .reduce(
+        (sum,value) =>
+          sum + value,
+        0
+      );
+
+  if(total > 0){
+
+    Object.keys(output)
+      .forEach(
+        combo => {
+          output[combo] /=
+            total;
+        }
+      );
 
   }
 
@@ -1778,95 +1478,73 @@ function chooseBets(
 ){
 
   const candidates =
-    Object.keys(
-      finalProb
-    )
-    .map(
-      combo => {
+    Object.keys(finalProb)
+      .map(
+        combo => {
 
-        const odd =
-          finite(
-            odds?.[
-              combo
-            ]
-          );
+          const odd =
+            finite(
+              odds?.[combo]
+            );
 
-        const probability =
-          finalProb[
-            combo
-          ];
+          const probability =
+            finalProb[combo];
 
-        const pure =
-          modelProb[
-            combo
-          ];
+          return {
 
-        const oddsWeight =
-          odd !== null
-            ? Math.min(
-                Math.sqrt(
-                  odd
-                ),
-                7
+            combo,
+
+            odd,
+
+            p:
+              probability,
+
+            pure:
+              modelProb[combo],
+
+            score:
+              probability *
+              (
+                odd !== null
+                  ? Math.min(
+                      Math.sqrt(odd),
+                      7
+                    )
+                  : 1
               )
-            : 1;
 
-        return {
+          };
 
-          combo,
+        }
+      )
+      .filter(
+        item => {
 
-          odd,
+          if(oddsAvailable){
 
-          p:
-            probability,
+            return (
+              item.odd !== null &&
+              item.odd >= 1 &&
+              item.odd <= 100 &&
+              item.p >= 0.018
+            );
 
-          pure,
-
-          score:
-            probability *
-            oddsWeight
-
-        };
-
-      }
-    )
-    .filter(
-      item => {
-
-        if(
-          oddsAvailable
-        ){
+          }
 
           return (
-            item.odd !== null &&
-            item.odd >= 1 &&
-            item.odd <= 100 &&
-            item.p >=
-              0.018
+            item.p >= 0.018
           );
 
         }
-
-        return (
-          item.p >=
-          0.018
-        );
-
-      }
-    )
-    .sort(
-      (
-        a,
-        b
-      ) =>
-        b.score -
-        a.score
-    );
+      )
+      .sort(
+        (a,b) =>
+          b.score -
+          a.score
+      );
 
 
-  if(
-    !candidates.length
-  ){
+  if(!candidates.length){
     return [];
   }
 
@@ -1883,23 +1561,18 @@ function chooseBets(
     Math.max(
       1,
       Math.floor(
-        budget /
-        100
+        budget / 100
       )
     );
 
 
   let count = 1;
 
-  if(
-    units >= 4
-  ){
+  if(units >= 4){
     count = 2;
   }
 
-  if(
-    units >= 8
-  ){
+  if(units >= 8){
     count = 3;
   }
 
@@ -1913,17 +1586,12 @@ function chooseBets(
 
   let remaining =
     Math.floor(
-      budget /
-      100
-    ) *
-    100;
+      budget / 100
+    ) * 100;
 
 
   selected.forEach(
-    (
-      item,
-      index
-    ) => {
+    (item,index) => {
 
       const slots =
         selected.length -
@@ -1941,8 +1609,7 @@ function chooseBets(
                 remaining /
                 slots /
                 100
-              ) *
-              100
+              ) * 100
             );
 
       item.amount =
@@ -1984,21 +1651,15 @@ function dataStatus(
     Array.isArray(
       before?.boats
     )
-
-      ? before
-          .boats
+      ? before.boats
           .filter(Boolean)
           .length
-
       : before?.boats
-
-        ? Object
-            .values(
-              before.boats
-            )
-            .filter(Boolean)
-            .length
-
+        ? Object.values(
+            before.boats
+          )
+          .filter(Boolean)
+          .length
         : 0;
 
 
@@ -2007,8 +1668,7 @@ function dataStatus(
       before?.ok &&
       (
         Number(
-          before
-            .parsedCount
+          before.parsedCount
         ) >= 6 ||
         beforeBoatCount >= 6
       )
@@ -2017,11 +1677,9 @@ function dataStatus(
 
   const oddsCount =
     Number(
-      oddsData
-        ?.oddsCount ||
+      oddsData?.oddsCount ||
       Object.keys(
-        oddsData?.odds ||
-        {}
+        oddsData?.odds || {}
       ).length
     );
 
@@ -2041,37 +1699,19 @@ function dataStatus(
 
 
   const score =
-    (
-      raceOk
-        ? 25
-        : 0
-    ) +
-    (
-      beforeOk
-        ? 25
-        : 0
-    ) +
-    (
-      oddsOk
-        ? 25
-        : 0
-    ) +
-    (
-      mlOk
-        ? 25
-        : 0
-    );
+    (raceOk ? 25 : 0) +
+    (beforeOk ? 25 : 0) +
+    (oddsOk ? 25 : 0) +
+    (mlOk ? 25 : 0);
 
 
   return {
-
     raceOk,
     beforeOk,
     oddsOk,
     mlOk,
     oddsCount,
     score
-
   };
 
 }
@@ -2106,14 +1746,9 @@ function renderRows(
   laneProb
 ){
 
-  $('rows')
-    .innerHTML =
-
+  $('rows').innerHTML =
     racers.map(
-      (
-        racer,
-        index
-      ) => {
+      (racer,index) => {
 
         const lane =
           Number(
@@ -2125,61 +1760,30 @@ function renderRows(
           getBeforeBoat(
             before,
             lane
-          ) ||
-          {};
+          ) || {};
 
         const exTime =
-          beforeBoat
-            .exTime ??
-          beforeBoat
-            .exhibitionTime ??
+          beforeBoat.exTime ??
+          beforeBoat.exhibitionTime ??
           '-';
 
         return `
           <tr>
-
-            <td>
-              ${lane}
-            </td>
-
-            <td>
-              ${racer.name || '-'}
-            </td>
-
-            <td>
-              ${racer.grade || '-'}
-            </td>
-
-            <td>
-              ${racer.nationalWin ?? '-'}
-            </td>
-
-            <td>
-              ${racer.localWin ?? '-'}
-            </td>
-
-            <td>
-              ${racer.avgSt ?? '-'}
-            </td>
-
-            <td>
-              ${racer.motor2 ?? '-'}
-            </td>
-
-            <td>
-              ${exTime}
-            </td>
-
+            <td>${lane}</td>
+            <td>${racer.name || '-'}</td>
+            <td>${racer.grade || '-'}</td>
+            <td>${racer.nationalWin ?? '-'}</td>
+            <td>${racer.localWin ?? '-'}</td>
+            <td>${racer.avgSt ?? '-'}</td>
+            <td>${racer.motor2 ?? '-'}</td>
+            <td>${exTime}</td>
             <td>
               <b>
                 ${pct(
-                  laneProb[
-                    index
-                  ]
+                  laneProb[index]
                 )}
               </b>
             </td>
-
           </tr>
         `;
 
@@ -2197,13 +1801,10 @@ function renderPicks(
   mode
 ){
 
-  if(
-    !picks.length
-  ){
+  if(!picks.length){
 
-    $('picks')
-      .innerHTML =
-        '';
+    $('picks').innerHTML =
+      '';
 
     return;
 
@@ -2217,27 +1818,19 @@ function renderPicks(
   ];
 
 
-  $('picks')
-    .innerHTML =
-
+  $('picks').innerHTML =
     picks.map(
-      (
-        pick,
-        index
-      ) => {
+      (pick,index) => {
 
         const combo =
           pick.combo
             .split('')
             .join('-');
 
-
         const marketProbability =
           market?.[
             pick.combo
-          ] ||
-          0;
-
+          ] || 0;
 
         const payout =
           pick.odd !== null
@@ -2247,119 +1840,80 @@ function renderPicks(
               )
             : null;
 
-
         return `
           <div class="pick">
 
             <div class="sub">
-
               ${
-                labels[
-                  index
-                ] ||
+                labels[index] ||
                 '候補'
               }
-
               ${
                 mode === 'pre'
                   ? '・暫定'
                   : ''
               }
-
             </div>
-
 
             <div class="combo">
               ${combo}
             </div>
 
-
             <div class="amount">
-
               ¥${pick.amount.toLocaleString()}
-
               ${
                 pick.odd !== null
                   ? ` / ${pick.odd.toFixed(1)}倍`
-                  : ' / オッズ未公開'
+                  : ''
               }
-
             </div>
-
 
             <div class="metrics">
 
               <div class="metric">
-
                 <small>
-                  モデル推定
+                  統合モデル推定
                 </small>
-
                 <b>
-                  ${pct(
-                    pick.p
-                  )}
+                  ${pct(pick.p)}
                 </b>
-
               </div>
 
-
               <div class="metric">
-
                 <small>
                   市場基準
                 </small>
-
                 <b>
-
                   ${
                     oddsAvailable
-
                       ? pct(
                           marketProbability
                         )
-
                       : '-'
                   }
-
                 </b>
-
               </div>
 
-
               <div class="metric">
-
                 <small>
                   ML単独
                 </small>
-
                 <b>
-                  ${pct(
-                    pick.pure
-                  )}
+                  ${pct(pick.pure)}
                 </b>
-
               </div>
 
-
               <div class="metric">
-
                 <small>
                   的中時目安
                 </small>
-
                 <b>
-
                   ${
                     payout !== null
-
                       ? `¥${payout.toLocaleString()}`
-
                       : '-'
                   }
-
                 </b>
-
               </div>
 
             </div>
@@ -2374,165 +1928,104 @@ function renderPicks(
 }
 
 
-function renderMode(
-  mode
-){
+function renderMode(mode){
 
   $('mode')
     .classList
-    .remove(
-      'hidden'
-    );
+    .remove('hidden');
 
-  $('mode')
-    .className =
-      `mode ${mode}`;
+  $('mode').className =
+    `mode ${mode}`;
 
-
-  if(
+  $('mode').textContent =
     mode === 'live'
-  ){
-
-    $('mode')
-      .textContent =
-        '直前予想・展示情報反映済';
-
-  }else{
-
-    $('mode')
-      .textContent =
-        '事前予想・展示情報未反映';
-
-  }
+      ? '直前予想・展示情報反映済'
+      : '事前予想・展示情報未反映';
 
 }
 
 
-function hideAlternatives(){
-
-  $('alternatives')
-    .classList
-    .add(
-      'hidden'
-    );
-
-  $('alternativeList')
-    .innerHTML =
-      '';
-
-  $('scanState')
-    .textContent =
-      '';
-
-}
-
-
-function renderAlternatives(
+function renderCandidates(
   candidates
 ){
 
-  $('alternatives')
-    .classList
-    .remove(
-      'hidden'
-    );
+  scanCandidates =
+    candidates;
 
+  if(!candidates.length){
 
-  if(
-    !candidates.length
-  ){
-
-    $('scanState')
-      .textContent =
-        '現在、代替候補として抽出できるレースはありません。';
-
-    $('alternativeList')
-      .innerHTML =
-        '';
+    $('candidateCard')
+      .classList
+      .add('hidden');
 
     return;
 
   }
 
+  $('candidateCard')
+    .classList
+    .remove('hidden');
 
-  $('scanState')
-    .textContent =
-      '軽量スキャンで候補を抽出しました。下の「このレースを分析」で正式なML分析を行います。';
 
-
-  $('alternativeList')
-    .innerHTML =
-
+  $('candidateList').innerHTML =
     candidates.map(
-      (
-        item,
-        index
-      ) => {
-
-        const cutoff =
-          item.cutoff ||
-          '締切時刻未取得';
-
-        const oddsLabel =
-          item.oddsAvailable
-            ? `オッズ ${item.oddsCount}通り`
-            : 'オッズ未公開';
+      (item,index) => {
 
         return `
-          <div class="alt">
+          <div class="candidate">
 
-            <div class="alt-head">
+            <div class="candidate-head">
 
               <div>
+                <span class="rank">
+                  ${index + 1}
+                </span>
 
-                <div class="sub">
-                  候補 ${
-                    index + 1
-                  }
-                </div>
-
-                <div class="alt-race">
+                <span class="candidate-name">
                   ${item.venueName}
                   ${item.race}R
-                </div>
-
+                </span>
               </div>
 
-              <div class="alt-time">
-                ${cutoff}
+              <div class="candidate-grade">
+                ${item.recommendation || '-'}
               </div>
 
             </div>
 
-
-            <div class="alt-score">
-
-              ${oddsLabel}
-
+            <div class="sub" style="margin-top:7px">
+              締切 ${item.cutoff || '-'}
               ${
-                item.lane1?.name
-                  ? ` / 1号艇 ${item.lane1.name}`
+                item.minutesToClose !== null &&
+                item.minutesToClose !== undefined
+                  ? ` / あと約${item.minutesToClose}分`
                   : ''
               }
-
+              <br>
+              スキャナー ${item.score ?? '-'}点 /
+              注目 ${item.topLane ?? '-'}号艇
+              ${item.topRacer?.name || ''}
+              <br>
+              人気
               ${
-                item.lane1?.nationalWin !== null &&
-                item.lane1?.nationalWin !== undefined
-
-                  ? ` / 全国勝率 ${item.lane1.nationalWin}`
-
+                item.favoriteCombo
+                  ? item.favoriteCombo
+                      .split('')
+                      .join('-')
+                  : '-'
+              }
+              ${
+                item.favoriteOdds
+                  ? `${item.favoriteOdds}倍`
                   : ''
               }
-
             </div>
-
 
             <button
               class="secondary"
-              data-alt-venue="${item.venue}"
-              data-alt-race="${item.race}"
+              data-candidate="${index}"
             >
-              このレースを分析
+              このレースを本ML分析
             </button>
 
           </div>
@@ -2545,7 +2038,7 @@ function renderAlternatives(
 
   document
     .querySelectorAll(
-      '[data-alt-venue]'
+      '[data-candidate]'
     )
     .forEach(
       button => {
@@ -2554,22 +2047,25 @@ function renderAlternatives(
           'click',
           async () => {
 
+            const item =
+              scanCandidates[
+                Number(
+                  button.dataset
+                    .candidate
+                )
+              ];
+
+            if(!item){
+              return;
+            }
+
             $('venue').value =
-              button.dataset
-                .altVenue;
+              item.venue;
 
             $('race').value =
-              button.dataset
-                .altRace;
+              item.race;
 
-            window.scrollTo({
-              top:0,
-              behavior:'smooth'
-            });
-
-            await analyze(
-              false
-            );
+            await analyzeRace();
 
           }
         );
@@ -2580,84 +2076,14 @@ function renderAlternatives(
 }
 
 
-async function scanAlternatives(
-  date,
-  venue,
-  race
+async function analyzeRace(
+  options = {}
 ){
 
-  if(
-    scanRunning
-  ){
-    return;
-  }
+  const {
+    quiet = false
+  } = options;
 
-  scanRunning =
-    true;
-
-
-  $('alternatives')
-    .classList
-    .remove(
-      'hidden'
-    );
-
-  $('scanState')
-    .textContent =
-      '他会場の候補を探索中…';
-
-  $('alternativeList')
-    .innerHTML =
-      '';
-
-
-  try{
-
-    const query =
-      `date=${encodeURIComponent(date)}` +
-      `&excludeVenue=${encodeURIComponent(venue)}` +
-      `&excludeRace=${encodeURIComponent(race)}` +
-      `&limit=6`;
-
-
-    const scan =
-      await fetchJson(
-        `/api/scan?${query}`
-      );
-
-
-    const candidates =
-      Array.isArray(
-        scan?.candidates
-      )
-        ? scan.candidates
-        : [];
-
-
-    renderAlternatives(
-      candidates
-    );
-
-
-  }catch(error){
-
-    $('scanState')
-      .textContent =
-        `代替レース探索失敗: ${error.message}`;
-
-  }finally{
-
-    scanRunning =
-      false;
-
-  }
-
-}
-
-
-async function analyze(
-  allowScan = true
-){
 
   const date =
     $('date').value;
@@ -2669,7 +2095,6 @@ async function analyze(
     Number(
       $('race').value
     );
-
 
   const budget =
     Math.max(
@@ -2685,72 +2110,30 @@ async function analyze(
     );
 
 
-  $('analyze')
-    .disabled =
-      true;
+  if(!quiet){
 
-
-  $('status')
-    .textContent =
+    $('status').textContent =
       'データ取得中…';
 
-  $('status')
-    .className =
+    $('status').className =
       'status warn';
 
+  }
 
-  $('picks')
-    .innerHTML =
-      '';
 
-  $('reason')
-    .textContent =
-      '';
+  $('picks').innerHTML =
+    '';
 
+  $('reason').textContent =
+    '';
 
   $('detail')
     .classList
-    .add(
-      'hidden'
-    );
-
+    .add('hidden');
 
   $('mode')
     .classList
-    .add(
-      'hidden'
-    );
-
-
-  if(
-    !allowScan
-  ){
-    hideAlternatives();
-  }
-
-
-  $('raceApi')
-    .textContent =
-      '取得中';
-
-  $('beforeApi')
-    .textContent =
-      '取得中';
-
-  $('oddsApi')
-    .textContent =
-      '取得中';
-
-
-  if(
-    !trainedModel
-  ){
-
-    $('modelApi')
-      .textContent =
-        '取得中';
-
-  }
+    .add('hidden');
 
 
   const query =
@@ -2763,53 +2146,46 @@ async function analyze(
 
     const modelPromise =
       trainedModel
-        ? Promise.resolve(
-            true
-          )
+        ? Promise.resolve(true)
         : loadModel();
 
 
     const results =
       await Promise.allSettled(
         [
-
           fetchJson(
             `/api/race?${query}`
           ),
-
           fetchJson(
             `/api/before?${query}`
           ),
-
           fetchJson(
             `/api/odds?${query}`
           ),
-
           modelPromise
-
         ]
       );
 
 
     const raceData =
       results[0].status ===
-        'fulfilled'
-          ? results[0].value
-          : null;
+      'fulfilled'
+        ? results[0].value
+        : null;
 
 
     const before =
       results[1].status ===
-        'fulfilled'
-          ? results[1].value
-          : null;
+      'fulfilled'
+        ? results[1].value
+        : null;
 
 
     const oddsData =
       results[2].status ===
-        'fulfilled'
-          ? results[2].value
-          : null;
+      'fulfilled'
+        ? results[2].value
+        : null;
 
 
     const modelOk =
@@ -2832,10 +2208,8 @@ async function analyze(
 
     setApiState(
       'raceApi',
-      data.raceOk,
-      false
+      data.raceOk
     );
-
 
     setApiState(
       'beforeApi',
@@ -2843,32 +2217,25 @@ async function analyze(
       true
     );
 
-
     setApiState(
       'oddsApi',
       data.oddsOk,
       true
     );
 
-
     setApiState(
       'modelApi',
-      data.mlOk,
-      false
+      data.mlOk
     );
 
 
     $('coverageArea')
       .classList
-      .remove(
-        'hidden'
-      );
+      .remove('hidden');
 
 
-    $('coverage')
-      .textContent =
-        `${data.score}%`;
-
+    $('coverage').textContent =
+      `${data.score}%`;
 
     $('coverageBar')
       .style
@@ -2876,96 +2243,36 @@ async function analyze(
         `${data.score}%`;
 
 
-    const currentMeetAvailable =
-      Boolean(
-        raceData
-          ?.currentMeetDetected
-      );
-
-
-    $('supplementInfo')
-      .textContent =
-
-      currentMeetAvailable
-
-        ? '今節成績: 取得済み'
-
-        : '今節成績: 未取得・学習時平均で補完';
-
-
-    $('raceInfo')
-      .textContent =
-
-      `${raceData?.venueName || venue} ` +
-      `${race}R / ` +
+    $('raceInfo').textContent =
+      `${raceData?.venueName || venue} ${race}R / ` +
       `オッズ ${data.oddsCount}通り / ` +
-      `${trainedModel?.version || 'model unavailable'}`;
+      `${trainedModel?.version || '-'}`;
 
 
-    /*
-      出走表とMLモデルだけは
-      予想の最低必須条件。
-    */
+    $('supplementInfo').textContent =
+      raceData?.currentMeetDetected
+        ? '今節成績: 取得済み'
+        : '今節成績: 平均補完';
+
 
     if(
       !data.raceOk ||
       !data.mlOk
     ){
 
-      $('status')
-        .textContent =
-          '分析不可';
+      $('status').textContent =
+        '分析不可';
 
-      $('status')
-        .className =
-          'status bad';
+      $('status').className =
+        'status bad';
 
-
-      const missing = [];
-
-      if(
-        !data.raceOk
-      ){
-        missing.push(
-          '出走表'
-        );
-      }
-
-      if(
-        !data.mlOk
-      ){
-        missing.push(
-          'MLモデル'
-        );
-      }
-
-
-      $('reason')
-        .textContent =
-          `最低必須データ不足: ${missing.join(' / ')}`;
-
-
-      if(
-        allowScan
-      ){
-
-        await scanAlternatives(
-          date,
-          venue,
-          race
-        );
-
-      }
-
-      return;
+      return {
+        qualified:false,
+        reason:'required-data-missing'
+      };
 
     }
 
-
-    /*
-      展示が取得できたかで
-      事前予想 / 直前予想を切替。
-    */
 
     const mode =
       data.beforeOk
@@ -2973,9 +2280,7 @@ async function analyze(
         : 'pre';
 
 
-    renderMode(
-      mode
-    );
+    renderMode(mode);
 
 
     const racers =
@@ -3019,8 +2324,7 @@ async function analyze(
       chooseBets(
         combined,
         trifecta,
-        oddsData?.odds ||
-          {},
+        oddsData?.odds || {},
         budget,
         data.oddsOk
       );
@@ -3043,80 +2347,7 @@ async function analyze(
 
     $('detail')
       .classList
-      .remove(
-        'hidden'
-      );
-
-
-    const weather =
-      before?.weather ||
-      {};
-
-
-    if(
-      data.beforeOk
-    ){
-
-      $('weather')
-        .textContent =
-
-        `気温 ${weather.temperature ?? '-'}℃ / ` +
-        `水温 ${weather.waterTemperature ?? '-'}℃ / ` +
-        `風 ${weather.windSpeed ?? '-'}m/s / ` +
-        `波 ${weather.waveHeight ?? '-'}cm`;
-
-    }else{
-
-      $('weather')
-        .textContent =
-          '展示・直前気象は未公開です。公開後に再分析すると自動的に反映します。';
-
-    }
-
-
-    const validation =
-      trainedModel.validation ||
-      {};
-
-
-    $('tags')
-      .innerHTML =
-
-      [
-
-        `学習 ${
-          Number(
-            trainedModel
-              .raceCount ||
-            0
-          ).toLocaleString()
-        }R`,
-
-        `ML Top1 ${
-          pct(
-            validation
-              .top1Accuracy
-          )
-        }`,
-
-        data.beforeOk
-          ? '展示反映済'
-          : '展示未反映',
-
-        data.oddsOk
-          ? '市場オッズ反映済'
-          : '市場オッズ未反映',
-
-        currentMeetAvailable
-          ? '今節データ取得済'
-          : '今節データ平均補完'
-
-      ]
-      .map(
-        value =>
-          `<span class="tag">${value}</span>`
-      )
-      .join('');
+      .remove('hidden');
 
 
     const maxLaneProb =
@@ -3140,88 +2371,237 @@ async function analyze(
       );
 
 
+    const weather =
+      before?.weather || {};
+
+
+    $('weather').textContent =
+      data.beforeOk
+
+        ? `気温 ${weather.temperature ?? '-'}℃ / ` +
+          `水温 ${weather.waterTemperature ?? '-'}℃ / ` +
+          `風 ${weather.windSpeed ?? '-'}m/s / ` +
+          `波 ${weather.waveHeight ?? '-'}cm`
+
+        : '展示・直前気象はまだ未反映です。';
+
+
+    const validation =
+      trainedModel.validation || {};
+
+
+    $('tags').innerHTML =
+      [
+        `ML Top1 ${pct(
+          validation.top1Accuracy
+        )}`,
+
+        data.beforeOk
+          ? '展示反映済'
+          : '展示未反映',
+
+        data.oddsOk
+          ? 'オッズ反映済'
+          : 'オッズ未反映',
+
+        raceData?.currentMeetDetected
+          ? '今節取得済'
+          : '今節平均補完'
+
+      ]
+      .map(
+        value =>
+          `<span class="tag">${value}</span>`
+      )
+      .join('');
+
+
     /*
-      候補無し
+      今エントリー推奨としては
+      オッズが無いレースを通さない。
     */
 
-    if(
-      !selected.length
-    ){
+    if(!data.oddsOk){
 
-      if(
-        mode === 'pre'
-      ){
+      $('status').textContent =
+        '事前予想・オッズ待ち';
 
-        $('status')
-          .textContent =
-            '事前予想・候補弱め';
+      $('status').className =
+        'status warn';
 
-        $('status')
-          .className =
-            'status warn';
+      $('reason').textContent =
+        `${topLane}号艇を1着最有力 ` +
+        `(${pct(maxLaneProb)}) と評価。` +
+        `ただし現在は買い目確定前です。`;
 
+      return {
+        qualified:false,
+        reason:'odds-not-ready',
+        mode,
+        topLane,
+        maxLaneProb
+      };
 
-        $('reason')
-          .textContent =
-
-          `${topLane}号艇を1着最有力 ` +
-          `(${pct(maxLaneProb)}) とする暫定予想ですが、` +
-          `現時点では買い目候補の強度が基準未満です。` +
-          `展示公開後に再計算します。`;
+    }
 
 
-        /*
-          展示待ちなので
-          「完全な見送り」とはせず、
-          他会場候補も参考表示。
-        */
+    if(!selected.length){
 
-        if(
-          allowScan
-        ){
+      $('status').textContent =
+        data.beforeOk
+          ? '見送り'
+          : '事前見送り';
 
-          await scanAlternatives(
-            date,
-            venue,
-            race
-          );
+      $('status').className =
+        'status warn';
 
-        }
-
-        return;
-
-      }
-
-
-      $('status')
-        .textContent =
-          '見送り';
-
-      $('status')
-        .className =
-          'status warn';
-
-
-      $('reason')
-        .textContent =
-
-        `展示・直前情報まで反映した結果、` +
+      $('reason').textContent =
         `${topLane}号艇を1着最有力 ` +
         `(${pct(maxLaneProb)}) と評価しましたが、` +
-        `買い目候補の強度が基準未満です。`;
+        `買い目基準を通過しませんでした。`;
+
+      return {
+        qualified:false,
+        reason:'bet-filter-failed',
+        mode,
+        topLane,
+        maxLaneProb
+      };
+
+    }
 
 
-      if(
-        allowScan
-      ){
+    $('status').textContent =
+      data.beforeOk
+        ? 'エントリー候補'
+        : '事前エントリー候補';
 
-        await scanAlternatives(
-          date,
-          venue,
-          race
-        );
+    $('status').className =
+      data.beforeOk
+        ? 'status good'
+        : 'status warn';
 
-      }
+
+    $('reason').textContent =
+      `${topLane}号艇を1着最有力 ` +
+      `(${pct(maxLaneProb)}) と評価。` +
+      (
+        data.beforeOk
+          ? '展示・直前情報まで反映済みです。'
+          : '展示前のため暫定判定です。'
+      );
+
+
+    return {
+      qualified:true,
+      picks:selected,
+      mode,
+      venue,
+      race,
+      raceData,
+      topLane,
+      maxLaneProb
+    };
+
+
+  }catch(error){
+
+    $('status').textContent =
+      '分析エラー';
+
+    $('status').className =
+      'status bad';
+
+    $('reason').textContent =
+      `分析エラー: ${error.message}`;
+
+    return {
+      qualified:false,
+      reason:'error',
+      error:
+        error.message
+    };
+
+  }
+
+}
+
+
+async function scanNow(){
+
+  const date =
+    $('date').value;
+
+
+  const data =
+    await fetchJson(
+      `/api/scan?` +
+      `date=${encodeURIComponent(date)}` +
+      `&limit=6` +
+      `&minLeadMinutes=5` +
+      `&maxLeadMinutes=90`
+    );
+
+
+  const candidates =
+    Array.isArray(
+      data?.candidates
+    )
+      ? data.candidates
+      : [];
+
+
+  renderCandidates(
+    candidates
+  );
+
+
+  return candidates;
+
+}
+
+
+async function findBestRace(){
+
+  if(busy){
+    return;
+  }
+
+  busy = true;
+
+
+  $('findBest').disabled =
+    true;
+
+  $('analyze').disabled =
+    true;
+
+
+  $('recommendMain').textContent =
+    '候補を検索中…';
+
+  $('recommendMeta').textContent =
+    '現在エントリー可能なレースを全会場から検索しています。';
+
+
+  try{
+
+    if(!trainedModel){
+      await loadModel();
+    }
+
+
+    const candidates =
+      await scanNow();
+
+
+    if(!candidates.length){
+
+      $('recommendMain').textContent =
+        '現在、推奨レースなし';
+
+      $('recommendMeta').textContent =
+        '締切・オッズ・事前評価の条件を通過するレースが現在ありません。';
 
       return;
 
@@ -3229,97 +2609,123 @@ async function analyze(
 
 
     /*
-      候補あり
+      スキャナー順位の上から
+      本MLで正式分析。
+
+      見送りなら次へ進む。
     */
 
-    hideAlternatives();
+    const maxChecks =
+      Math.min(
+        candidates.length,
+        5
+      );
 
 
-    if(
-      mode === 'pre'
+    for(
+      let i = 0;
+      i < maxChecks;
+      i++
     ){
 
-      $('status')
-        .textContent =
-          '事前候補あり';
-
-      $('status')
-        .className =
-          'status warn';
+      const candidate =
+        candidates[i];
 
 
-      $('reason')
-        .textContent =
-
-        `${topLane}号艇を1着最有力 ` +
-        `(${pct(maxLaneProb)}) と評価。` +
-        `これは展示前の暫定予想です。` +
-        `展示・直前気象が公開されたら、` +
-        `「分析・最新情報で再計算」を押して最終判定してください。`;
-
-    }else{
-
-      $('status')
-        .textContent =
-          '候補あり';
-
-      $('status')
-        .className =
-          'status good';
+      $('recommendMain').textContent =
+        `${candidate.venueName} ${candidate.race}R を精査中…`;
 
 
-      $('reason')
-        .textContent =
-
-        `${topLane}号艇を1着最有力 ` +
-        `(${pct(maxLaneProb)}) と評価。` +
-        `展示・直前気象` +
-        `${data.oddsOk ? '・市場オッズ' : ''}` +
-        `を反映した直前予想です。`;
-
-    }
+      $('recommendMeta').textContent =
+        `一次候補 ${i + 1}/${maxChecks} / ` +
+        `スキャナー ${candidate.score}点 / ` +
+        `締切 ${candidate.cutoff || '-'}`;
 
 
-  }catch(error){
+      $('venue').value =
+        candidate.venue;
 
-    $('status')
-      .textContent =
-        '分析エラー';
-
-    $('status')
-      .className =
-        'status bad';
+      $('race').value =
+        candidate.race;
 
 
-    $('reason')
-      .textContent =
-        `分析エラー: ${error.message}`;
+      const result =
+        await analyzeRace({
+          quiet:true
+        });
 
 
-    if(
-      allowScan
-    ){
+      if(
+        result?.qualified
+      ){
 
-      try{
+        $('recommendMain').textContent =
+          `${candidate.venueName} ${candidate.race}R`;
 
-        await scanAlternatives(
-          date,
-          venue,
-          race
-        );
 
-      }catch{
-        // scan側で表示
+        $('recommendMeta').innerHTML =
+          `推奨度 <b>${candidate.recommendation}</b> / ` +
+          `スキャナー ${candidate.score}点 / ` +
+          `締切 ${candidate.cutoff || '-'} ` +
+          (
+            candidate.minutesToClose !== null &&
+            candidate.minutesToClose !== undefined
+              ? `（あと約${candidate.minutesToClose}分）`
+              : ''
+          ) +
+          `<br>` +
+          `本ML分析でも買い目基準を通過。` +
+          (
+            result.mode === 'live'
+              ? `展示・直前情報反映済み。`
+              : `展示前の暫定候補。`
+          );
+
+
+        window.scrollTo({
+          top:0,
+          behavior:'smooth'
+        });
+
+
+        return;
+
       }
 
     }
 
 
+    /*
+      スキャナー通過はしたが
+      本MLでは全部見送り。
+    */
+
+    $('recommendMain').textContent =
+      '現在、最終推奨レースなし';
+
+
+    $('recommendMeta').textContent =
+      `${maxChecks}レースを本MLまで確認しましたが、` +
+      `現在は買い目基準を通過するレースがありません。`;
+
+
+  }catch(error){
+
+    $('recommendMain').textContent =
+      '候補検索エラー';
+
+    $('recommendMeta').textContent =
+      `検索エラー: ${error.message}`;
+
   }finally{
 
-    $('analyze')
-      .disabled =
-        false;
+    busy = false;
+
+    $('findBest').disabled =
+      false;
+
+    $('analyze').disabled =
+      false;
 
   }
 
@@ -3329,14 +2735,74 @@ async function analyze(
 $('analyze')
   .addEventListener(
     'click',
-    () =>
-      analyze(
-        true
-      )
+    async () => {
+
+      if(busy){
+        return;
+      }
+
+      busy = true;
+
+      $('analyze').disabled =
+        true;
+
+      try{
+
+        await analyzeRace();
+
+      }finally{
+
+        busy = false;
+
+        $('analyze').disabled =
+          false;
+
+      }
+
+    }
   );
 
 
-loadModel();
+$('findBest')
+  .addEventListener(
+    'click',
+    findBestRace
+  );
+
+
+$('date')
+  .addEventListener(
+    'change',
+    () => {
+
+      if(
+        $('date').value ===
+        todayJst()
+      ){
+        findBestRace();
+      }
+
+    }
+  );
+
+
+async function boot(){
+
+  await loadModel();
+
+  if(
+    $('date').value ===
+    todayJst()
+  ){
+
+    await findBestRace();
+
+  }
+
+}
+
+
+boot();
 
 </script>
 
