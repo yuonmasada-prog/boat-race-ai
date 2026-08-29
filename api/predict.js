@@ -1,13 +1,11 @@
-const V={
+const V = {
   '01':'桐生','02':'戸田','03':'江戸川','04':'平和島','05':'多摩川','06':'浜名湖',
   '07':'蒲郡','08':'常滑','09':'津','10':'三国','11':'びわこ','12':'住之江',
   '13':'尼崎','14':'鳴門','15':'丸亀','16':'児島','17':'宮島','18':'徳山',
   '19':'下関','20':'若松','21':'芦屋','22':'福岡','23':'唐津','24':'大村'
 };
 
-const C={1:.56,2:.14,3:.12,4:.10,5:.05,6:.03};
-
-const ORDER=[
+const ORDER = [
   123,213,312,412,512,612,
   124,214,314,413,513,613,
   125,215,315,415,514,614,
@@ -30,207 +28,120 @@ const ORDER=[
   165,265,365,465,564,654
 ];
 
-const strip=s=>String(s||'')
-  .replace(/<script[\s\S]*?<\/script>/gi,' ')
-  .replace(/<style[\s\S]*?<\/style>/gi,' ')
-  .replace(/<[^>]+>/g,' ')
-  .replace(/&nbsp;|&#160;/g,' ')
-  .replace(/&amp;/g,'&')
-  .replace(/\s+/g,' ')
+const strip = s => String(s || '')
+  .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/&nbsp;|&#160;/g, ' ')
+  .replace(/&amp;/g, '&')
+  .replace(/\s+/g, ' ')
   .trim();
 
-async function get(u){
-  const c=new AbortController();
-  const t=setTimeout(()=>c.abort(),8000);
-
-  try{
-    const r=await fetch(u,{
-      headers:{
-        'user-agent':'Mozilla/5.0 BOAT-RACE-AI-MVP/1.1',
-        'accept':'text/html,application/xhtml+xml'
-      },
-      signal:c.signal,
-      cache:'no-store'
-    });
-
-    if(!r.ok){
-      throw Error('公式ページ取得失敗 '+r.status);
-    }
-
-    return await r.text();
-  }finally{
-    clearTimeout(t);
-  }
-}
-
-function parseOdds(html){
-  const vals=[];
-  const cell=/<td[^>]*class=["'][^"']*\boddsPoint\b[^"']*["'][^>]*>([\s\S]*?)<\/td>/gi;
+function parseOdds(html) {
+  const vals = [];
+  const re = /<td[^>]*class=["'][^"']*\boddsPoint\b[^"']*["'][^>]*>([\s\S]*?)<\/td>/gi;
 
   let m;
 
-  while((m=cell.exec(html))){
-    const s=strip(m[1]).replace(/,/g,'');
-    const n=Number(s);
+  while ((m = re.exec(html))) {
+    const s = strip(m[1]).replace(/,/g, '');
+    const n = Number(s);
 
-    if(Number.isFinite(n) && n>=1){
-      vals.push(n);
-    }else{
-      vals.push(null);
-    }
+    vals.push(Number.isFinite(n) && n >= 1 ? n : null);
   }
 
-  const out={};
+  const out = {};
 
-  if(vals.length>=120){
-    for(let i=0;i<120;i++){
-      if(vals[i]!=null){
-        const k=String(ORDER[i]);
-        out[`${k[0]}-${k[1]}-${k[2]}`]=vals[i];
+  if (vals.length >= 120) {
+    for (let i = 0; i < 120; i++) {
+      if (vals[i] != null) {
+        const k = String(ORDER[i]);
+        out[`${k[0]}-${k[1]}-${k[2]}`] = vals[i];
       }
     }
-    return out;
   }
 
-  const text=strip(html);
+  return {
+    cellCount: vals.length,
+    odds: out
+  };
+}
 
-  const re=/([1-6])\s*[-－]\s*([1-6])\s*[-－]\s*([1-6])\s+([0-9]{1,4}(?:\.[0-9])?)/g;
+async function fetchOfficial(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
 
-  while((m=re.exec(text))){
-    if(new Set([m[1],m[2],m[3]]).size===3){
-      out[`${m[1]}-${m[2]}-${m[3]}`]=+m[4];
-    }
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8'
+      },
+      cache: 'no-store',
+      signal: controller.signal
+    });
+
+    const html = await response.text();
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+      length: html.length,
+      html
+    };
+  } finally {
+    clearTimeout(timer);
   }
-
-  return out;
 }
 
-function prob(k){
-  const [a,b,c]=k.split('-').map(Number);
+module.exports = async (req, res) => {
+  try {
+    const date = String(req.query.date || '').replace(/-/g, '');
+    const venue = String(req.query.venue || '04').padStart(2, '0');
+    const race = Number(req.query.race || 1);
 
-  return Math.max(
-    .0001,
-    C[a] *
-    (C[b]/Math.max(.001,1-C[a])) *
-    (C[c]/Math.max(.001,1-C[a]-C[b]))
-  );
-}
-
-module.exports=async(req,res)=>{
-  try{
-    const d=String(req.query.date||'').replace(/-/g,'');
-    const v=String(req.query.venue||'15').padStart(2,'0');
-    const r=+req.query.race||1;
-    const b=Math.max(
-      100,
-      Math.floor((+req.query.budget||1000)/100)*100
-    );
-
-    if(
-      !/^\d{8}$/.test(d) ||
-      !V[v] ||
-      r<1 ||
-      r>12
-    ){
+    if (!/^\d{8}$/.test(date) || !V[venue] || race < 1 || race > 12) {
       return res.status(400).json({
-        error:'入力値が不正です'
+        error: '入力値が不正です'
       });
     }
 
-    const base='https://www.boatrace.jp/owpc/pc/race';
-    const q=`?rno=${r}&jcd=${v}&hd=${d}`;
+    const url =
+      `https://www.boatrace.jp/owpc/pc/race/odds3t` +
+      `?rno=${race}&jcd=${venue}&hd=${date}`;
 
-    const src=[
-      `${base}/racelist${q}`,
-      `${base}/beforeinfo${q}`,
-      `${base}/odds3t${q}`
-    ];
+    const result = await fetchOfficial(url);
+    const parsed = parseOdds(result.html);
 
-    const s=await Promise.allSettled(src.map(get));
+    return res.status(200).json({
+      diagnostic: true,
+      venueName: V[venue],
+      race,
+      officialUrl: url,
 
-    const o=parseOdds(
-      s[2].status==='fulfilled'
-        ? s[2].value
-        : ''
-    );
+      fetch: {
+        ok: result.ok,
+        status: result.status,
+        contentType: result.contentType,
+        htmlLength: result.length
+      },
 
-    const a=Object.entries(o)
-      .map(([combo,od])=>{
-        const p=prob(combo);
+      parse: {
+        oddsPointCells: parsed.cellCount,
+        parsedOdds: Object.keys(parsed.odds).length,
+        sample: Object.entries(parsed.odds).slice(0, 5)
+      },
 
-        return{
-          combo,
-          odds:od,
-          prob:p,
-          ev:p*od,
-          score:
-            p*.8 +
-            (1/Math.sqrt(od))*.2
-        };
-      })
-      .sort((x,y)=>y.score-x.score);
-
-    if(a.length<100){
-      return res.json({
-        skip:true,
-        venueName:V[v],
-        race:r,
-        oddsCount:a.length,
-        picks:[],
-        reason:
-          `公式3連単オッズの取得数が${a.length}通りのため見送り。`+
-          `発売前・締切後・公式ページ応答不良の可能性があります。`
-      });
-    }
-
-    const top=a.slice(0,3);
-
-    const rat=[.5,.3,.2];
-
-    let used=0;
-
-    const picks=top.map((p,i)=>{
-      let amt;
-
-      if(i===2){
-        amt=b-used;
-      }else{
-        amt=Math.floor(b*rat[i]/100)*100;
-      }
-
-      used+=amt;
-
-      return{
-        ...p,
-        amount:amt
-      };
+      htmlPreview: strip(result.html).slice(0, 500)
     });
 
-    res.setHeader(
-      'Cache-Control',
-      's-maxage=20, stale-while-revalidate=40'
-    );
-
-    return res.json({
-      skip:false,
-      venueName:V[v],
-      race:r,
-      oddsCount:a.length,
-      picks,
-      reason:
-        '公式3連単オッズ120通りを取得。' +
-        '現MVPはコース事前分布とオッズによるヒューリスティック順位付けで、' +
-        '確率は校正済みモデルではありません。'
-    });
-
-  }catch(e){
-
+  } catch (e) {
     return res.status(500).json({
-      error:
-        e.name==='AbortError'
-          ? '公式サイト取得がタイムアウトしました'
-          : e.message
+      diagnostic: true,
+      error: e.name,
+      message: e.message
     });
-
   }
 };
