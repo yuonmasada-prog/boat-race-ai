@@ -1,4 +1,4 @@
-name: Train BOAT RACE AI v8.1
+name: Train BOAT RACE AI v9
 
 on:
   workflow_dispatch:
@@ -11,13 +11,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: boat-race-ai-v8-1-training
+  group: boat-race-ai-v9-training
   cancel-in-progress: false
 
 jobs:
   train:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
       - name: Checkout repository
@@ -36,6 +36,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install numpy pandas requests
 
+      # ==========================================================
+      # 0. コード自体の検査
+      # ==========================================================
+
       - name: Syntax check
         run: |
           python -m py_compile training/train_model.py
@@ -46,15 +50,22 @@ jobs:
           python training/train_model.py --smoke-test
 
       # ==========================================================
-      # 1. 検証専用モデル
-      # 直近30日を一切見せずに学習する
+      # 1. 評価専用モデル
+      #
+      # 最新45日間を一切学習させない。
+      #
+      # 45日の内訳:
+      #   最初15日 = strategy validation
+      #   最後30日 = frozen final test
       # ==========================================================
 
-      - name: Train held-out evaluation model
+      - name: Train strict evaluation model
         run: |
           python training/train_model.py \
+            --mode evaluation \
             --days 120 \
-            --end-offset 30 \
+            --holdout-days 45 \
+            --end-offset 45 \
             --output model/eval-model.json \
             --min-races 500 \
             --epochs 300 \
@@ -62,12 +73,12 @@ jobs:
             --l2 0.002 \
             --workers 4
 
-      - name: Validate held-out model dates
+      - name: Validate evaluation model isolation
         run: |
           python - <<'PY'
           import json
-          from pathlib import Path
           from datetime import date, timedelta
+          from pathlib import Path
 
           path = Path("model/eval-model.json")
 
@@ -84,6 +95,7 @@ jobs:
 
           required = [
               "version",
+              "mode",
               "trainedAt",
               "lookbackDays",
               "endOffsetDays",
@@ -98,6 +110,7 @@ jobs:
               "coefficients",
               "training",
               "validation",
+              "externalHoldout",
           ]
 
           missing = [
@@ -108,36 +121,56 @@ jobs:
 
           if missing:
               raise SystemExit(
-                  f"missing keys: {missing}"
+                  f"missing model keys: {missing}"
               )
 
-          if data["endOffsetDays"] < 30:
+          if data["mode"] != "evaluation":
               raise SystemExit(
-                  "held-out model does not exclude 30 days"
+                  "evaluation model has wrong mode"
+              )
+
+          if int(data["endOffsetDays"]) < 45:
+              raise SystemExit(
+                  "evaluation model does not reserve 45 days"
               )
 
           model_end = date.fromisoformat(
               data["dataEndDate"]
           )
 
-          test_start = (
+          validation_start = (
               date.today()
-              - timedelta(days=30)
+              - timedelta(days=45)
           )
 
-          if model_end >= test_start:
+          if model_end >= validation_start:
               raise SystemExit(
-                  f"DATA LEAKAGE: model end={model_end}, "
-                  f"test start={test_start}"
+                  "DATA LEAKAGE DETECTED: "
+                  f"model_end={model_end}, "
+                  f"validation_start={validation_start}"
               )
 
-          if data["raceCount"] < 500:
+          if int(data["raceCount"]) < 500:
               raise SystemExit(
                   "too few evaluation training races"
               )
 
+          feature_count = len(
+              data["features"]
+          )
+
+          for key in (
+              "mean",
+              "scale",
+              "coefficients",
+          ):
+              if len(data[key]) != feature_count:
+                  raise SystemExit(
+                      f"{key} length mismatch"
+                  )
+
           print(
-              "HELD-OUT MODEL DATE CHECK PASSED"
+              "EVALUATION MODEL ISOLATION PASSED"
           )
 
           print(
@@ -153,7 +186,7 @@ jobs:
                           data["endOffsetDays"],
                       "raceCount":
                           data["raceCount"],
-                      "validation":
+                      "internalValidation":
                           data["validation"],
                   },
                   ensure_ascii=False,
@@ -163,24 +196,34 @@ jobs:
           PY
 
       # ==========================================================
-      # 2. 完全未学習30日で3連単＋オッズ検証
+      # 2. 外部45日バックテスト
+      #
+      # validation 15日だけで戦略を選択。
+      # final test 30日には選択済み戦略を固定して適用。
+      #
+      # 3連単オッズ列は120通りを厳密解析。
       # ==========================================================
 
-      - name: Run true held-out trifecta backtest
+      - name: Run strict 45-day trifecta backtest
         run: |
           python training/backtest_trifecta.py \
-            --days 30 \
+            --validation-days 15 \
+            --test-days 30 \
             --min-races 500 \
             --model model/eval-model.json \
             --output model/backtest.json
 
-      - name: Validate held-out backtest
+      # ==========================================================
+      # 3. バックテスト結果の完全性検査
+      # ==========================================================
+
+      - name: Validate strict backtest
         run: |
           python - <<'PY'
           import json
           import math
-          from pathlib import Path
           from datetime import date
+          from pathlib import Path
 
           path = Path("model/backtest.json")
 
@@ -197,20 +240,14 @@ jobs:
 
           required = [
               "version",
+              "method",
               "modelVersion",
               "modelDataStartDate",
               "modelDataEndDate",
-              "testStartDate",
-              "testEndDate",
-              "days",
-              "raceCount",
-              "oddsCoverage",
-              "top1",
-              "top3",
-              "top5",
-              "bestValueStrategy",
-              "strategySearch",
-              "byVenue",
+              "validation",
+              "finalTest",
+              "strategySearchValidationOnly",
+              "oddsParser",
           ]
 
           missing = [
@@ -224,87 +261,169 @@ jobs:
                   f"backtest missing keys: {missing}"
               )
 
+          validation = data["validation"]
+          final_test = data["finalTest"]
+          parser = data["oddsParser"]
+
+          if int(validation["days"]) != 15:
+              raise SystemExit(
+                  "validation period is not 15 days"
+              )
+
+          if int(final_test["days"]) != 30:
+              raise SystemExit(
+                  "final test period is not 30 days"
+              )
+
           model_end = date.fromisoformat(
               data["modelDataEndDate"]
           )
 
-          test_start = date.fromisoformat(
-              data["testStartDate"]
+          validation_start = date.fromisoformat(
+              validation["startDate"]
           )
 
-          if model_end >= test_start:
-              raise SystemExit(
-                  "BACKTEST DATA LEAKAGE DETECTED"
-              )
-
-          if data["raceCount"] < 500:
-              raise SystemExit(
-                  "too few held-out test races"
-              )
-
-          odds_coverage = float(
-              data["oddsCoverage"]
+          final_start = date.fromisoformat(
+              final_test["startDate"]
           )
 
-          if not math.isfinite(
-              odds_coverage
-          ):
+          if model_end >= validation_start:
               raise SystemExit(
-                  "invalid odds coverage"
+                  "BACKTEST MODEL DATA LEAKAGE"
               )
 
-          for section in (
-              "top1",
-              "top3",
-              "top5",
-          ):
-              result = data[section]
+          validation_end = date.fromisoformat(
+              validation["endDate"]
+          )
 
-              for metric in (
-                  "hitRate",
-                  "roi",
-              ):
-                  value = result.get(
-                      metric
+          if validation_end >= final_start:
+              raise SystemExit(
+                  "validation overlaps final test"
+              )
+
+          if int(validation["raceCount"]) < 500:
+              raise SystemExit(
+                  "too few validation races"
+              )
+
+          if int(final_test["raceCount"]) < 500:
+              raise SystemExit(
+                  "too few final-test races"
+              )
+
+          if int(parser["expectedColumns"]) != 120:
+              raise SystemExit(
+                  "trifecta parser does not expect 120 columns"
+              )
+
+          if parser["fallbackByNumericPosition"] is not False:
+              raise SystemExit(
+                  "unsafe odds fallback is enabled"
+              )
+
+          for section_name, section in (
+              ("validation", validation),
+              ("finalTest", final_test),
+          ):
+              coverage = float(
+                  section["strictOddsCoverage"]
+              )
+
+              if not math.isfinite(coverage):
+                  raise SystemExit(
+                      f"{section_name}: invalid odds coverage"
                   )
 
-                  if value is None:
-                      raise SystemExit(
-                          f"{section}: missing {metric}"
-                      )
+              if coverage < 0 or coverage > 1:
+                  raise SystemExit(
+                      f"{section_name}: odds coverage out of range"
+                  )
 
-                  if not math.isfinite(
-                      float(value)
-                  ):
-                      raise SystemExit(
-                          f"{section}: invalid {metric}"
-                      )
+          frozen = final_test.get(
+              "frozenStrategyResult"
+          )
+
+          if frozen is None:
+              raise SystemExit(
+                  "no validation-selected strategy "
+                  "was frozen for final test"
+              )
+
+          for metric in (
+              "hitRate",
+              "roi",
+              "stake",
+              "return",
+              "profit",
+              "racesBet",
+          ):
+              if metric not in frozen:
+                  raise SystemExit(
+                      f"final strategy missing {metric}"
+                  )
+
+              value = float(
+                  frozen[metric]
+              )
+
+              if not math.isfinite(value):
+                  raise SystemExit(
+                      f"invalid final {metric}"
+                  )
 
           print(
-              "TRUE HELD-OUT BACKTEST PASSED"
+              "STRICT 45-DAY BACKTEST PASSED"
           )
 
           print(
               json.dumps(
                   {
+                      "version":
+                          data["version"],
+
                       "modelDataEndDate":
                           data["modelDataEndDate"],
-                      "testStartDate":
-                          data["testStartDate"],
-                      "testEndDate":
-                          data["testEndDate"],
-                      "raceCount":
-                          data["raceCount"],
-                      "oddsCoverage":
-                          data["oddsCoverage"],
-                      "top1":
-                          data["top1"],
-                      "top3":
-                          data["top3"],
-                      "top5":
-                          data["top5"],
-                      "bestValueStrategy":
-                          data["bestValueStrategy"],
+
+                      "validationPeriod":
+                          (
+                              validation["startDate"]
+                              + " -> "
+                              + validation["endDate"]
+                          ),
+
+                      "finalTestPeriod":
+                          (
+                              final_test["startDate"]
+                              + " -> "
+                              + final_test["endDate"]
+                          ),
+
+                      "validationRaces":
+                          validation["raceCount"],
+
+                      "finalTestRaces":
+                          final_test["raceCount"],
+
+                      "validationOddsCoverage":
+                          validation["strictOddsCoverage"],
+
+                      "finalOddsCoverage":
+                          final_test["strictOddsCoverage"],
+
+                      "frozenSettings":
+                          final_test["frozenSettings"],
+
+                      "finalFrozenResult":
+                          frozen,
+
+                      "finalModelOnlyTop1":
+                          final_test[
+                              "baseline"
+                          ][
+                              "modelOnly"
+                          ][
+                              "top1"
+                          ],
                   },
                   ensure_ascii=False,
                   indent=2,
@@ -313,13 +432,16 @@ jobs:
           PY
 
       # ==========================================================
-      # 3. 本番用モデル
-      # 検証終了後、最新120日ですべて再学習
+      # 4. 本番モデル
+      #
+      # 外部検証が正常終了した後だけ実行。
+      # 最新120日を使って再学習する。
       # ==========================================================
 
       - name: Train latest production model
         run: |
           python training/train_model.py \
+            --mode production \
             --days 120 \
             --end-offset 0 \
             --output model/model.json \
@@ -329,11 +451,16 @@ jobs:
             --l2 0.002 \
             --workers 4
 
+      # ==========================================================
+      # 5. 本番モデル検査
+      # ==========================================================
+
       - name: Validate production model
         run: |
           python - <<'PY'
           import json
           import math
+          from datetime import date, timedelta
           from pathlib import Path
 
           path = Path("model/model.json")
@@ -351,6 +478,7 @@ jobs:
 
           required = [
               "version",
+              "mode",
               "trainedAt",
               "lookbackDays",
               "endOffsetDays",
@@ -378,9 +506,33 @@ jobs:
                   f"production model missing: {missing}"
               )
 
-          if data["endOffsetDays"] != 0:
+          if data["mode"] != "production":
+              raise SystemExit(
+                  "production model has wrong mode"
+              )
+
+          if int(data["endOffsetDays"]) != 0:
               raise SystemExit(
                   "production model is not latest"
+              )
+
+          expected_latest = (
+              date.today()
+              - timedelta(days=1)
+          )
+
+          model_end = date.fromisoformat(
+              data["dataEndDate"]
+          )
+
+          # データ提供側の更新遅延を考慮して
+          # 最大2日遅れまでは許容。
+          if (
+              expected_latest - model_end
+          ).days > 2:
+              raise SystemExit(
+                  "production model data is stale: "
+                  f"{model_end}"
               )
 
           feature_count = len(
@@ -397,9 +549,7 @@ jobs:
                       f"{key} length mismatch"
                   )
 
-          for coefficient in data[
-              "coefficients"
-          ]:
+          for coefficient in data["coefficients"]:
               if not math.isfinite(
                   float(coefficient)
               ):
@@ -416,13 +566,15 @@ jobs:
                   {
                       "version":
                           data["version"],
+                      "mode":
+                          data["mode"],
                       "dataStartDate":
                           data["dataStartDate"],
                       "dataEndDate":
                           data["dataEndDate"],
                       "raceCount":
                           data["raceCount"],
-                      "validation":
+                      "internalValidation":
                           data["validation"],
                   },
                   ensure_ascii=False,
@@ -432,11 +584,18 @@ jobs:
           PY
 
       # ==========================================================
-      # 4. 保存
-      # eval-modelは検証専用なのでGitHubには残さない
+      # 6. 評価モデルは一時ファイルなので削除
       # ==========================================================
 
-      - name: Commit production model and backtest
+      - name: Remove temporary evaluation model
+        run: |
+          rm -f model/eval-model.json
+
+      # ==========================================================
+      # 7. model.json + backtest.json をGitHubへ保存
+      # ==========================================================
+
+      - name: Commit v9 model and backtest
         run: |
           git config \
             user.name \
@@ -459,7 +618,7 @@ jobs:
           fi
 
           git commit \
-            -m "chore: retrain BOAT RACE AI v8.1"
+            -m "chore: retrain BOAT RACE AI v9"
 
           git push \
             origin \
