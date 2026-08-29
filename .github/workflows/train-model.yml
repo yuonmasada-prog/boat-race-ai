@@ -37,6 +37,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install numpy pandas requests
 
+      - name: Syntax check
+        run: |
+          python -m py_compile training/train_model.py
+
       - name: Train v7 model
         run: |
           python training/train_model.py \
@@ -44,31 +48,40 @@ jobs:
             --min-races 500 \
             --epochs 300 \
             --lr 0.035 \
-            --l2 0.002
+            --l2 0.002 \
+            --workers 4
 
       - name: Validate model
         run: |
           python - <<'PY'
           import json
+          import math
           from pathlib import Path
 
           path = Path("model/model.json")
 
           if not path.exists():
-              raise SystemExit("model/model.json was not generated")
+              raise SystemExit(
+                  "model/model.json was not generated"
+              )
 
           data = json.loads(
-              path.read_text(encoding="utf-8")
+              path.read_text(
+                  encoding="utf-8"
+              )
           )
 
           required = [
               "version",
               "trainedAt",
               "raceCount",
+              "trainRaceCount",
+              "validationRaceCount",
               "features",
               "mean",
               "scale",
               "coefficients",
+              "training",
               "validation",
           ]
 
@@ -87,58 +100,117 @@ jobs:
               data["features"]
           )
 
-          if len(data["coefficients"]) != feature_count:
+          if feature_count == 0:
               raise SystemExit(
-                  "coefficient count mismatch"
+                  "feature list is empty"
               )
 
-          if len(data["mean"]) != feature_count:
-              raise SystemExit(
-                  "mean count mismatch"
-              )
-
-          if len(data["scale"]) != feature_count:
-              raise SystemExit(
-                  "scale count mismatch"
-              )
+          for key in (
+              "mean",
+              "scale",
+              "coefficients",
+          ):
+              if (
+                  len(data[key])
+                  !=
+                  feature_count
+              ):
+                  raise SystemExit(
+                      f"{key} length mismatch"
+                  )
 
           if data["raceCount"] < 500:
               raise SystemExit(
                   "too few training races"
               )
 
+          if data["validationRaceCount"] < 1:
+              raise SystemExit(
+                  "validation set is empty"
+              )
+
+          for value in data["coefficients"]:
+              if not math.isfinite(
+                  float(value)
+              ):
+                  raise SystemExit(
+                      "non-finite coefficient detected"
+                  )
+
+          validation = data["validation"]
+
+          for metric in (
+              "top1Accuracy",
+              "winnerInTop3",
+              "logLoss",
+              "brierScore",
+          ):
+              value = validation.get(
+                  metric
+              )
+
+              if value is None:
+                  raise SystemExit(
+                      f"missing metric: {metric}"
+                  )
+
+              if not math.isfinite(
+                  float(value)
+              ):
+                  raise SystemExit(
+                      f"invalid metric: {metric}"
+                  )
+
           print(
               json.dumps(
                   {
                       "version":
                           data["version"],
+
                       "trainedAt":
                           data["trainedAt"],
+
                       "raceCount":
                           data["raceCount"],
+
+                      "trainRaceCount":
+                          data["trainRaceCount"],
+
+                      "validationRaceCount":
+                          data[
+                              "validationRaceCount"
+                          ],
+
                       "validation":
-                          data["validation"],
+                          validation,
                   },
                   ensure_ascii=False,
-                  indent=2
+                  indent=2,
               )
           )
           PY
 
       - name: Commit trained model
         run: |
-          if git diff --quiet -- model/model.json && \
-             git ls-files --error-unmatch model/model.json >/dev/null 2>&1; then
+          git config \
+            user.name \
+            "boat-race-ai-bot"
+
+          git config \
+            user.email \
+            "boat-race-ai-bot@users.noreply.github.com"
+
+          git add model/model.json
+
+          if git diff \
+            --cached \
+            --quiet; then
+
             echo "Model did not change."
             exit 0
           fi
 
-          git config user.name "boat-race-ai-bot"
-          git config user.email "boat-race-ai-bot@users.noreply.github.com"
-
-          git add model/model.json
-
           git commit \
-            -m "chore: retrain BOAT RACE AI v7 model"
+            -m "chore: retrain BOAT RACE AI v7"
 
           git push origin HEAD:main
