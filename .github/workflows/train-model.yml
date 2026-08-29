@@ -1,0 +1,151 @@
+name: Train BOAT RACE AI v7
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # 毎日 18:30 JST
+    # GitHub Actions cron は UTC
+    - cron: "30 9 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boat-race-ai-v7-training
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas requests
+
+      - name: Train v7 model
+        run: |
+          python training/train_model.py \
+            --days 120 \
+            --min-races 500 \
+            --epochs 300 \
+            --lr 0.035 \
+            --l2 0.002
+
+      - name: Validate model
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("model/model.json")
+
+          if not path.exists():
+              raise SystemExit("model/model.json was not generated")
+
+          data = json.loads(
+              path.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          required = [
+              "version",
+              "trainedAt",
+              "raceCount",
+              "features",
+              "mean",
+              "scale",
+              "coefficients",
+              "validation",
+          ]
+
+          missing = [
+              key
+              for key in required
+              if key not in data
+          ]
+
+          if missing:
+              raise SystemExit(
+                  f"missing keys: {missing}"
+              )
+
+          feature_count = len(
+              data["features"]
+          )
+
+          if len(data["coefficients"]) != feature_count:
+              raise SystemExit(
+                  "coefficient count mismatch"
+              )
+
+          if len(data["mean"]) != feature_count:
+              raise SystemExit(
+                  "mean count mismatch"
+              )
+
+          if len(data["scale"]) != feature_count:
+              raise SystemExit(
+                  "scale count mismatch"
+              )
+
+          if data["raceCount"] < 500:
+              raise SystemExit(
+                  "too few training races"
+              )
+
+          print(
+              json.dumps(
+                  {
+                      "version":
+                          data["version"],
+
+                      "trainedAt":
+                          data["trainedAt"],
+
+                      "raceCount":
+                          data["raceCount"],
+
+                      "validation":
+                          data["validation"],
+                  },
+                  ensure_ascii=False,
+                  indent=2
+              )
+          )
+          PY
+
+      - name: Commit trained model
+        run: |
+          if git diff --quiet -- model/model.json && \
+             git ls-files --error-unmatch model/model.json >/dev/null 2>&1; then
+            echo "Model did not change."
+            exit 0
+          fi
+
+          git config user.name "boat-race-ai-bot"
+          git config user.email "boat-race-ai-bot@users.noreply.github.com"
+
+          git add model/model.json
+
+          git commit \
+            -m "chore: retrain BOAT RACE AI v7 model"
+
+          git push origin HEAD:main
