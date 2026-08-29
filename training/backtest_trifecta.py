@@ -4,7 +4,7 @@ import argparse
 import io
 import json
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
 
@@ -19,13 +19,10 @@ DEFAULT_MODEL_PATH = Path("model/model.json")
 DEFAULT_OUTPUT_PATH = Path("model/backtest.json")
 
 HEADERS = {
-    "User-Agent": "boat-race-ai-v9-backtest",
+    "User-Agent": "boat-race-ai-v9.2-backtest",
     "Accept": "text/csv,text/plain,*/*",
 }
 
-# 重要:
-# 「3連単」の先頭の3を艇番として誤認しない。
-# 3連単_1-2-3 の 1,2,3 だけを取得する。
 ODDS_COLUMN = re.compile(
     r"^3連単[_\s]*"
     r"([1-6])"
@@ -56,8 +53,7 @@ def parse_args():
         default=30,
     )
 
-    # 旧workflowとの互換用。
-    # --days が指定された場合は final test 日数として扱う。
+    # 旧workflow互換。
     parser.add_argument(
         "--days",
         type=int,
@@ -116,7 +112,11 @@ def number(value):
     if value is None:
         return np.nan
 
-    text = str(value).replace(",", "")
+    text = (
+        str(value)
+        .replace(",", "")
+        .strip()
+    )
 
     match = re.search(
         r"-?\d+(?:\.\d+)?",
@@ -196,19 +196,15 @@ def current_meet_stats(card, lane):
             if np.isfinite(start):
                 starts.append(start)
 
-    mean_finish = (
+    return (
         float(np.mean(finishes))
         if finishes
-        else np.nan
-    )
+        else np.nan,
 
-    mean_start = (
         float(np.mean(starts))
         if starts
-        else np.nan
+        else np.nan,
     )
-
-    return mean_finish, mean_start
 
 
 def build_features(card, lane):
@@ -333,7 +329,8 @@ def finish_order(row):
 
         order = [
             lane
-            for _, lane in placed[:3]
+            for _, lane
+            in placed[:3]
         ]
 
         if len(set(order)) == 3:
@@ -344,14 +341,12 @@ def finish_order(row):
     for position in (1, 2, 3):
         found = None
 
-        possible_keys = [
+        for key in (
             f"{position}着_艇番",
             f"{position}着艇番",
             f"{position}着_枠",
             f"{position}着枠",
-        ]
-
-        for key in possible_keys:
+        ):
             if key not in row.index:
                 continue
 
@@ -381,37 +376,13 @@ def payout_for(row):
     if row is None:
         return np.nan
 
-    candidates = [
+    for key in (
         "3連単_払戻金",
         "3連単払戻金",
         "3連単_払戻",
         "3連単払戻",
-    ]
-
-    for key in candidates:
+    ):
         if key not in row.index:
-            continue
-
-        payout = number(
-            row.get(key)
-        )
-
-        if (
-            np.isfinite(payout)
-            and payout > 0
-        ):
-            return float(payout)
-
-    for key in row.index:
-        text = str(key)
-
-        if "3連単" not in text:
-            continue
-
-        if (
-            "払戻" not in text
-            and "配当" not in text
-        ):
             continue
 
         payout = number(
@@ -443,7 +414,10 @@ def softmax(scores):
             1.0 / len(scores),
         )
 
-    return exp_scores / total
+    return (
+        exp_scores
+        / total
+    )
 
 
 def trifecta_probabilities(
@@ -479,13 +453,13 @@ def trifecta_probabilities(
             / denominator3
         )
 
-        combination = (
+        combo = (
             f"{first + 1}"
             f"{second + 1}"
             f"{third + 1}"
         )
 
-        result[combination] = (
+        result[combo] = (
             p1 * p2 * p3
         )
 
@@ -495,8 +469,8 @@ def trifecta_probabilities(
 
     if total > 0:
         result = {
-            key: value / total
-            for key, value
+            combo: probability / total
+            for combo, probability
             in result.items()
         }
 
@@ -511,19 +485,6 @@ def venue_from_code(code):
 
 
 def extract_odds(row):
-    """
-    BoatraceCSV od3 専用。
-
-    列名そのものを厳密に解析する。
-    数値列を位置だけで120個並べ直すfallbackは使用しない。
-
-    戻り値:
-      odds:
-        実際に価格が存在する組番。
-      recognized_columns:
-        正規表現で認識できた3連単列数。
-    """
-
     if row is None:
         return {}, 0
 
@@ -538,16 +499,10 @@ def extract_odds(row):
         if not match:
             continue
 
-        first, second, third = (
-            match.group(1),
-            match.group(2),
-            match.group(3),
-        )
-
         combo = (
-            first
-            + second
-            + third
+            match.group(1)
+            + match.group(2)
+            + match.group(3)
         )
 
         if len(set(combo)) != 3:
@@ -559,10 +514,6 @@ def extract_odds(row):
             row.get(key)
         )
 
-        # 0.0 は「欠損」ではなく
-        # その時点で投票なしの可能性があるため、
-        # 組番認識数には含める。
-        # ただし価格としては利用しない。
         if (
             np.isfinite(value)
             and value > 1.0
@@ -583,9 +534,7 @@ def market_probabilities(odds):
             1.0 / price
         )
 
-    total = sum(
-        raw.values()
-    )
+    total = sum(raw.values())
 
     if total <= 0:
         return {}
@@ -652,33 +601,207 @@ def blended_probabilities(
     }
 
 
-def ranked_combos(probabilities):
+def rank_probabilities(probabilities):
+    return sorted(
+        probabilities.items(),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+
+
+def prediction_report(rows):
+    """
+    購入する・しないに関係なく、
+    全レースを必ず予想した場合の精度。
+    """
+
+    top1_hits = 0
+    top3_hits = 0
+    top5_hits = 0
+
+    for row in rows:
+        ranked = [
+            combo
+            for combo, _
+            in rank_probabilities(
+                row[
+                    "blended_probabilities"
+                ]
+            )
+        ]
+
+        actual = row["actual"]
+
+        top1_hits += int(
+            actual in ranked[:1]
+        )
+
+        top3_hits += int(
+            actual in ranked[:3]
+        )
+
+        top5_hits += int(
+            actual in ranked[:5]
+        )
+
+    count = len(rows)
+
+    return {
+        "races": count,
+
+        "top1Hits":
+            top1_hits,
+
+        "top1HitRate":
+            (
+                top1_hits / count
+                if count
+                else 0.0
+            ),
+
+        "top3Hits":
+            top3_hits,
+
+        "top3HitRate":
+            (
+                top3_hits / count
+                if count
+                else 0.0
+            ),
+
+        "top5Hits":
+            top5_hits,
+
+        "top5HitRate":
+            (
+                top5_hits / count
+                if count
+                else 0.0
+            ),
+    }
+
+
+def race_candidates(
+    row,
+    min_probability,
+    min_top_probability,
+    max_odds,
+    max_tickets,
+):
+    probabilities = (
+        row[
+            "blended_probabilities"
+        ]
+    )
+
+    odds = row["odds"]
+
+    candidates = []
+
+    for combo, probability in (
+        probabilities.items()
+    ):
+        price = odds.get(combo)
+
+        if (
+            price is None
+            or price <= 1
+            or price > max_odds
+        ):
+            continue
+
+        if (
+            probability
+            < min_probability
+        ):
+            continue
+
+        score = (
+            probability
+            * min(
+                np.sqrt(price),
+                7.0,
+            )
+        )
+
+        candidates.append(
+            (
+                score,
+                probability,
+                combo,
+            )
+        )
+
+    candidates.sort(
+        reverse=True
+    )
+
+    if not candidates:
+        return []
+
+    if (
+        candidates[0][1]
+        < min_top_probability
+    ):
+        return []
+
     return [
         combo
-        for combo, _
-        in sorted(
-            probabilities.items(),
-            key=lambda item: item[1],
-            reverse=True,
-        )
+        for _, _, combo
+        in candidates[:max_tickets]
     ]
 
 
-def evaluate_strategy(
+def evaluate_purchase_strategy(
     rows,
-    strategy,
+    settings,
+    allowed_venues=None,
 ):
-    tickets = 0
     races_bet = 0
+    tickets = 0
     hits = 0
 
     stake = 0.0
     returns = 0.0
 
+    venue_filtered = 0
+    confidence_filtered = 0
+
     for row in rows:
-        selections = strategy(row)
+        if (
+            allowed_venues is not None
+            and row["venue"]
+            not in allowed_venues
+        ):
+            venue_filtered += 1
+            continue
+
+        selections = race_candidates(
+            row=row,
+            min_probability=(
+                settings[
+                    "minProbability"
+                ]
+            ),
+            min_top_probability=(
+                settings[
+                    "minTopProbability"
+                ]
+            ),
+            max_odds=(
+                settings[
+                    "maxOdds"
+                ]
+            ),
+            max_tickets=(
+                settings[
+                    "maxTickets"
+                ]
+            ),
+        )
 
         if not selections:
+            confidence_filtered += 1
             continue
 
         races_bet += 1
@@ -704,267 +827,348 @@ def evaluate_strategy(
         if hit_this_race:
             hits += 1
 
-    total_races = len(rows)
+    count = len(rows)
 
     return {
-        "totalRaces": total_races,
-        "racesBet": races_bet,
-        "skippedRaces": (
-            total_races
-            - races_bet
-        ),
-        "betRate": (
-            races_bet / total_races
-            if total_races
-            else 0.0
-        ),
-        "skipRate": (
+        "totalRaces":
+            count,
+
+        "racesBet":
+            races_bet,
+
+        "skippedRaces":
+            count - races_bet,
+
+        "betRate":
             (
-                total_races
-                - races_bet
-            )
-            / total_races
-            if total_races
-            else 0.0
-        ),
-        "tickets": tickets,
-        "hits": hits,
-        "hitRate": (
-            hits / races_bet
-            if races_bet
-            else 0.0
-        ),
-        "stake": stake,
-        "return": returns,
-        "profit": (
-            returns - stake
-        ),
-        "roi": (
-            returns / stake
-            if stake
-            else 0.0
-        ),
+                races_bet / count
+                if count
+                else 0.0
+            ),
+
+        "skipRate":
+            (
+                (
+                    count - races_bet
+                ) / count
+                if count
+                else 0.0
+            ),
+
+        "venueFiltered":
+            venue_filtered,
+
+        "confidenceFiltered":
+            confidence_filtered,
+
+        "tickets":
+            tickets,
+
+        "hits":
+            hits,
+
+        "hitRate":
+            (
+                hits / races_bet
+                if races_bet
+                else 0.0
+            ),
+
+        "stake":
+            stake,
+
+        "return":
+            returns,
+
+        "profit":
+            returns - stake,
+
+        "roi":
+            (
+                returns / stake
+                if stake
+                else 0.0
+            ),
     }
 
 
-def top_n_strategy(
-    probability_key,
-    n,
-):
-    def strategy(row):
-        ranked = ranked_combos(
-            row[probability_key]
-        )
-
-        return ranked[:n]
-
-    return strategy
-
-
-def candidate_strategy(
-    min_probability,
-    min_top_probability,
-    max_odds,
-    max_tickets,
-):
-    """
-    本番UIの考え方に近い選択ロジック。
-
-    ※ probability は校正済みの真の的中確率とは扱わない。
-    EV最適化とは呼ばない。
-    """
-
-    def strategy(row):
-        probabilities = (
-            row[
-                "blended_probabilities"
-            ]
-        )
-
-        odds = row["odds"]
-
-        candidates = []
-
-        for combo, probability in (
-            probabilities.items()
-        ):
-            price = odds.get(combo)
-
-            if (
-                price is None
-                or price < 1.0
-                or price > max_odds
-            ):
-                continue
-
-            if (
-                probability
-                < min_probability
-            ):
-                continue
-
-            score = (
-                probability
-                * min(
-                    np.sqrt(price),
-                    7.0,
-                )
-            )
-
-            candidates.append(
-                (
-                    score,
-                    probability,
-                    combo,
-                )
-            )
-
-        if not candidates:
-            return []
-
-        candidates.sort(
-            reverse=True
-        )
-
-        top_probability = (
-            candidates[0][1]
-        )
-
-        if (
-            top_probability
-            < min_top_probability
-        ):
-            return []
-
-        return [
-            combo
-            for _, _, combo
-            in candidates[
-                :max_tickets
-            ]
-        ]
-
-    return strategy
-
-
 def strategy_grid():
-    settings = []
-
     for min_probability in (
         0.015,
         0.018,
         0.020,
         0.025,
         0.030,
+        0.035,
     ):
         for min_top_probability in (
-            0.025,
-            0.030,
-            0.035,
             0.040,
             0.050,
+            0.060,
+            0.070,
+            0.080,
         ):
             for max_odds in (
                 30.0,
                 50.0,
                 70.0,
-                100.0,
             ):
                 for max_tickets in (
                     1,
                     2,
-                    3,
                 ):
-                    settings.append(
-                        {
-                            "minProbability":
-                                min_probability,
+                    yield {
+                        "minProbability":
+                            min_probability,
 
-                            "minTopProbability":
-                                min_top_probability,
+                        "minTopProbability":
+                            min_top_probability,
 
-                            "maxOdds":
-                                max_odds,
+                        "maxOdds":
+                            max_odds,
 
-                            "maxTickets":
-                                max_tickets,
-                        }
-                    )
-
-    return settings
+                        "maxTickets":
+                            max_tickets,
+                    }
 
 
-def choose_validation_strategy(
+def evaluate_by_venue(
     rows,
+    settings,
+):
+    groups = {}
+
+    for row in rows:
+        groups.setdefault(
+            row["venue"],
+            [],
+        ).append(row)
+
+    output = {}
+
+    for venue, subset in groups.items():
+        result = (
+            evaluate_purchase_strategy(
+                subset,
+                settings,
+            )
+        )
+
+        output[venue] = {
+            "races":
+                len(subset),
+
+            **result,
+        }
+
+    return output
+
+
+def shrunk_venue_roi(
+    venue_result,
+    global_roi,
+    shrinkage_bets=150,
 ):
     """
-    validationだけを使ってルールを選ぶ。
+    少数レースの偶然の高ROIをそのまま信用しない。
 
-    ROIだけ最大化すると、
-    少数レースの偶然当たりを拾いやすいため、
-    最低購入レース数と購入率を要求する。
+    例:
+    venue購入数50なら
+    会場実績25% + 全体実績75%程度。
+
+    購入数が増えるほど
+    会場固有ROIを強く反映する。
     """
 
-    results = []
-
-    minimum_bet_races = max(
-        50,
-        int(len(rows) * 0.05),
+    bets = (
+        venue_result[
+            "racesBet"
+        ]
     )
 
-    for setting in strategy_grid():
-        result = evaluate_strategy(
-            rows,
-            candidate_strategy(
-                setting[
-                    "minProbability"
-                ],
-                setting[
-                    "minTopProbability"
-                ],
-                setting[
-                    "maxOdds"
-                ],
-                setting[
-                    "maxTickets"
-                ],
-            ),
+    if bets <= 0:
+        return global_roi
+
+    weight = (
+        bets
+        / (
+            bets
+            + shrinkage_bets
+        )
+    )
+
+    return (
+        weight
+        * venue_result["roi"]
+        + (
+            1.0 - weight
+        )
+        * global_roi
+    )
+
+
+def derive_allowed_venues(
+    validation_rows,
+    settings,
+    min_shrunk_roi,
+):
+    global_result = (
+        evaluate_purchase_strategy(
+            validation_rows,
+            settings,
+        )
+    )
+
+    venue_results = (
+        evaluate_by_venue(
+            validation_rows,
+            settings,
+        )
+    )
+
+    allowed = []
+    detail = {}
+
+    for venue, result in (
+        venue_results.items()
+    ):
+        shrunk_roi = (
+            shrunk_venue_roi(
+                result,
+                global_result["roi"],
+            )
         )
 
-        results.append(
-            {
-                **setting,
-                **result,
-            }
+        # validationで最低30購入未満の場は、
+        # 会場別判断の根拠が弱すぎるので
+        # 全体判定に依存させる。
+        enough_samples = (
+            result["racesBet"] >= 30
         )
+
+        accepted = (
+            enough_samples
+            and shrunk_roi
+            >= min_shrunk_roi
+        )
+
+        if accepted:
+            allowed.append(
+                venue
+            )
+
+        detail[venue] = {
+            **result,
+
+            "shrunkRoi":
+                shrunk_roi,
+
+            "enoughSamples":
+                enough_samples,
+
+            "allowed":
+                accepted,
+        }
+
+    return (
+        sorted(allowed),
+        detail,
+        global_result,
+    )
+
+
+def choose_strategy(
+    validation_rows,
+):
+    search_results = []
+
+    minimum_bet_races = max(
+        80,
+        int(
+            len(validation_rows)
+            * 0.05
+        ),
+    )
+
+    for settings in strategy_grid():
+        for min_shrunk_roi in (
+            0.75,
+            0.85,
+            0.90,
+            0.95,
+        ):
+            (
+                allowed_venues,
+                venue_detail,
+                global_result,
+            ) = derive_allowed_venues(
+                validation_rows,
+                settings,
+                min_shrunk_roi,
+            )
+
+            if not allowed_venues:
+                continue
+
+            filtered_result = (
+                evaluate_purchase_strategy(
+                    validation_rows,
+                    settings,
+                    allowed_venues=set(
+                        allowed_venues
+                    ),
+                )
+            )
+
+            candidate = {
+                **settings,
+
+                "venueMinShrunkRoi":
+                    min_shrunk_roi,
+
+                "allowedVenues":
+                    allowed_venues,
+
+                "globalBeforeVenueFilter":
+                    global_result,
+
+                "venueValidation":
+                    venue_detail,
+
+                **filtered_result,
+            }
+
+            search_results.append(
+                candidate
+            )
 
     eligible = [
         item
-        for item in results
+        for item in search_results
         if (
             item["racesBet"]
             >= minimum_bet_races
             and item["betRate"]
-            >= 0.05
+            >= 0.03
         )
     ]
 
     if not eligible:
-        return None, results
+        return None, search_results
 
-    # ROIを主評価。
-    # 同率ならヒット数→購入数を優先し
-    # 極端な少数サンプルを避ける。
+    # validation ROIを主評価。
+    # 同率なら利益 → 的中数 → 購入数。
     best = max(
         eligible,
         key=lambda item: (
             item["roi"],
+            item["profit"],
             item["hits"],
             item["racesBet"],
         ),
     )
 
-    return best, results
+    return best, search_results
 
 
 def build_row(
@@ -987,7 +1191,9 @@ def build_row(
     if not code:
         return None
 
-    order = finish_order(result)
+    order = finish_order(
+        result
+    )
 
     if not order:
         return None
@@ -998,7 +1204,10 @@ def build_row(
                 card,
                 lane,
             )
-            for lane in range(1, 7)
+            for lane in range(
+                1,
+                7,
+            )
         ]
     )
 
@@ -1024,8 +1233,10 @@ def build_row(
         @ coefficients
     )
 
-    lane_probabilities = softmax(
-        lane_scores
+    lane_probabilities = (
+        softmax(
+            lane_scores
+        )
     )
 
     model_trifecta = (
@@ -1040,9 +1251,6 @@ def build_row(
         )
     )
 
-    # 正規表現で120通りを認識できないod3行は
-    # 市場オッズを一切使わない。
-    # 誤った列対応でバックテストするより安全。
     strict_odds_ok = (
         odds_column_count == 120
     )
@@ -1063,11 +1271,14 @@ def build_row(
         )
     )
 
-    actual = "".join(
-        map(
-            str,
-            order,
+    prediction_ranked = (
+        rank_probabilities(
+            blended
         )
+    )
+
+    actual = "".join(
+        map(str, order)
     )
 
     payout = payout_for(
@@ -1077,24 +1288,68 @@ def build_row(
     )
 
     return {
-        "code": code,
-        "date": target.isoformat(),
-        "venue": venue_from_code(
-            code
-        ),
-        "actual": actual,
-        "payout": payout,
-        "odds": odds,
-        "oddsColumnCount":
-            odds_column_count,
+        "code":
+            code,
+
+        "date":
+            target.isoformat(),
+
+        "venue":
+            venue_from_code(code),
+
+        "actual":
+            actual,
+
+        "payout":
+            payout,
+
+        "odds":
+            odds,
+
         "strictOddsOk":
             strict_odds_ok,
+
+        "oddsColumnCount":
+            odds_column_count,
+
         "model_probabilities":
             model_trifecta,
+
         "market_probabilities":
             market,
+
         "blended_probabilities":
             blended,
+
+        # 購入しないレースでも必ず存在。
+        "prediction": {
+            "main":
+                (
+                    prediction_ranked[0][0]
+                    if len(
+                        prediction_ranked
+                    ) >= 1
+                    else None
+                ),
+
+            "second":
+                (
+                    prediction_ranked[1][0]
+                    if len(
+                        prediction_ranked
+                    ) >= 2
+                    else None
+                ),
+
+            "third":
+                (
+                    prediction_ranked[2][0]
+                    if len(
+                        prediction_ranked
+                    ) >= 3
+                    else None
+                ),
+        },
     }
 
 
@@ -1117,7 +1372,9 @@ def collect_range(
     target = start_date
 
     while target <= end_date:
-        stats["daysAttempted"] += 1
+        stats[
+            "daysAttempted"
+        ] += 1
 
         try:
             cards = load_csv(
@@ -1147,34 +1404,48 @@ def collect_range(
                 flush=True,
             )
 
-            target += timedelta(days=1)
+            target += timedelta(
+                days=1
+            )
             continue
 
         if (
             cards is None
             or results is None
         ):
-            target += timedelta(days=1)
+            target += timedelta(
+                days=1
+            )
             continue
 
-        stats["daysLoaded"] += 1
+        stats[
+            "daysLoaded"
+        ] += 1
 
-        result_map = rows_by_code(
-            results
+        result_map = (
+            rows_by_code(
+                results
+            )
         )
 
-        payout_map = rows_by_code(
-            payouts
+        payout_map = (
+            rows_by_code(
+                payouts
+            )
         )
 
-        odds_map = rows_by_code(
-            odds_frame
+        odds_map = (
+            rows_by_code(
+                odds_frame
+            )
         )
 
         added = 0
         strict_added = 0
 
-        for _, card in cards.iterrows():
+        for _, card in (
+            cards.iterrows()
+        ):
             code = str(
                 card.get(
                     "レースコード",
@@ -1186,7 +1457,9 @@ def collect_range(
                 continue
 
             result = (
-                result_map.get(code)
+                result_map.get(
+                    code
+                )
             )
 
             if result is None:
@@ -1196,10 +1469,14 @@ def collect_range(
                 card=card,
                 result=result,
                 payout_row=(
-                    payout_map.get(code)
+                    payout_map.get(
+                        code
+                    )
                 ),
                 odds_row=(
-                    odds_map.get(code)
+                    odds_map.get(
+                        code
+                    )
                 ),
                 target=target,
                 mean=mean,
@@ -1211,12 +1488,14 @@ def collect_range(
                 continue
 
             rows.append(item)
+
             added += 1
 
             if item["strictOddsOk"]:
                 strict_added += 1
 
         stats["races"] += added
+
         stats[
             "strictOddsRaces"
         ] += strict_added
@@ -1229,105 +1508,106 @@ def collect_range(
             flush=True,
         )
 
-        target += timedelta(days=1)
+        target += timedelta(
+            days=1
+        )
 
     return rows, stats
 
 
-def baseline_report(rows):
-    return {
-        "modelOnly": {
-            "top1": evaluate_strategy(
-                rows,
-                top_n_strategy(
-                    "model_probabilities",
-                    1,
-                ),
-            ),
-            "top3": evaluate_strategy(
-                rows,
-                top_n_strategy(
-                    "model_probabilities",
-                    3,
-                ),
-            ),
-            "top5": evaluate_strategy(
-                rows,
-                top_n_strategy(
-                    "model_probabilities",
-                    5,
-                ),
-            ),
-        },
-
-        "modelMarketBlend": {
-            "top1": evaluate_strategy(
-                rows,
-                top_n_strategy(
-                    "blended_probabilities",
-                    1,
-                ),
-            ),
-            "top3": evaluate_strategy(
-                rows,
-                top_n_strategy(
-                    "blended_probabilities",
-                    3,
-                ),
-            ),
-            "top5": evaluate_strategy(
-                rows,
-                top_n_strategy(
-                    "blended_probabilities",
-                    5,
-                ),
-            ),
-        },
-    }
-
-
-def venue_report(
+def baseline_top_n(
     rows,
-    frozen_strategy,
+    n,
 ):
-    groups = {}
+    races_bet = len(rows)
+    hits = 0
+    returns = 0.0
 
     for row in rows:
-        groups.setdefault(
-            row["venue"],
-            [],
-        ).append(row)
-
-    result = {}
-
-    for venue, subset in groups.items():
-        if len(subset) < 20:
-            continue
-
-        data = {
-            "races": len(subset),
-
-            "modelTop1":
-                evaluate_strategy(
-                    subset,
-                    top_n_strategy(
-                        "model_probabilities",
-                        1,
-                    ),
-                ),
-        }
-
-        if frozen_strategy is not None:
-            data["frozenStrategy"] = (
-                evaluate_strategy(
-                    subset,
-                    frozen_strategy,
-                )
+        ranked = [
+            combo
+            for combo, _
+            in rank_probabilities(
+                row[
+                    "model_probabilities"
+                ]
             )
+        ]
 
-        result[venue] = data
+        selections = (
+            ranked[:n]
+        )
 
-    return result
+        if (
+            row["actual"]
+            in selections
+        ):
+            hits += 1
+
+            if np.isfinite(
+                row["payout"]
+            ):
+                returns += (
+                    row["payout"]
+                )
+
+    tickets = (
+        races_bet * n
+    )
+
+    stake = (
+        tickets * 100.0
+    )
+
+    return {
+        "totalRaces":
+            len(rows),
+
+        "racesBet":
+            races_bet,
+
+        "skippedRaces":
+            0,
+
+        "betRate":
+            (
+                1.0
+                if rows
+                else 0.0
+            ),
+
+        "skipRate":
+            0.0,
+
+        "tickets":
+            tickets,
+
+        "hits":
+            hits,
+
+        "hitRate":
+            (
+                hits / races_bet
+                if races_bet
+                else 0.0
+            ),
+
+        "stake":
+            stake,
+
+        "return":
+            returns,
+
+        "profit":
+            returns - stake,
+
+        "roi":
+            (
+                returns / stake
+                if stake
+                else 0.0
+            ),
+    }
 
 
 def main():
@@ -1335,7 +1615,9 @@ def main():
 
     validation_days = max(
         1,
-        int(config.validation_days),
+        int(
+            config.validation_days
+        ),
     )
 
     test_days = (
@@ -1389,7 +1671,8 @@ def main():
         == feature_count
     ):
         raise SystemExit(
-            "model dimensions do not match"
+            "model dimensions "
+            "do not match"
         )
 
     model_end_text = (
@@ -1400,8 +1683,7 @@ def main():
 
     if not model_end_text:
         raise SystemExit(
-            "Model does not contain "
-            "dataEndDate."
+            "model missing dataEndDate"
         )
 
     model_end_date = (
@@ -1410,7 +1692,6 @@ def main():
         )
     )
 
-    # 完了済みデータだけを対象にするため昨日まで。
     final_test_end = (
         date.today()
         - timedelta(days=1)
@@ -1431,55 +1712,46 @@ def main():
     validation_start = (
         validation_end
         - timedelta(
-            days=validation_days - 1
+            days=(
+                validation_days - 1
+            )
         )
     )
 
-    # モデル学習期間がvalidationへ1日でも侵入したら停止。
-    if model_end_date >= validation_start:
-        required_offset = (
-            validation_days
-            + test_days
-        )
-
+    if (
+        model_end_date
+        >= validation_start
+    ):
         raise SystemExit(
             "DATA LEAKAGE DETECTED: "
-            f"model data ends {model_end_date}, "
+            f"model ends "
+            f"{model_end_date}; "
             f"validation starts "
-            f"{validation_start}. "
-            "Retrain model so training data "
-            "ends before validation. "
-            f"Recommended end offset: "
-            f"{required_offset} days."
+            f"{validation_start}"
         )
 
     print(
-        "\n=== BOAT RACE AI v9 BACKTEST ===",
+        "\n=== BOAT RACE AI v9.2 ===",
         flush=True,
     )
 
     print(
-        f"model training end : "
+        "model end   : "
         f"{model_end_date}",
         flush=True,
     )
 
     print(
-        f"validation         : "
+        "validation  : "
         f"{validation_start} "
         f"to {validation_end}",
         flush=True,
     )
 
     print(
-        f"final test         : "
+        "final test  : "
         f"{final_test_start} "
         f"to {final_test_end}",
-        flush=True,
-    )
-
-    print(
-        "\n--- collecting validation ---",
         flush=True,
     )
 
@@ -1491,11 +1763,6 @@ def main():
             scale,
             coefficients,
         )
-    )
-
-    print(
-        "\n--- collecting final test ---",
-        flush=True,
     )
 
     test_rows, test_stats = (
@@ -1514,121 +1781,141 @@ def main():
     ):
         raise SystemExit(
             "not enough validation races: "
-            f"{len(validation_rows)} "
-            f"< {config.min_races}"
+            f"{len(validation_rows)}"
         )
 
-    if len(test_rows) < config.min_races:
+    if (
+        len(test_rows)
+        < config.min_races
+    ):
         raise SystemExit(
             "not enough final test races: "
-            f"{len(test_rows)} "
-            f"< {config.min_races}"
+            f"{len(test_rows)}"
         )
 
-    validation_baseline = (
-        baseline_report(
+    validation_prediction = (
+        prediction_report(
             validation_rows
         )
     )
 
-    final_baseline = (
-        baseline_report(
+    final_prediction = (
+        prediction_report(
             test_rows
         )
     )
 
-    best_validation, search_results = (
-        choose_validation_strategy(
-            validation_rows
+    (
+        selected,
+        search_results,
+    ) = choose_strategy(
+        validation_rows
+    )
+
+    if selected is None:
+        raise SystemExit(
+            "no purchase strategy "
+            "qualified on validation"
+        )
+
+    frozen_settings = {
+        "minProbability":
+            selected[
+                "minProbability"
+            ],
+
+        "minTopProbability":
+            selected[
+                "minTopProbability"
+            ],
+
+        "maxOdds":
+            selected[
+                "maxOdds"
+            ],
+
+        "maxTickets":
+            selected[
+                "maxTickets"
+            ],
+
+        "venueMinShrunkRoi":
+            selected[
+                "venueMinShrunkRoi"
+            ],
+
+        "allowedVenues":
+            selected[
+                "allowedVenues"
+            ],
+    }
+
+    frozen_result = (
+        evaluate_purchase_strategy(
+            test_rows,
+            frozen_settings,
+            allowed_venues=set(
+                frozen_settings[
+                    "allowedVenues"
+                ]
+            ),
         )
     )
 
-    frozen_strategy = None
-    final_strategy_result = None
-
-    if best_validation is not None:
-        frozen_strategy = candidate_strategy(
-            best_validation[
-                "minProbability"
-            ],
-            best_validation[
-                "minTopProbability"
-            ],
-            best_validation[
-                "maxOdds"
-            ],
-            best_validation[
-                "maxTickets"
-            ],
+    final_by_venue = (
+        evaluate_by_venue(
+            test_rows,
+            frozen_settings,
         )
-
-        # ここでは閾値を変更しない。
-        # validationで決めた条件をそのままfinal testへ適用。
-        final_strategy_result = (
-            evaluate_strategy(
-                test_rows,
-                frozen_strategy,
-            )
-        )
+    )
 
     validation_odds_coverage = (
         sum(
             row["strictOddsOk"]
-            for row in validation_rows
+            for row
+            in validation_rows
         )
         / len(validation_rows)
     )
 
-    test_odds_coverage = (
+    final_odds_coverage = (
         sum(
             row["strictOddsOk"]
-            for row in test_rows
+            for row
+            in test_rows
         )
         / len(test_rows)
     )
 
-    frozen_settings = None
-
-    if best_validation is not None:
-        frozen_settings = {
-            "minProbability":
-                best_validation[
-                    "minProbability"
-                ],
-
-            "minTopProbability":
-                best_validation[
-                    "minTopProbability"
-                ],
-
-            "maxOdds":
-                best_validation[
-                    "maxOdds"
-                ],
-
-            "maxTickets":
-                best_validation[
-                    "maxTickets"
-                ],
-        }
-
     output = {
         "version":
-            "v9-strict-45day-holdout",
+            "v9.2-predict-all-buy-selective",
 
         "method":
-            "train-before-validation-"
-            "then-15d-validation-"
-            "then-30d-frozen-final-test",
+            (
+                "predict-every-race-"
+                "purchase-filter-"
+                "validation-selected-"
+                "venue-aware-"
+                "30d-frozen-test"
+            ),
 
         "warning":
-            "Model/blended trifecta "
-            "probabilities are not treated "
-            "as calibrated true probabilities "
-            "or guaranteed EV.",
+            (
+                "Prediction scores are not "
+                "calibrated true probabilities "
+                "or guaranteed expected value."
+            ),
+
+        "generatedAt":
+            datetime.now(
+                timezone.utc
+            ).isoformat(),
 
         "modelVersion":
-            model.get("version"),
+            model.get(
+                "version"
+            ),
 
         "modelDataStartDate":
             model.get(
@@ -1659,11 +1946,34 @@ def main():
             "collection":
                 validation_stats,
 
-            "baseline":
-                validation_baseline,
+            # 全レース予想精度。
+            "prediction":
+                validation_prediction,
+
+            "baseline": {
+                "modelOnly": {
+                    "top1":
+                        baseline_top_n(
+                            validation_rows,
+                            1,
+                        ),
+
+                    "top3":
+                        baseline_top_n(
+                            validation_rows,
+                            3,
+                        ),
+
+                    "top5":
+                        baseline_top_n(
+                            validation_rows,
+                            5,
+                        ),
+                }
+            },
 
             "selectedStrategy":
-                best_validation,
+                selected,
         },
 
         "finalTest": {
@@ -1680,25 +1990,46 @@ def main():
                 len(test_rows),
 
             "strictOddsCoverage":
-                test_odds_coverage,
+                final_odds_coverage,
 
             "collection":
                 test_stats,
 
-            "baseline":
-                final_baseline,
+            # 見送りを含む全レースで予想する。
+            "prediction":
+                final_prediction,
+
+            "baseline": {
+                "modelOnly": {
+                    "top1":
+                        baseline_top_n(
+                            test_rows,
+                            1,
+                        ),
+
+                    "top3":
+                        baseline_top_n(
+                            test_rows,
+                            3,
+                        ),
+
+                    "top5":
+                        baseline_top_n(
+                            test_rows,
+                            5,
+                        ),
+                }
+            },
 
             "frozenSettings":
                 frozen_settings,
 
+            # 「買うべきレース」だけの実績。
             "frozenStrategyResult":
-                final_strategy_result,
+                frozen_result,
 
             "byVenue":
-                venue_report(
-                    test_rows,
-                    frozen_strategy,
-                ),
+                final_by_venue,
         },
 
         "strategySearchValidationOnly":
@@ -1717,6 +2048,23 @@ def main():
             "columnExample":
                 "3連単_1-2-3",
         },
+
+        "predictionPolicy": {
+            "predictEveryRace":
+                True,
+
+            "showPredictionWhenSkipped":
+                True,
+
+            "purchaseDecisionSeparated":
+                True,
+
+            "skipMeaning":
+                (
+                    "prediction exists but "
+                    "purchase is not recommended"
+                ),
+        },
     }
 
     output_path.parent.mkdir(
@@ -1733,67 +2081,34 @@ def main():
         encoding="utf-8",
     )
 
-    summary = {
-        "version":
-            output["version"],
-
-        "modelVersion":
-            output["modelVersion"],
-
-        "modelDataEndDate":
-            output[
-                "modelDataEndDate"
-            ],
-
-        "validationPeriod":
-            (
-                f"{validation_start}"
-                f" -> "
-                f"{validation_end}"
-            ),
-
-        "finalTestPeriod":
-            (
-                f"{final_test_start}"
-                f" -> "
-                f"{final_test_end}"
-            ),
-
-        "validationRaces":
-            len(validation_rows),
-
-        "finalTestRaces":
-            len(test_rows),
-
-        "validationStrictOddsCoverage":
-            validation_odds_coverage,
-
-        "finalTestStrictOddsCoverage":
-            test_odds_coverage,
-
-        "frozenSettings":
-            frozen_settings,
-
-        "validationSelectedResult":
-            best_validation,
-
-        "finalFrozenResult":
-            final_strategy_result,
-
-        "finalModelOnlyTop1":
-            final_baseline[
-                "modelOnly"
-            ]["top1"],
-    }
-
     print(
-        "\n=== FINAL SUMMARY ===",
+        "\n=== V9.2 FINAL SUMMARY ===",
         flush=True,
     )
 
     print(
         json.dumps(
-            summary,
+            {
+                "version":
+                    output["version"],
+
+                "validationPrediction":
+                    validation_prediction,
+
+                "finalPrediction":
+                    final_prediction,
+
+                "selectedVenues":
+                    frozen_settings[
+                        "allowedVenues"
+                    ],
+
+                "finalPurchaseResult":
+                    frozen_result,
+
+                "finalOddsCoverage":
+                    final_odds_coverage,
+            },
             ensure_ascii=False,
             indent=2,
         ),
