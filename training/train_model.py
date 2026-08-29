@@ -5,7 +5,6 @@ import io
 import json
 import math
 import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -14,7 +13,7 @@ import pandas as pd
 import requests
 
 
-BASE_URL = "https://boatracecsv.github.io/data"
+BASE = "https://boatracecsv.github.io/data"
 MODEL_PATH = Path("model/model.json")
 
 FEATURES = [
@@ -24,169 +23,79 @@ FEATURES = [
     "lane4",
     "lane5",
     "lane6",
-    "grade_a1",
-    "grade_a2",
-    "grade_b1",
-    "grade_b2",
     "avg_st",
     "national_win",
     "national2",
-    "national3",
     "local_win",
     "local2",
-    "local3",
     "motor2",
-    "motor3",
     "boat2",
-    "boat3",
-    "f_count",
-    "l_count",
     "meet_avg_finish",
     "meet_avg_st",
-    "meet_count",
-    "ex_time",
-    "ex_st",
-    "ex_course_shift",
-    "wind",
-    "wave",
-    "temperature",
-    "water_temperature",
 ]
 
 HEADERS = {
-    "User-Agent": "boat-race-ai-v7.3-trainer",
+    "User-Agent": "boat-race-ai-v7.4",
     "Accept": "text/csv,text/plain,*/*",
 }
 
 
-def parse_args():
+def args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--days",
-        type=int,
-        default=120,
-    )
-
-    parser.add_argument(
-        "--min-races",
-        type=int,
-        default=500,
-    )
-
-    parser.add_argument(
-        "--epochs",
-        type=int,
-        default=300,
-    )
-
-    parser.add_argument(
-        "--lr",
-        type=float,
-        default=0.035,
-    )
-
-    parser.add_argument(
-        "--l2",
-        type=float,
-        default=0.002,
-    )
-
-    parser.add_argument(
-        "--workers",
-        type=int,
-        default=4,
-    )
-
-    parser.add_argument(
-        "--smoke-test",
-        action="store_true",
-    )
+    parser.add_argument("--days", type=int, default=120)
+    parser.add_argument("--min-races", type=int, default=500)
+    parser.add_argument("--epochs", type=int, default=300)
+    parser.add_argument("--lr", type=float, default=0.035)
+    parser.add_argument("--l2", type=float, default=0.002)
+    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--smoke-test", action="store_true")
 
     return parser.parse_args()
 
 
-def fetch_csv(kind: str, target_date: date):
+def csv(kind, target):
     url = (
-        f"{BASE_URL}/"
-        f"{kind}/"
-        f"{target_date:%Y/%m/%d}.csv"
+        f"{BASE}/{kind}/"
+        f"{target:%Y/%m/%d}.csv"
     )
 
-    try:
-        response = requests.get(
-            url,
-            headers=HEADERS,
-            timeout=20,
-        )
+    response = requests.get(
+        url,
+        headers=HEADERS,
+        timeout=20,
+    )
 
-        if response.status_code == 404:
-            return None
-
-        response.raise_for_status()
-
-        text = response.text
-
-        if not text.strip():
-            return None
-
-        return pd.read_csv(
-            io.StringIO(text),
-            dtype=str,
-        )
-
-    except Exception as exc:
-        print(
-            f"WARN fetch {kind} "
-            f"{target_date}: {exc}",
-            flush=True,
-        )
-
+    if response.status_code == 404:
         return None
+
+    response.raise_for_status()
+
+    if not response.text.strip():
+        return None
+
+    return pd.read_csv(
+        io.StringIO(response.text),
+        dtype=str,
+    )
 
 
 def number(value):
-    if value is None:
-        return np.nan
-
-    text = (
-        str(value)
-        .strip()
-        .replace(",", "")
-    )
-
-    if (
-        not text
-        or text.lower() == "nan"
-    ):
-        return np.nan
+    text = str(value or "").strip()
 
     match = re.search(
         r"-?\d+(?:\.\d+)?",
         text,
     )
 
-    if match is None:
-        return np.nan
-
-    return float(
-        match.group(0)
+    return (
+        float(match.group())
+        if match
+        else np.nan
     )
 
 
-def first_value(row, names):
-    for name in names:
-        if name in row.index:
-            return row.get(name)
-
-    return None
-
-
-def boat_value(
-    row,
-    lane: int,
-    names,
-):
+def value(row, lane, names):
     for name in names:
         key = f"艇{lane}_{name}"
 
@@ -196,65 +105,46 @@ def boat_value(
     return None
 
 
-def grade_features(value):
-    grade = (
-        str(value or "")
-        .strip()
-        .upper()
-    )
+def by_code(frame):
+    if (
+        frame is None
+        or frame.empty
+        or "レースコード" not in frame
+    ):
+        return {}
 
-    return [
-        float(grade == "A1"),
-        float(grade == "A2"),
-        float(grade == "B1"),
-        float(grade == "B2"),
-    ]
+    result = {}
+
+    for index in range(len(frame)):
+        row = frame.iloc[index]
+
+        code = str(
+            row.get("レースコード", "")
+        ).strip()
+
+        if code:
+            result[code] = row
+
+    return result
 
 
-def current_meet_features(
-    row,
-    lane: int,
-):
+def meet(card, lane):
     finishes = []
     starts = []
-    count = 0
 
-    for meet_day in range(1, 8):
+    for day_no in range(1, 8):
         for run in range(1, 3):
             prefix = (
-                f"艇{lane}_"
-                f"節D{meet_day}"
-                f"走{run}_"
+                f"艇{lane}_節D"
+                f"{day_no}走{run}_"
             )
-
-            raw_values = [
-                row.get(prefix + "R番号"),
-                row.get(prefix + "進入"),
-                row.get(prefix + "枠"),
-                row.get(prefix + "ST"),
-                row.get(prefix + "着順"),
-            ]
-
-            has_data = any(
-                value is not None
-                and str(value).strip()
-                not in ("", "nan")
-                for value in raw_values
-            )
-
-            if has_data:
-                count += 1
 
             finish = number(
-                row.get(
-                    prefix + "着順"
-                )
+                card.get(prefix + "着順")
             )
 
             start = number(
-                row.get(
-                    prefix + "ST"
-                )
+                card.get(prefix + "ST")
             )
 
             if (
@@ -266,637 +156,549 @@ def current_meet_features(
             if np.isfinite(start):
                 starts.append(start)
 
-    avg_finish = (
-        float(np.mean(finishes))
-        if finishes
-        else np.nan
-    )
-
-    avg_start = (
-        float(np.mean(starts))
-        if starts
-        else np.nan
-    )
-
     return (
-        avg_finish,
-        avg_start,
-        float(count),
+        np.mean(finishes)
+        if finishes
+        else np.nan,
+        np.mean(starts)
+        if starts
+        else np.nan,
     )
 
 
-def build_feature(
-    card,
-    stt,
-    tkz,
-    sui,
-    lane: int,
-):
-    (
-        meet_finish,
-        meet_st,
-        meet_count,
-    ) = current_meet_features(
+def features(card, lane):
+    meet_finish, meet_st = meet(
         card,
         lane,
     )
 
-    exhibition_course = number(
-        boat_value(
-            stt,
-            lane,
-            ["コース", "進入"],
-        )
-    )
-
-    exhibition_st = number(
-        boat_value(
-            stt,
-            lane,
-            [
-                "スタート展示",
-                "展示ST",
-                "ST",
+    return np.array(
+        [
+            *[
+                float(lane == n)
+                for n in range(1, 7)
             ],
-        )
-    )
-
-    exhibition_time = number(
-        boat_value(
-            tkz,
-            lane,
-            ["展示タイム"],
-        )
-    )
-
-    feature = [
-        float(lane == 1),
-        float(lane == 2),
-        float(lane == 3),
-        float(lane == 4),
-        float(lane == 5),
-        float(lane == 6),
-
-        *grade_features(
-            boat_value(
-                card,
-                lane,
-                ["級別", "級"],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "全国平均ST",
-                    "平均ST",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                ["全国勝率"],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "全国2連対率",
-                    "全国2連率",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "全国3連対率",
-                    "全国3連率",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                ["当地勝率"],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "当地2連対率",
-                    "当地2連率",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "当地3連対率",
-                    "当地3連率",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "モーター2連対率",
-                    "モーター2連率",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "モーター3連対率",
-                    "モーター3連率",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "ボート2連対率",
-                    "ボート2連率",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                [
-                    "ボート3連対率",
-                    "ボート3連率",
-                ],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                ["F本数", "F"],
-            )
-        ),
-
-        number(
-            boat_value(
-                card,
-                lane,
-                ["L本数", "L"],
-            )
-        ),
-
-        meet_finish,
-        meet_st,
-        meet_count,
-
-        exhibition_time,
-        exhibition_st,
-
-        (
-            exhibition_course - lane
-            if np.isfinite(
-                exhibition_course
-            )
-            else np.nan
-        ),
-
-        number(
-            first_value(
-                sui,
-                ["風速(m)", "風速"],
-            )
-        ),
-
-        number(
-            first_value(
-                sui,
-                [
-                    "波の高さ(cm)",
-                    "波高",
-                    "波の高さ",
-                ],
-            )
-        ),
-
-        number(
-            first_value(
-                sui,
-                ["気温(℃)", "気温"],
-            )
-        ),
-
-        number(
-            first_value(
-                sui,
-                ["水温(℃)", "水温"],
-            )
-        ),
-    ]
-
-    array = np.asarray(
-        feature,
+            number(
+                value(
+                    card,
+                    lane,
+                    ["全国平均ST", "平均ST"],
+                )
+            ),
+            number(
+                value(
+                    card,
+                    lane,
+                    ["全国勝率"],
+                )
+            ),
+            number(
+                value(
+                    card,
+                    lane,
+                    ["全国2連対率", "全国2連率"],
+                )
+            ),
+            number(
+                value(
+                    card,
+                    lane,
+                    ["当地勝率"],
+                )
+            ),
+            number(
+                value(
+                    card,
+                    lane,
+                    ["当地2連対率", "当地2連率"],
+                )
+            ),
+            number(
+                value(
+                    card,
+                    lane,
+                    [
+                        "モーター2連対率",
+                        "モーター2連率",
+                    ],
+                )
+            ),
+            number(
+                value(
+                    card,
+                    lane,
+                    [
+                        "ボート2連対率",
+                        "ボート2連率",
+                    ],
+                )
+            ),
+            meet_finish,
+            meet_st,
+        ],
         dtype=float,
     )
 
-    if len(array) != len(FEATURES):
-        raise RuntimeError(
-            "feature count mismatch: "
-            f"{len(array)} != "
-            f"{len(FEATURES)}"
-        )
 
-    return array
+def winner(row):
+    for lane in range(1, 7):
+        key = f"艇{lane}_着順"
 
+        if key in row.index:
+            place = number(row.get(key))
 
-def rows_by_race_code(df):
-    if df is None:
-        return {}
+            if (
+                np.isfinite(place)
+                and int(place) == 1
+            ):
+                return lane - 1
 
-    if df.empty:
-        return {}
-
-    if "レースコード" not in df.columns:
-        return {}
-
-    output = {}
-
-    for row_index in range(len(df)):
-        row = df.iloc[row_index]
-
-        code = str(
-            row.get(
-                "レースコード",
-                "",
-            )
-        ).strip()
-
-        if code:
-            output[code] = row
-
-    return output
-
-
-def detect_winner(row):
-    direct_columns = [
+    for key in (
         "1着_艇番",
         "1着艇番",
         "1着_枠",
         "1着枠",
-    ]
-
-    for column in direct_columns:
-        if column not in row.index:
-            continue
-
-        value = number(
-            row.get(column)
-        )
-
-        if (
-            np.isfinite(value)
-            and 1 <= value <= 6
-        ):
-            return int(value)
-
-    for lane in range(1, 7):
-        for suffix in (
-            "着順",
-            "順位",
-            "結果",
-        ):
-            column = (
-                f"艇{lane}_"
-                f"{suffix}"
-            )
-
-            if column not in row.index:
-                continue
-
-            value = number(
-                row.get(column)
-            )
+    ):
+        if key in row.index:
+            lane = number(row.get(key))
 
             if (
-                np.isfinite(value)
-                and int(value) == 1
+                np.isfinite(lane)
+                and 1 <= lane <= 6
             ):
-                return lane
+                return int(lane) - 1
 
     return None
 
 
-def load_day(target_date: date):
-    cards = fetch_csv(
-        "programs/race_cards",
-        target_date,
-    )
+def load_day(target):
+    try:
+        cards = csv(
+            "programs/race_cards",
+            target,
+        )
 
-    results = fetch_csv(
-        "results/realtime",
-        target_date,
-    )
+        results = csv(
+            "results/realtime",
+            target,
+        )
 
-    if (
-        cards is None
-        or results is None
-    ):
-        return target_date, []
+    except Exception as exc:
+        print(
+            f"WARN {target}: {exc}",
+            flush=True,
+        )
+        return []
 
-    stt = fetch_csv(
-        "previews/stt",
-        target_date,
-    )
+    if cards is None or results is None:
+        return []
 
-    tkz = fetch_csv(
-        "previews/tkz",
-        target_date,
-    )
-
-    sui = fetch_csv(
-        "previews/sui",
-        target_date,
-    )
-
-    result_map = rows_by_race_code(
-        results
-    )
-
-    stt_map = rows_by_race_code(
-        stt
-    )
-
-    tkz_map = rows_by_race_code(
-        tkz
-    )
-
-    sui_map = rows_by_race_code(
-        sui
-    )
-
-    empty = pd.Series(
-        dtype=object
-    )
-
+    result_map = by_code(results)
     races = []
 
-    for card_index in range(
-        len(cards)
-    ):
-        card = cards.iloc[
-            card_index
-        ]
+    for index in range(len(cards)):
+        card = cards.iloc[index]
 
         code = str(
-            card.get(
-                "レースコード",
-                "",
-            )
+            card.get("レースコード", "")
         ).strip()
 
-        if not code:
-            continue
-
-        result = result_map.get(
-            code
-        )
+        result = result_map.get(code)
 
         if result is None:
             continue
 
-        winner = detect_winner(
-            result
-        )
+        first = winner(result)
 
-        if winner is None:
+        if first is None:
             continue
 
-        lane_features = []
-
-        for lane in range(1, 7):
-            lane_features.append(
-                build_feature(
-                    card,
-                    stt_map.get(
-                        code,
-                        empty,
-                    ),
-                    tkz_map.get(
-                        code,
-                        empty,
-                    ),
-                    sui_map.get(
-                        code,
-                        empty,
-                    ),
-                    lane,
-                )
-            )
-
-        features = np.vstack(
-            lane_features
+        matrix = np.vstack(
+            [
+                features(card, lane)
+                for lane in range(1, 7)
+            ]
         )
 
         races.append(
             (
                 code,
-                target_date.isoformat(),
-                features,
-                winner - 1,
+                target.isoformat(),
+                matrix,
+                first,
             )
         )
 
-    return target_date, races
+    return races
 
 
-def collect(
-    days: int,
-    workers: int,
-):
-    yesterday = (
-        date.today()
-        - timedelta(days=1)
-    )
+def collect(days):
+    end = date.today() - timedelta(days=1)
+    races = []
 
-    target_dates = [
-        yesterday
-        - timedelta(days=offset)
-        for offset in range(days)
-    ]
+    for offset in range(days):
+        target = end - timedelta(days=offset)
 
-    all_races = []
+        day_races = load_day(target)
 
-    with ThreadPoolExecutor(
-        max_workers=max(
-            1,
-            workers,
-        )
-    ) as executor:
-
-        futures = {}
-
-        for target_date in target_dates:
-            future = executor.submit(
-                load_day,
-                target_date,
-            )
-
-            futures[
-                future
-            ] = target_date
-
-        for future in as_completed(
-            futures
-        ):
-            requested_date = futures[
-                future
-            ]
-
-            try:
-                result_tuple = (
-                    future.result()
-                )
-
-                completed_date = (
-                    result_tuple[0]
-                )
-
-                races = (
-                    result_tuple[1]
-                )
-
-                all_races.extend(
-                    races
-                )
-
-                print(
-                    f"{completed_date}: "
-                    f"+{len(races)} races "
-                    f"/ total="
-                    f"{len(all_races)}",
-                    flush=True,
-                )
-
-            except Exception as exc:
-                print(
-                    f"WARN day failed "
-                    f"{requested_date}: "
-                    f"{exc}",
-                    flush=True,
-                )
-
-    all_races.sort(
-        key=lambda race:
-            (
-                race[1],
-                race[0],
-            )
-    )
-
-    return all_races
-
-
-def smoke_test():
-    print(
-        "Running real-data smoke test...",
-        flush=True,
-    )
-
-    yesterday = (
-        date.today()
-        - timedelta(days=1)
-    )
-
-    found = []
-
-    for offset in range(7):
-        target_date = (
-            yesterday
-            - timedelta(days=offset)
-        )
-
-        completed_date, races = (
-            load_day(
-                target_date
-            )
-        )
+        races.extend(day_races)
 
         print(
-            f"Smoke {completed_date}: "
+            f"{target}: "
+            f"+{len(day_races)} "
+            f"total={len(races)}",
+            flush=True,
+        )
+
+    races.sort(
+        key=lambda race: (
+            race[1],
+            race[0],
+        )
+    )
+
+    return races
+
+
+def smoke():
+    end = date.today() - timedelta(days=1)
+
+    for offset in range(7):
+        target = end - timedelta(days=offset)
+        races = load_day(target)
+
+        print(
+            f"Smoke {target}: "
             f"{len(races)} races",
             flush=True,
         )
 
-        if races:
-            found = races
-            break
+        if not races:
+            continue
 
-    if not found:
-        raise SystemExit(
-            "SMOKE TEST FAILED: "
-            "no usable completed race "
-            "found in previous 7 days"
+        matrix = races[0][2]
+
+        expected = (
+            6,
+            len(FEATURES),
         )
 
-    first_race = found[0]
+        if matrix.shape != expected:
+            raise SystemExit(
+                f"bad feature shape "
+                f"{matrix.shape}"
+            )
 
-    features = first_race[2]
+        print(
+            "SMOKE TEST PASSED",
+            flush=True,
+        )
+        return
 
-    if features.shape != (
-        6,
+    raise SystemExit(
+        "SMOKE TEST FAILED: "
+        "no usable race in 7 days"
+    )
+
+
+def prepare(train, validation):
+    flat = np.vstack(
+        [race[2] for race in train]
+    )
+
+    with np.errstate(all="ignore"):
+        mean = np.nanmean(
+            flat,
+            axis=0,
+        )
+
+    mean = np.where(
+        np.isfinite(mean),
+        mean,
+        0.0,
+    )
+
+    filled = np.where(
+        np.isfinite(flat),
+        flat,
+        mean,
+    )
+
+    scale = np.std(
+        filled,
+        axis=0,
+    )
+
+    scale = np.where(
+        scale > 1e-8,
+        scale,
+        1.0,
+    )
+
+    def transform(dataset):
+        output = []
+
+        for race in dataset:
+            matrix = np.where(
+                np.isfinite(race[2]),
+                race[2],
+                mean,
+            )
+
+            matrix = (
+                matrix - mean
+            ) / scale
+
+            output.append(
+                (
+                    race[0],
+                    race[1],
+                    matrix,
+                    race[3],
+                )
+            )
+
+        return output
+
+    return (
+        transform(train),
+        transform(validation),
+        mean,
+        scale,
+    )
+
+
+def softmax(scores):
+    scores = scores - np.max(scores)
+    exp = np.exp(scores)
+
+    return exp / np.sum(exp)
+
+
+def train(dataset, epochs, lr, l2):
+    weights = np.zeros(
         len(FEATURES),
-    ):
-        raise SystemExit(
-            "SMOKE TEST FAILED: "
-            f"feature shape="
-            f"{features.shape}"
+        dtype=float,
+    )
+
+    for epoch in range(epochs):
+        gradient = np.zeros_like(weights)
+        loss = 0.0
+
+        for race in dataset:
+            matrix = race[2]
+            target = race[3]
+
+            probabilities = softmax(
+                matrix @ weights
+            )
+
+            loss -= math.log(
+                max(
+                    probabilities[target],
+                    1e-12,
+                )
+            )
+
+            gradient += (
+                probabilities @ matrix
+                - matrix[target]
+            )
+
+        gradient /= len(dataset)
+
+        gradient += (
+            l2 * weights
         )
 
-    if not (
-        0 <= first_race[3] <= 5
-    ):
-        raise SystemExit(
-            "SMOKE TEST FAILED: "
-            "invalid winner index"
+        weights -= (
+            lr * gradient
         )
+
+        if (
+            epoch == 0
+            or (epoch + 1) % 50 == 0
+            or epoch + 1 == epochs
+        ):
+            print(
+                f"epoch={epoch + 1} "
+                f"loss="
+                f"{loss / len(dataset):.6f}",
+                flush=True,
+            )
+
+    return weights
+
+
+def evaluate(dataset, weights):
+    hits = 0
+    top3 = 0
+    log_loss = 0.0
+    brier = 0.0
+
+    for race in dataset:
+        matrix = race[2]
+        target = race[3]
+
+        probabilities = softmax(
+            matrix @ weights
+        )
+
+        order = np.argsort(
+            -probabilities
+        )
+
+        hits += int(
+            order[0] == target
+        )
+
+        top3 += int(
+            target in order[:3]
+        )
+
+        log_loss -= math.log(
+            max(
+                probabilities[target],
+                1e-12,
+            )
+        )
+
+        truth = np.zeros(6)
+        truth[target] = 1.0
+
+        brier += np.mean(
+            (
+                probabilities
+                - truth
+            ) ** 2
+        )
+
+    count = len(dataset)
+
+    return {
+        "races": count,
+        "top1Accuracy": hits / count,
+        "winnerInTop3": top3 / count,
+        "logLoss": log_loss / count,
+        "brierScore": brier / count,
+    }
+
+
+def main():
+    config = args()
+
+    if config.smoke_test:
+        smoke()
+        return
+
+    races = collect(
+        config.days
+    )
+
+    if len(races) < config.min_races:
+        raise SystemExit(
+            f"not enough races: "
+            f"{len(races)} "
+            f"< {config.min_races}"
+        )
+
+    split = int(
+        len(races) * 0.82
+    )
+
+    train_raw = races[:split]
+    validation_raw = races[split:]
+
+    (
+        train_set,
+        validation_set,
+        mean,
+        scale,
+    ) = prepare(
+        train_raw,
+        validation_raw,
+    )
+
+    weights = train(
+        train_set,
+        config.epochs,
+        config.lr,
+        config.l2,
+    )
+
+    training = evaluate(
+        train_set,
+        weights,
+    )
+
+    validation = evaluate(
+        validation_set,
+        weights,
+    )
+
+    model = {
+        "version":
+            "v7.4-conditional-logit",
+
+        "trainedAt":
+            datetime.now(
+                timezone.utc
+            ).isoformat(),
+
+        "lookbackDays":
+            config.days,
+
+        "raceCount":
+            len(races),
+
+        "trainRaceCount":
+            len(train_set),
+
+        "validationRaceCount":
+            len(validation_set),
+
+        "features":
+            FEATURES,
+
+        "mean":
+            mean.tolist(),
+
+        "scale":
+            scale.tolist(),
+
+        "coefficients":
+            weights.tolist(),
+
+        "training":
+            training,
+
+        "validation":
+            validation,
+    }
+
+    MODEL_PATH.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    MODEL_PATH.write_text(
+        json.dumps(
+            model,
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
     print(
-        "SMOKE TEST PASSED "
-        f"race={first_race[0]} "
-        f"shape={features.shape}",
+        json.dumps(
+            model,
+            ensure_ascii=False,
+            indent=2,
+        ),
         flush=True,
     )
 
 
-def impute_and_scale(
-    train_r
+if __name__ == "__main__":
+    main()
