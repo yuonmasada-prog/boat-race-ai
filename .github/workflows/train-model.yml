@@ -1,4 +1,4 @@
-name: Train BOAT RACE AI v8
+name: Train BOAT RACE AI v8.1
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: boat-race-ai-v8-training
+  group: boat-race-ai-v8-1-training
   cancel-in-progress: false
 
 jobs:
@@ -45,28 +45,35 @@ jobs:
         run: |
           python training/train_model.py --smoke-test
 
-      - name: Train historical model
+      # ==========================================================
+      # 1. 検証専用モデル
+      # 直近30日を一切見せずに学習する
+      # ==========================================================
+
+      - name: Train held-out evaluation model
         run: |
           python training/train_model.py \
             --days 120 \
+            --end-offset 30 \
+            --output model/eval-model.json \
             --min-races 500 \
             --epochs 300 \
             --lr 0.035 \
             --l2 0.002 \
             --workers 4
 
-      - name: Validate trained model
+      - name: Validate held-out model dates
         run: |
           python - <<'PY'
           import json
-          import math
           from pathlib import Path
+          from datetime import date, timedelta
 
-          path = Path("model/model.json")
+          path = Path("model/eval-model.json")
 
           if not path.exists():
               raise SystemExit(
-                  "model/model.json was not generated"
+                  "eval-model.json was not generated"
               )
 
           data = json.loads(
@@ -78,6 +85,10 @@ jobs:
           required = [
               "version",
               "trainedAt",
+              "lookbackDays",
+              "endOffsetDays",
+              "dataStartDate",
+              "dataEndDate",
               "raceCount",
               "trainRaceCount",
               "validationRaceCount",
@@ -100,104 +111,50 @@ jobs:
                   f"missing keys: {missing}"
               )
 
-          feature_count = len(
-              data["features"]
-          )
-
-          if feature_count == 0:
+          if data["endOffsetDays"] < 30:
               raise SystemExit(
-                  "feature list is empty"
+                  "held-out model does not exclude 30 days"
               )
 
-          for key in (
-              "mean",
-              "scale",
-              "coefficients",
-          ):
-              if (
-                  len(data[key])
-                  != feature_count
-              ):
-                  raise SystemExit(
-                      f"{key} length mismatch"
-                  )
+          model_end = date.fromisoformat(
+              data["dataEndDate"]
+          )
+
+          test_start = (
+              date.today()
+              - timedelta(days=30)
+          )
+
+          if model_end >= test_start:
+              raise SystemExit(
+                  f"DATA LEAKAGE: model end={model_end}, "
+                  f"test start={test_start}"
+              )
 
           if data["raceCount"] < 500:
               raise SystemExit(
-                  "too few training races"
+                  "too few evaluation training races"
               )
 
-          if (
-              data["validationRaceCount"]
-              < 1
-          ):
-              raise SystemExit(
-                  "validation set empty"
-              )
-
-          for coefficient in (
-              data["coefficients"]
-          ):
-              if not math.isfinite(
-                  float(coefficient)
-              ):
-                  raise SystemExit(
-                      "invalid coefficient"
-                  )
-
-          validation = (
-              data["validation"]
+          print(
+              "HELD-OUT MODEL DATE CHECK PASSED"
           )
-
-          required_metrics = [
-              "top1Accuracy",
-              "winnerInTop3",
-              "logLoss",
-              "brierScore",
-          ]
-
-          for metric in (
-              required_metrics
-          ):
-              value = (
-                  validation.get(
-                      metric
-                  )
-              )
-
-              if value is None:
-                  raise SystemExit(
-                      f"missing metric: {metric}"
-                  )
-
-              if not math.isfinite(
-                  float(value)
-              ):
-                  raise SystemExit(
-                      f"invalid metric: {metric}"
-                  )
 
           print(
               json.dumps(
                   {
                       "version":
                           data["version"],
-
+                      "dataStartDate":
+                          data["dataStartDate"],
+                      "dataEndDate":
+                          data["dataEndDate"],
+                      "endOffsetDays":
+                          data["endOffsetDays"],
                       "raceCount":
                           data["raceCount"],
-
-                      "trainRaceCount":
-                          data[
-                              "trainRaceCount"
-                          ],
-
-                      "validationRaceCount":
-                          data[
-                              "validationRaceCount"
-                          ],
-
                       "validation":
-                          validation,
+                          data["validation"],
                   },
                   ensure_ascii=False,
                   indent=2,
@@ -205,27 +162,31 @@ jobs:
           )
           PY
 
-      - name: Run trifecta backtest
+      # ==========================================================
+      # 2. 完全未学習30日で3連単＋オッズ検証
+      # ==========================================================
+
+      - name: Run true held-out trifecta backtest
         run: |
           python training/backtest_trifecta.py \
             --days 30 \
-            --min-races 500
+            --min-races 500 \
+            --model model/eval-model.json \
+            --output model/backtest.json
 
-      - name: Validate trifecta backtest
+      - name: Validate held-out backtest
         run: |
           python - <<'PY'
           import json
           import math
           from pathlib import Path
+          from datetime import date
 
-          path = Path(
-              "model/backtest.json"
-          )
+          path = Path("model/backtest.json")
 
           if not path.exists():
               raise SystemExit(
-                  "model/backtest.json "
-                  "was not generated"
+                  "model/backtest.json was not generated"
               )
 
           data = json.loads(
@@ -237,14 +198,18 @@ jobs:
           required = [
               "version",
               "modelVersion",
+              "modelDataStartDate",
+              "modelDataEndDate",
+              "testStartDate",
+              "testEndDate",
               "days",
               "raceCount",
+              "oddsCoverage",
               "top1",
               "top3",
               "top5",
-              "actualRank",
-              "winnerLane1",
-              "winnerNotLane1",
+              "bestValueStrategy",
+              "strategySearch",
               "byVenue",
           ]
 
@@ -256,13 +221,36 @@ jobs:
 
           if missing:
               raise SystemExit(
-                  f"backtest missing keys: "
-                  f"{missing}"
+                  f"backtest missing keys: {missing}"
+              )
+
+          model_end = date.fromisoformat(
+              data["modelDataEndDate"]
+          )
+
+          test_start = date.fromisoformat(
+              data["testStartDate"]
+          )
+
+          if model_end >= test_start:
+              raise SystemExit(
+                  "BACKTEST DATA LEAKAGE DETECTED"
               )
 
           if data["raceCount"] < 500:
               raise SystemExit(
-                  "too few backtest races"
+                  "too few held-out test races"
+              )
+
+          odds_coverage = float(
+              data["oddsCoverage"]
+          )
+
+          if not math.isfinite(
+              odds_coverage
+          ):
+              raise SystemExit(
+                  "invalid odds coverage"
               )
 
           for section in (
@@ -282,47 +270,41 @@ jobs:
 
                   if value is None:
                       raise SystemExit(
-                          f"{section}: "
-                          f"missing {metric}"
+                          f"{section}: missing {metric}"
                       )
 
                   if not math.isfinite(
                       float(value)
                   ):
                       raise SystemExit(
-                          f"{section}: "
-                          f"invalid {metric}"
+                          f"{section}: invalid {metric}"
                       )
+
+          print(
+              "TRUE HELD-OUT BACKTEST PASSED"
+          )
 
           print(
               json.dumps(
                   {
-                      "version":
-                          data["version"],
-
-                      "modelVersion":
-                          data[
-                              "modelVersion"
-                          ],
-
+                      "modelDataEndDate":
+                          data["modelDataEndDate"],
+                      "testStartDate":
+                          data["testStartDate"],
+                      "testEndDate":
+                          data["testEndDate"],
                       "raceCount":
-                          data[
-                              "raceCount"
-                          ],
-
+                          data["raceCount"],
+                      "oddsCoverage":
+                          data["oddsCoverage"],
                       "top1":
                           data["top1"],
-
                       "top3":
                           data["top3"],
-
                       "top5":
                           data["top5"],
-
-                      "actualRank":
-                          data[
-                              "actualRank"
-                          ],
+                      "bestValueStrategy":
+                          data["bestValueStrategy"],
                   },
                   ensure_ascii=False,
                   indent=2,
@@ -330,7 +312,131 @@ jobs:
           )
           PY
 
-      - name: Commit model and backtest
+      # ==========================================================
+      # 3. 本番用モデル
+      # 検証終了後、最新120日ですべて再学習
+      # ==========================================================
+
+      - name: Train latest production model
+        run: |
+          python training/train_model.py \
+            --days 120 \
+            --end-offset 0 \
+            --output model/model.json \
+            --min-races 500 \
+            --epochs 300 \
+            --lr 0.035 \
+            --l2 0.002 \
+            --workers 4
+
+      - name: Validate production model
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          path = Path("model/model.json")
+
+          if not path.exists():
+              raise SystemExit(
+                  "model/model.json was not generated"
+              )
+
+          data = json.loads(
+              path.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          required = [
+              "version",
+              "trainedAt",
+              "lookbackDays",
+              "endOffsetDays",
+              "dataStartDate",
+              "dataEndDate",
+              "raceCount",
+              "trainRaceCount",
+              "validationRaceCount",
+              "features",
+              "mean",
+              "scale",
+              "coefficients",
+              "training",
+              "validation",
+          ]
+
+          missing = [
+              key
+              for key in required
+              if key not in data
+          ]
+
+          if missing:
+              raise SystemExit(
+                  f"production model missing: {missing}"
+              )
+
+          if data["endOffsetDays"] != 0:
+              raise SystemExit(
+                  "production model is not latest"
+              )
+
+          feature_count = len(
+              data["features"]
+          )
+
+          for key in (
+              "mean",
+              "scale",
+              "coefficients",
+          ):
+              if len(data[key]) != feature_count:
+                  raise SystemExit(
+                      f"{key} length mismatch"
+                  )
+
+          for coefficient in data[
+              "coefficients"
+          ]:
+              if not math.isfinite(
+                  float(coefficient)
+              ):
+                  raise SystemExit(
+                      "invalid coefficient"
+                  )
+
+          print(
+              "PRODUCTION MODEL PASSED"
+          )
+
+          print(
+              json.dumps(
+                  {
+                      "version":
+                          data["version"],
+                      "dataStartDate":
+                          data["dataStartDate"],
+                      "dataEndDate":
+                          data["dataEndDate"],
+                      "raceCount":
+                          data["raceCount"],
+                      "validation":
+                          data["validation"],
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+              )
+          )
+          PY
+
+      # ==========================================================
+      # 4. 保存
+      # eval-modelは検証専用なのでGitHubには残さない
+      # ==========================================================
+
+      - name: Commit production model and backtest
         run: |
           git config \
             user.name \
@@ -348,13 +454,12 @@ jobs:
             --cached \
             --quiet
           then
-            echo \
-              "Model and backtest did not change."
+            echo "No model changes."
             exit 0
           fi
 
           git commit \
-            -m "chore: retrain BOAT RACE AI v8"
+            -m "chore: retrain BOAT RACE AI v8.1"
 
           git push \
             origin \
