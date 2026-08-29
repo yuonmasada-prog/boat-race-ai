@@ -1,7 +1,7 @@
 {
   "version": "v9.1-conditional-logit-production-latest",
   "mode": "production",
-  "trainedAt": "2026-08-29T16:10:16.877175+00:00",
+  "trainedAt": "2026-08-29T22:41:20.150500+00:00",
   "lookbackDays": 120,
   "requestedEndOffsetDays": 0,
   "holdoutDays": 45,

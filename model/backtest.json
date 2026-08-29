@@ -2,7 +2,7 @@
   "version": "v9.2-predict-all-buy-selective",
   "method": "predict-every-race-purchase-filter-validation-selected-venue-aware-30d-frozen-test",
   "warning": "Prediction scores are not calibrated true probabilities or guaranteed expected value.",
-  "generatedAt": "2026-08-29T16:08:32.299626+00:00",
+  "generatedAt": "2026-08-29T22:39:31.896002+00:00",
   "modelVersion": "v9.1-conditional-logit-evaluation-holdout45",
   "modelDataStartDate": "2026-03-17",
   "modelDataEndDate": "2026-07-14",
