@@ -78,7 +78,11 @@ def number(value):
     if value is None:
         return np.nan
 
-    text = str(value).replace(",", "").strip()
+    text = (
+        str(value)
+        .replace(",", "")
+        .strip()
+    )
 
     match = re.search(
         r"-?\d+(?:\.\d+)?",
@@ -93,7 +97,8 @@ def number(value):
 
 def load_csv(kind, target):
     url = (
-        f"{BASE}/{kind}/"
+        f"{BASE}/"
+        f"{kind}/"
         f"{target:%Y/%m/%d}.csv"
     )
 
@@ -129,7 +134,10 @@ def rows_by_code(frame):
 
     for _, row in frame.iterrows():
         code = str(
-            row.get("レースコード", "")
+            row.get(
+                "レースコード",
+                "",
+            )
         ).strip()
 
         if code:
@@ -155,31 +163,41 @@ def meet_stats(card, lane):
     for day_no in range(1, 8):
         for run_no in range(1, 3):
             prefix = (
-                f"艇{lane}_節D"
-                f"{day_no}走{run_no}_"
+                f"艇{lane}_"
+                f"節D{day_no}"
+                f"走{run_no}_"
             )
 
             finish = number(
-                card.get(prefix + "着順")
+                card.get(
+                    prefix + "着順"
+                )
             )
 
             start = number(
-                card.get(prefix + "ST")
+                card.get(
+                    prefix + "ST"
+                )
             )
 
             if (
                 np.isfinite(finish)
                 and 1 <= finish <= 6
             ):
-                finishes.append(finish)
+                finishes.append(
+                    finish
+                )
 
             if np.isfinite(start):
-                starts.append(start)
+                starts.append(
+                    start
+                )
 
     return (
         float(np.mean(finishes))
         if finishes
         else np.nan,
+
         float(np.mean(starts))
         if starts
         else np.nan,
@@ -187,9 +205,11 @@ def meet_stats(card, lane):
 
 
 def build_features(card, lane):
-    meet_finish, meet_start = meet_stats(
-        card,
-        lane,
+    meet_finish, meet_start = (
+        meet_stats(
+            card,
+            lane,
+        )
     )
 
     return np.array(
@@ -198,13 +218,18 @@ def build_features(card, lane):
                 float(lane == n)
                 for n in range(1, 7)
             ],
+
             number(
                 racer_value(
                     card,
                     lane,
-                    ["全国平均ST", "平均ST"],
+                    [
+                        "全国平均ST",
+                        "平均ST",
+                    ],
                 )
             ),
+
             number(
                 racer_value(
                     card,
@@ -212,6 +237,7 @@ def build_features(card, lane):
                     ["全国勝率"],
                 )
             ),
+
             number(
                 racer_value(
                     card,
@@ -222,6 +248,7 @@ def build_features(card, lane):
                     ],
                 )
             ),
+
             number(
                 racer_value(
                     card,
@@ -229,6 +256,7 @@ def build_features(card, lane):
                     ["当地勝率"],
                 )
             ),
+
             number(
                 racer_value(
                     card,
@@ -239,6 +267,7 @@ def build_features(card, lane):
                     ],
                 )
             ),
+
             number(
                 racer_value(
                     card,
@@ -249,6 +278,7 @@ def build_features(card, lane):
                     ],
                 )
             ),
+
             number(
                 racer_value(
                     card,
@@ -259,6 +289,7 @@ def build_features(card, lane):
                     ],
                 )
             ),
+
             meet_finish,
             meet_start,
         ],
@@ -267,6 +298,24 @@ def build_features(card, lane):
 
 
 def finish_order(row):
+    """
+    v9.2互換の結果パーサー。
+
+    realtime結果CSVには時期や形式によって
+
+      艇1_着順
+      艇2_着順
+      ...
+
+    または
+
+      1着_艇番
+      2着_艇番
+      3着_艇番
+
+    系の列が存在するため、両方に対応する。
+    """
+
     placed = []
 
     for lane in range(1, 7):
@@ -275,28 +324,71 @@ def finish_order(row):
         if key not in row.index:
             continue
 
-        position = number(row.get(key))
+        position = number(
+            row.get(key)
+        )
 
         if (
             np.isfinite(position)
             and 1 <= position <= 6
         ):
             placed.append(
-                (int(position), lane)
+                (
+                    int(position),
+                    lane,
+                )
             )
 
     if len(placed) >= 3:
         placed.sort()
 
-        result = [
+        order = [
             lane
-            for _, lane in placed[:3]
+            for _, lane
+            in placed[:3]
         ]
 
-        if len(set(result)) == 3:
-            return result
+        if len(set(order)) == 3:
+            return order
 
-    return None
+    # ------------------------------------------
+    # v9.2と同じフォールバック
+    # ------------------------------------------
+
+    order = []
+
+    for position in (1, 2, 3):
+        found = None
+
+        for key in (
+            f"{position}着_艇番",
+            f"{position}着艇番",
+            f"{position}着_枠",
+            f"{position}着枠",
+        ):
+            if key not in row.index:
+                continue
+
+            lane = number(
+                row.get(key)
+            )
+
+            if (
+                np.isfinite(lane)
+                and 1 <= lane <= 6
+            ):
+                found = int(lane)
+                break
+
+        if found is None:
+            return None
+
+        order.append(found)
+
+    if len(set(order)) != 3:
+        return None
+
+    return order
 
 
 def payout_for(row):
@@ -312,7 +404,9 @@ def payout_for(row):
         if key not in row.index:
             continue
 
-        value = number(row.get(key))
+        value = number(
+            row.get(key)
+        )
 
         if (
             np.isfinite(value)
@@ -338,59 +432,98 @@ def extract_odds(row):
         if not match:
             continue
 
-        combo = "".join(
-            match.groups()
+        combo = (
+            match.group(1)
+            + match.group(2)
+            + match.group(3)
         )
 
         if len(set(combo)) != 3:
             continue
 
-        recognized.add(combo)
+        recognized.add(
+            combo
+        )
 
-        price = number(row.get(key))
+        price = number(
+            row.get(key)
+        )
 
         if (
             np.isfinite(price)
             and price > 1
         ):
-            odds[combo] = float(price)
+            odds[combo] = float(
+                price
+            )
 
-    return odds, len(recognized)
+    return (
+        odds,
+        len(recognized),
+    )
 
 
 def softmax(scores):
-    scores = scores - np.max(scores)
+    scores = (
+        scores
+        - np.max(scores)
+    )
 
-    values = np.exp(scores)
+    values = np.exp(
+        scores
+    )
 
     total = values.sum()
 
     if total <= 0:
-        return np.full(6, 1 / 6)
+        return np.full(
+            6,
+            1 / 6,
+        )
 
-    return values / total
+    return (
+        values
+        / total
+    )
 
 
-def trifecta_probabilities(lane_prob):
+def trifecta_probabilities(
+    lane_probabilities,
+):
     probabilities = {}
 
     for first, second, third in permutations(
         range(6),
         3,
     ):
-        p1 = lane_prob[first]
+        p1 = (
+            lane_probabilities[
+                first
+            ]
+        )
 
         p2 = (
-            lane_prob[second]
-            / max(1 - p1, 1e-12)
+            lane_probabilities[
+                second
+            ]
+            / max(
+                1 - p1,
+                1e-12,
+            )
         )
 
         p3 = (
-            lane_prob[third]
+            lane_probabilities[
+                third
+            ]
             / max(
                 1
-                - lane_prob[first]
-                - lane_prob[second],
+                - lane_probabilities[
+                    first
+                ]
+                - lane_probabilities[
+                    second
+                ],
                 1e-12,
             )
         )
@@ -401,16 +534,24 @@ def trifecta_probabilities(lane_prob):
             f"{third + 1}"
         )
 
-        probabilities[combo] = (
-            p1 * p2 * p3
+        probabilities[
+            combo
+        ] = (
+            p1
+            * p2
+            * p3
         )
 
     total = sum(
         probabilities.values()
     )
 
+    if total <= 0:
+        return probabilities
+
     return {
-        combo: value / total
+        combo:
+            value / total
         for combo, value
         in probabilities.items()
     }
@@ -418,18 +559,23 @@ def trifecta_probabilities(lane_prob):
 
 def market_probabilities(odds):
     raw = {
-        combo: 1 / price
-        for combo, price in odds.items()
+        combo:
+            1 / price
+        for combo, price
+        in odds.items()
         if price > 1
     }
 
-    total = sum(raw.values())
+    total = sum(
+        raw.values()
+    )
 
     if total <= 0:
         return {}
 
     return {
-        combo: value / total
+        combo:
+            value / total
         for combo, value
         in raw.items()
     }
@@ -440,44 +586,67 @@ def blend_probabilities(
     market_prob,
 ):
     if not market_prob:
-        return dict(model_prob)
+        return dict(
+            model_prob
+        )
 
     output = {}
 
-    for combo, model_p in model_prob.items():
-        market_p = market_prob.get(combo)
+    for combo, model_p in (
+        model_prob.items()
+    ):
+        market_p = (
+            market_prob.get(
+                combo
+            )
+        )
 
         if (
             market_p is None
             or market_p <= 0
         ):
-            output[combo] = model_p
+            output[
+                combo
+            ] = model_p
             continue
 
-        output[combo] = (
+        output[
+            combo
+        ] = (
             model_p ** 0.67
             * market_p ** 0.33
         )
 
-    total = sum(output.values())
+    total = sum(
+        output.values()
+    )
+
+    if total <= 0:
+        return dict(
+            model_prob
+        )
 
     return {
-        combo: value / total
+        combo:
+            value / total
         for combo, value
         in output.items()
     }
 
 
-def rank_probabilities(probabilities):
+def rank_probabilities(
+    probabilities,
+):
     return sorted(
         probabilities.items(),
-        key=lambda item: item[1],
+        key=lambda item:
+            item[1],
         reverse=True,
     )
 
 
 def venue_from_code(code):
-    if len(code) < 10:
+    if len(code) < 12:
         return "??"
 
     return code[8:10]
@@ -504,21 +673,33 @@ def field_metrics(
     meet_values = []
 
     for lane in range(1, 7):
-        finish, _ = meet_stats(
-            card,
-            lane,
+        finish, _ = (
+            meet_stats(
+                card,
+                lane,
+            )
         )
 
-        if np.isfinite(finish):
-            meet_values.append(finish)
+        if np.isfinite(
+            finish
+        ):
+            meet_values.append(
+                finish
+            )
 
     if meet_values:
+        mean_finish = float(
+            np.mean(
+                meet_values
+            )
+        )
+
         meet_quality = (
             1.0
             - min(
                 max(
                     (
-                        np.mean(meet_values)
+                        mean_finish
                         - 1.0
                     ) / 5.0,
                     0.0,
@@ -526,16 +707,21 @@ def field_metrics(
                 1.0,
             )
         )
+
     else:
         meet_quality = 0.5
 
     return {
         "lane1_strength":
             lane1_strength,
+
         "field_spread":
             field_spread,
+
         "meet_quality":
-            float(meet_quality),
+            float(
+                meet_quality
+            ),
     }
 
 
@@ -550,18 +736,30 @@ def build_race(
     coefficients,
 ):
     code = str(
-        card.get("レースコード", "")
+        card.get(
+            "レースコード",
+            "",
+        )
     ).strip()
 
-    order = finish_order(result)
+    if not code:
+        return None
 
-    if not code or not order:
+    order = finish_order(
+        result
+    )
+
+    if not order:
         return None
 
     matrix = np.vstack(
         [
-            build_features(card, lane)
-            for lane in range(1, 7)
+            build_features(
+                card,
+                lane,
+            )
+            for lane
+            in range(1, 7)
         ]
     )
 
@@ -578,21 +776,27 @@ def build_race(
     )
 
     normalized = (
-        matrix - mean
-    ) / safe_scale
+        (matrix - mean)
+        / safe_scale
+    )
 
-    lane_prob = softmax(
-        normalized @ coefficients
+    lane_probabilities = (
+        softmax(
+            normalized
+            @ coefficients
+        )
     )
 
     model_prob = (
         trifecta_probabilities(
-            lane_prob
+            lane_probabilities
         )
     )
 
     odds, column_count = (
-        extract_odds(odds_row)
+        extract_odds(
+            odds_row
+        )
     )
 
     strict_odds = (
@@ -603,22 +807,30 @@ def build_race(
         odds = {}
 
     market_prob = (
-        market_probabilities(odds)
+        market_probabilities(
+            odds
+        )
     )
 
-    blended = blend_probabilities(
-        model_prob,
-        market_prob,
+    blended = (
+        blend_probabilities(
+            model_prob,
+            market_prob,
+        )
     )
 
-    ranked = rank_probabilities(
-        blended
+    ranked = (
+        rank_probabilities(
+            blended
+        )
     )
 
     if not ranked:
         return None
 
-    main_combo, main_p = ranked[0]
+    main_combo, main_p = (
+        ranked[0]
+    )
 
     second_p = (
         ranked[1][1]
@@ -626,83 +838,115 @@ def build_race(
         else 0.0
     )
 
-    main_odds = odds.get(
-        main_combo,
-        np.nan,
+    main_odds = (
+        odds.get(
+            main_combo,
+            np.nan,
+        )
     )
 
-    market_main = market_prob.get(
-        main_combo,
-        0.0,
+    market_main = (
+        market_prob.get(
+            main_combo,
+            0.0,
+        )
     )
 
     margin = max(
-        main_p - second_p,
+        main_p
+        - second_p,
         0.0,
     )
 
     odds_quality = 0.0
 
-    if np.isfinite(main_odds):
-        # 低すぎる配当も極端な高配当も
-        # 購入スコアを下げる。
+    if np.isfinite(
+        main_odds
+    ):
         log_odds = math.log(
-            max(main_odds, 1.01)
+            max(
+                main_odds,
+                1.01,
+            )
         )
 
-        ideal = math.log(15.0)
+        ideal = math.log(
+            15.0
+        )
 
         distance = abs(
-            log_odds - ideal
+            log_odds
+            - ideal
         )
 
         odds_quality = max(
             0.0,
-            1.0 - distance / 3.5,
+            1.0
+            - distance / 3.5,
         )
 
     market_gap = max(
-        main_p - market_main,
+        main_p
+        - market_main,
         0.0,
     )
 
     field = field_metrics(
-        lane_prob,
+        lane_probabilities,
         card,
     )
 
     actual = "".join(
-        map(str, order)
+        map(
+            str,
+            order,
+        )
+    )
+
+    payout = payout_for(
+        payout_row
+        if payout_row is not None
+        else result
     )
 
     return {
         "code":
             code,
+
         "date":
             target.isoformat(),
+
         "venue":
-            venue_from_code(code),
+            venue_from_code(
+                code
+            ),
+
         "actual":
             actual,
+
         "payout":
-            payout_for(
-                payout_row
-                if payout_row is not None
-                else result
-            ),
+            payout,
+
         "odds":
             odds,
+
         "strictOddsOk":
             strict_odds,
+
+        "oddsColumnCount":
+            column_count,
+
         "prediction": {
             "main":
                 ranked[0][0],
+
             "second":
                 (
                     ranked[1][0]
                     if len(ranked) > 1
                     else None
                 ),
+
             "third":
                 (
                     ranked[2][0]
@@ -710,29 +954,47 @@ def build_race(
                     else None
                 ),
         },
+
         "blended":
             blended,
+
         "model":
             model_prob,
+
         "market":
             market_prob,
+
         "rawScoreFeatures": {
             "confidence":
-                float(main_p),
+                float(
+                    main_p
+                ),
+
             "margin":
-                float(margin),
+                float(
+                    margin
+                ),
+
             "odds_quality":
-                float(odds_quality),
+                float(
+                    odds_quality
+                ),
+
             "market_gap":
-                float(market_gap),
+                float(
+                    market_gap
+                ),
+
             "lane1_strength":
                 field[
                     "lane1_strength"
                 ],
+
             "field_spread":
                 field[
                     "field_spread"
                 ],
+
             "meet_quality":
                 field[
                     "meet_quality"
@@ -758,14 +1020,17 @@ def collect_period(
                 "programs/race_cards",
                 target,
             )
+
             results = load_csv(
                 "results/realtime",
                 target,
             )
+
             payouts = load_csv(
                 "results/payouts",
                 target,
             )
+
             odds = load_csv(
                 "previews/od3",
                 target,
@@ -773,23 +1038,43 @@ def collect_period(
 
         except Exception as exc:
             print(
-                f"WARN {target}: {exc}",
+                f"WARN {target}: "
+                f"{exc}",
                 flush=True,
             )
-            target += timedelta(days=1)
+
+            target += timedelta(
+                days=1
+            )
             continue
 
-        if cards is None or results is None:
-            target += timedelta(days=1)
+        if (
+            cards is None
+            or results is None
+        ):
+            target += timedelta(
+                days=1
+            )
             continue
 
-        result_map = rows_by_code(results)
-        payout_map = rows_by_code(payouts)
-        odds_map = rows_by_code(odds)
+        result_map = rows_by_code(
+            results
+        )
+
+        payout_map = rows_by_code(
+            payouts
+        )
+
+        odds_map = rows_by_code(
+            odds
+        )
 
         added = 0
+        strict_added = 0
 
-        for _, card in cards.iterrows():
+        for _, card in (
+            cards.iterrows()
+        ):
             code = str(
                 card.get(
                     "レースコード",
@@ -797,33 +1082,69 @@ def collect_period(
                 )
             ).strip()
 
-            result = result_map.get(code)
+            if not code:
+                continue
+
+            result = (
+                result_map.get(
+                    code
+                )
+            )
 
             if result is None:
                 continue
 
             race = build_race(
-                card,
-                result,
-                payout_map.get(code),
-                odds_map.get(code),
-                target,
-                mean,
-                scale,
-                coefficients,
+                card=card,
+
+                result=result,
+
+                payout_row=(
+                    payout_map.get(
+                        code
+                    )
+                ),
+
+                odds_row=(
+                    odds_map.get(
+                        code
+                    )
+                ),
+
+                target=target,
+
+                mean=mean,
+
+                scale=scale,
+
+                coefficients=coefficients,
             )
 
-            if race is not None:
-                races.append(race)
-                added += 1
+            if race is None:
+                continue
+
+            races.append(
+                race
+            )
+
+            added += 1
+
+            if race[
+                "strictOddsOk"
+            ]:
+                strict_added += 1
 
         print(
-            f"{target}: +{added} "
+            f"{target}: "
+            f"+{added} races / "
+            f"strict_odds={strict_added} / "
             f"total={len(races)}",
             flush=True,
         )
 
-        target += timedelta(days=1)
+        target += timedelta(
+            days=1
+        )
 
     return races
 
@@ -832,7 +1153,9 @@ def venue_statistics(rows):
     stats = {}
 
     for row in rows:
-        venue = row["venue"]
+        venue = row[
+            "venue"
+        ]
 
         item = stats.setdefault(
             venue,
@@ -842,79 +1165,114 @@ def venue_statistics(rows):
             },
         )
 
-        item["races"] += 1
+        item[
+            "races"
+        ] += 1
 
         if (
-            row["prediction"]["main"]
-            == row["actual"]
+            row[
+                "prediction"
+            ][
+                "main"
+            ]
+            == row[
+                "actual"
+            ]
         ):
-            item["mainHits"] += 1
+            item[
+                "mainHits"
+            ] += 1
 
-    total_races = len(rows)
+    total_races = len(
+        rows
+    )
 
     total_hits = sum(
-        item["mainHits"]
-        for item in stats.values()
+        item[
+            "mainHits"
+        ]
+        for item
+        in stats.values()
     )
 
     global_rate = (
-        total_hits / total_races
+        total_hits
+        / total_races
         if total_races
         else 0.0
     )
 
     output = {}
 
-    # 会場特性は「買う/買わない」ではなく
-    # 0〜1の弱い連続値として使う。
     prior_strength = 200.0
 
-    for venue, item in stats.items():
-        races = item["races"]
-        hits = item["mainHits"]
+    for venue, item in (
+        stats.items()
+    ):
+        races = item[
+            "races"
+        ]
+
+        hits = item[
+            "mainHits"
+        ]
 
         shrunk_rate = (
             hits
-            + prior_strength * global_rate
+            + prior_strength
+            * global_rate
         ) / (
-            races + prior_strength
+            races
+            + prior_strength
         )
 
         if global_rate > 0:
             ratio = (
-                shrunk_rate / global_rate
+                shrunk_rate
+                / global_rate
             )
         else:
             ratio = 1.0
 
-        # 0.25〜0.75に圧縮。
-        # 会場だけで購入判定が決まらない。
         normalized = (
             0.5
             + 0.25
             * math.tanh(
-                (ratio - 1.0) * 2.0
+                (
+                    ratio
+                    - 1.0
+                )
+                * 2.0
             )
         )
 
-        output[venue] = {
+        output[
+            venue
+        ] = {
             "races":
                 races,
+
             "mainHits":
                 hits,
+
             "rawMainHitRate":
                 (
                     hits / races
                     if races
                     else 0.0
                 ),
+
             "shrunkMainHitRate":
                 shrunk_rate,
+
             "score":
                 normalized,
         }
 
-    return output, global_rate
+    return (
+        output,
+        global_rate,
+    )
 
 
 def normalize_feature(
@@ -933,7 +1291,10 @@ def normalize_feature(
 
     return float(
         min(
-            max(result, 0.0),
+            max(
+                result,
+                0.0,
+            ),
             1.0,
         )
     )
@@ -943,23 +1304,32 @@ def feature_ranges(rows):
     ranges = {}
 
     for name in FEATURE_NAMES:
-        if name == "venue_prior":
+        if (
+            name
+            == "venue_prior"
+        ):
             continue
 
         values = [
             row[
                 "rawScoreFeatures"
-            ][name]
+            ][
+                name
+            ]
             for row in rows
             if np.isfinite(
                 row[
                     "rawScoreFeatures"
-                ][name]
+                ][
+                    name
+                ]
             )
         ]
 
         if not values:
-            ranges[name] = (
+            ranges[
+                name
+            ] = (
                 0.0,
                 1.0,
             )
@@ -979,7 +1349,9 @@ def feature_ranges(rows):
             )
         )
 
-        ranges[name] = (
+        ranges[
+            name
+        ] = (
             low,
             high,
         )
@@ -1009,9 +1381,15 @@ def attach_scores(
             "field_spread",
             "meet_quality",
         ):
-            low, high = ranges[name]
+            low, high = (
+                ranges[
+                    name
+                ]
+            )
 
-            normalized[name] = (
+            normalized[
+                name
+            ] = (
                 normalize_feature(
                     raw[name],
                     low,
@@ -1019,14 +1397,20 @@ def attach_scores(
                 )
             )
 
-        venue = venue_stats.get(
-            row["venue"]
+        venue = (
+            venue_stats.get(
+                row[
+                    "venue"
+                ]
+            )
         )
 
         normalized[
             "venue_prior"
         ] = (
-            venue["score"]
+            venue[
+                "score"
+            ]
             if venue
             else 0.5
         )
@@ -1034,12 +1418,19 @@ def attach_scores(
         weighted = 0.0
         weight_sum = 0.0
 
-        for name, weight in weights.items():
+        for name, weight in (
+            weights.items()
+        ):
             weighted += (
-                normalized[name]
+                normalized[
+                    name
+                ]
                 * weight
             )
-            weight_sum += weight
+
+            weight_sum += (
+                weight
+            )
 
         score = (
             100.0
@@ -1049,13 +1440,15 @@ def attach_scores(
             else 0.0
         )
 
-        row["purchaseScore"] = float(
+        row[
+            "purchaseScore"
+        ] = float(
             score
         )
 
-        row["scoreFeatures"] = (
-            normalized
-        )
+        row[
+            "scoreFeatures"
+        ] = normalized
 
 
 def prediction_accuracy(rows):
@@ -1068,36 +1461,70 @@ def prediction_accuracy(rows):
             combo
             for combo, _
             in rank_probabilities(
-                row["blended"]
+                row[
+                    "blended"
+                ]
             )
         ]
 
-        actual = row["actual"]
+        actual = (
+            row[
+                "actual"
+            ]
+        )
 
         top1 += int(
-            actual in ranked[:1]
-        )
-        top3 += int(
-            actual in ranked[:3]
-        )
-        top5 += int(
-            actual in ranked[:5]
+            actual
+            in ranked[:1]
         )
 
-    count = len(rows)
+        top3 += int(
+            actual
+            in ranked[:3]
+        )
+
+        top5 += int(
+            actual
+            in ranked[:5]
+        )
+
+    count = len(
+        rows
+    )
 
     return {
         "races":
             count,
+
+        "top1Hits":
+            top1,
+
         "top1HitRate":
-            top1 / count
-            if count else 0.0,
+            (
+                top1 / count
+                if count
+                else 0.0
+            ),
+
+        "top3Hits":
+            top3,
+
         "top3HitRate":
-            top3 / count
-            if count else 0.0,
+            (
+                top3 / count
+                if count
+                else 0.0
+            ),
+
+        "top5Hits":
+            top5,
+
         "top5HitRate":
-            top5 / count
-            if count else 0.0,
+            (
+                top5 / count
+                if count
+                else 0.0
+            ),
     }
 
 
@@ -1115,9 +1542,12 @@ def evaluate_threshold(
 
     for row in rows:
         if (
-            not row["strictOddsOk"]
-            or row["purchaseScore"]
-            < threshold
+            not row[
+                "strictOddsOk"
+            ]
+            or row[
+                "purchaseScore"
+            ] < threshold
         ):
             continue
 
@@ -1125,13 +1555,20 @@ def evaluate_threshold(
             combo
             for combo, _
             in rank_probabilities(
-                row["blended"]
+                row[
+                    "blended"
+                ]
             )
-            if combo in row["odds"]
+            if combo
+            in row[
+                "odds"
+            ]
         ]
 
         selections = (
-            ranked[:max_tickets]
+            ranked[
+                :max_tickets
+            ]
         )
 
         if not selections:
@@ -1145,63 +1582,97 @@ def evaluate_threshold(
             tickets += 1
             stake += 100.0
 
-            if combo == row["actual"]:
+            if (
+                combo
+                == row[
+                    "actual"
+                ]
+            ):
                 race_hit = True
 
                 if np.isfinite(
-                    row["payout"]
+                    row[
+                        "payout"
+                    ]
                 ):
                     returns += (
-                        row["payout"]
+                        row[
+                            "payout"
+                        ]
                     )
 
         if race_hit:
             hits += 1
 
-    total = len(rows)
+    total = len(
+        rows
+    )
 
     return {
         "totalRaces":
             total,
+
         "racesBet":
             races_bet,
+
         "skippedRaces":
-            total - races_bet,
+            total
+            - races_bet,
+
         "betRate":
-            races_bet / total
-            if total else 0.0,
+            (
+                races_bet
+                / total
+                if total
+                else 0.0
+            ),
+
         "skipRate":
             (
-                total - races_bet
-            ) / total
-            if total else 0.0,
+                (
+                    total
+                    - races_bet
+                )
+                / total
+                if total
+                else 0.0
+            ),
+
         "tickets":
             tickets,
+
         "hits":
             hits,
+
         "hitRate":
-            hits / races_bet
-            if races_bet else 0.0,
+            (
+                hits
+                / races_bet
+                if races_bet
+                else 0.0
+            ),
+
         "stake":
             stake,
+
         "return":
             returns,
+
         "profit":
-            returns - stake,
+            returns
+            - stake,
+
         "roi":
-            returns / stake
-            if stake else 0.0,
+            (
+                returns
+                / stake
+                if stake
+                else 0.0
+            ),
     }
 
 
 def weight_sets():
-    """
-    validationだけで比較する小さな候補群。
-
-    venueの重みは最大0.10。
-    会場だけで買い目を決めない。
-    """
-
     return [
         {
             "confidence": 0.25,
@@ -1213,6 +1684,7 @@ def weight_sets():
             "meet_quality": 0.05,
             "venue_prior": 0.05,
         },
+
         {
             "confidence": 0.30,
             "margin": 0.15,
@@ -1223,6 +1695,7 @@ def weight_sets():
             "meet_quality": 0.05,
             "venue_prior": 0.05,
         },
+
         {
             "confidence": 0.25,
             "margin": 0.10,
@@ -1233,6 +1706,7 @@ def weight_sets():
             "meet_quality": 0.05,
             "venue_prior": 0.05,
         },
+
         {
             "confidence": 0.25,
             "margin": 0.15,
@@ -1256,12 +1730,16 @@ def select_strategy(
     minimum_bets = max(
         100,
         int(
-            len(validation_rows)
+            len(
+                validation_rows
+            )
             * 0.08
         ),
     )
 
-    for weights in weight_sets():
+    for weights in (
+        weight_sets()
+    ):
         attach_scores(
             validation_rows,
             ranges,
@@ -1296,10 +1774,13 @@ def select_strategy(
                 candidate = {
                     "weights":
                         weights,
+
                     "threshold":
                         threshold,
+
                     "maxTickets":
                         max_tickets,
+
                     **result,
                 }
 
@@ -1309,11 +1790,17 @@ def select_strategy(
 
     eligible = [
         item
-        for item in candidates
+        for item
+        in candidates
         if (
-            item["racesBet"]
+            item[
+                "racesBet"
+            ]
             >= minimum_bets
-            and item["betRate"]
+
+            and item[
+                "betRate"
+            ]
             >= 0.08
         )
     ]
@@ -1324,21 +1811,20 @@ def select_strategy(
             "met validation sample limits."
         )
 
-    # ROIだけを極端に最大化すると
-    # validationへの過適合が起きやすい。
-    #
-    # ROI + サンプル安定性を評価。
     for item in eligible:
         sample_factor = min(
-            item["racesBet"]
-            / 500.0,
+            item[
+                "racesBet"
+            ] / 500.0,
             1.0,
         )
 
         item[
             "selectionScore"
         ] = (
-            item["roi"]
+            item[
+                "roi"
+            ]
             * (
                 0.75
                 + 0.25
@@ -1352,17 +1838,26 @@ def select_strategy(
             item[
                 "selectionScore"
             ],
-            item["roi"],
-            item["profit"],
+            item[
+                "roi"
+            ],
+            item[
+                "profit"
+            ],
         ),
     )
 
-    return best, candidates
+    return (
+        best,
+        candidates,
+    )
 
 
 def score_distribution(rows):
     values = [
-        row["purchaseScore"]
+        row[
+            "purchaseScore"
+        ]
         for row in rows
     ]
 
@@ -1371,7 +1866,12 @@ def score_distribution(rows):
 
     return {
         "min":
-            float(np.min(values)),
+            float(
+                np.min(
+                    values
+                )
+            ),
+
         "p25":
             float(
                 np.quantile(
@@ -1379,8 +1879,14 @@ def score_distribution(rows):
                     0.25,
                 )
             ),
+
         "median":
-            float(np.median(values)),
+            float(
+                np.median(
+                    values
+                )
+            ),
+
         "p75":
             float(
                 np.quantile(
@@ -1388,6 +1894,7 @@ def score_distribution(rows):
                     0.75,
                 )
             ),
+
         "p90":
             float(
                 np.quantile(
@@ -1395,15 +1902,22 @@ def score_distribution(rows):
                     0.90,
                 )
             ),
+
         "max":
-            float(np.max(values)),
+            float(
+                np.max(
+                    values
+                )
+            ),
     }
 
 
 def main():
     args = parse_args()
 
-    model_path = Path(args.model)
+    model_path = Path(
+        args.model
+    )
 
     if not model_path.exists():
         raise SystemExit(
@@ -1418,7 +1932,9 @@ def main():
     )
 
     if (
-        model.get("mode")
+        model.get(
+            "mode"
+        )
         != "evaluation"
     ):
         raise SystemExit(
@@ -1427,51 +1943,72 @@ def main():
         )
 
     mean = np.array(
-        model["mean"],
+        model[
+            "mean"
+        ],
         dtype=float,
     )
 
     scale = np.array(
-        model["scale"],
+        model[
+            "scale"
+        ],
         dtype=float,
     )
 
     coefficients = np.array(
-        model["coefficients"],
+        model[
+            "coefficients"
+        ],
         dtype=float,
     )
 
     test_end = (
         date.today()
-        - timedelta(days=1)
+        - timedelta(
+            days=1
+        )
     )
 
     test_start = (
         test_end
         - timedelta(
-            days=args.test_days - 1
+            days=(
+                args.test_days
+                - 1
+            )
         )
     )
 
     validation_end = (
         test_start
-        - timedelta(days=1)
+        - timedelta(
+            days=1
+        )
     )
 
     validation_start = (
         validation_end
         - timedelta(
             days=(
-                args.validation_days - 1
+                args.validation_days
+                - 1
             )
         )
     )
 
-    model_end = date.fromisoformat(
-        model["dataEndDate"]
+    model_end = (
+        date.fromisoformat(
+            model[
+                "dataEndDate"
+            ]
+        )
     )
 
-    if model_end >= validation_start:
+    if (
+        model_end
+        >= validation_start
+    ):
         raise SystemExit(
             "DATA LEAKAGE: "
             f"model={model_end}, "
@@ -1485,75 +2022,94 @@ def main():
     )
 
     print(
-        f"model: {model_end}",
+        f"model: "
+        f"{model_end}",
         flush=True,
     )
 
     print(
         "validation: "
         f"{validation_start} "
-        f"-> {validation_end}",
+        f"-> "
+        f"{validation_end}",
         flush=True,
     )
 
     print(
         "final test: "
         f"{test_start} "
-        f"-> {test_end}",
+        f"-> "
+        f"{test_end}",
         flush=True,
     )
 
-    validation_rows = collect_period(
-        validation_start,
-        validation_end,
-        mean,
-        scale,
-        coefficients,
+    validation_rows = (
+        collect_period(
+            validation_start,
+            validation_end,
+            mean,
+            scale,
+            coefficients,
+        )
     )
 
-    test_rows = collect_period(
-        test_start,
-        test_end,
-        mean,
-        scale,
-        coefficients,
+    test_rows = (
+        collect_period(
+            test_start,
+            test_end,
+            mean,
+            scale,
+            coefficients,
+        )
     )
 
     if (
-        len(validation_rows)
+        len(
+            validation_rows
+        )
         < args.min_races
     ):
         raise SystemExit(
             "Too few validation races"
         )
 
-    if len(test_rows) < args.min_races:
+    if (
+        len(
+            test_rows
+        )
+        < args.min_races
+    ):
         raise SystemExit(
             "Too few test races"
         )
 
-    # ここから先、購入条件は
-    # validationだけで作る。
-    ranges = feature_ranges(
-        validation_rows
-    )
-
-    venue_stats, global_hit_rate = (
-        venue_statistics(
+    ranges = (
+        feature_ranges(
             validation_rows
         )
     )
 
-    best, search = select_strategy(
-        validation_rows,
-        ranges,
+    (
         venue_stats,
+        global_hit_rate,
+    ) = venue_statistics(
+        validation_rows
     )
 
-    frozen_weights = best["weights"]
+    best, search = (
+        select_strategy(
+            validation_rows,
+            ranges,
+            venue_stats,
+        )
+    )
 
-    # final testにvalidationで決めた
-    # 正規化範囲・会場prior・重みを固定適用。
+    frozen_weights = (
+        best[
+            "weights"
+        ]
+    )
+
     attach_scores(
         test_rows,
         ranges,
@@ -1561,7 +2117,6 @@ def main():
         frozen_weights,
     )
 
-    # validation側も最終設定で再計算。
     attach_scores(
         validation_rows,
         ranges,
@@ -1569,17 +2124,27 @@ def main():
         frozen_weights,
     )
 
-    final_result = evaluate_threshold(
-        test_rows,
-        best["threshold"],
-        best["maxTickets"],
+    final_result = (
+        evaluate_threshold(
+            test_rows,
+            best[
+                "threshold"
+            ],
+            best[
+                "maxTickets"
+            ],
+        )
     )
 
     validation_result = (
         evaluate_threshold(
             validation_rows,
-            best["threshold"],
-            best["maxTickets"],
+            best[
+                "threshold"
+            ],
+            best[
+                "maxTickets"
+            ],
         )
     )
 
@@ -1595,15 +2160,31 @@ def main():
         )
     )
 
-    strict_validation = sum(
-        row["strictOddsOk"]
-        for row in validation_rows
-    ) / len(validation_rows)
+    strict_validation = (
+        sum(
+            row[
+                "strictOddsOk"
+            ]
+            for row
+            in validation_rows
+        )
+        / len(
+            validation_rows
+        )
+    )
 
-    strict_test = sum(
-        row["strictOddsOk"]
-        for row in test_rows
-    ) / len(test_rows)
+    strict_test = (
+        sum(
+            row[
+                "strictOddsOk"
+            ]
+            for row
+            in test_rows
+        )
+        / len(
+            test_rows
+        )
+    )
 
     output = {
         "version":
@@ -1615,7 +2196,9 @@ def main():
             ).isoformat(),
 
         "modelVersion":
-            model.get("version"),
+            model.get(
+                "version"
+            ),
 
         "modelDataStartDate":
             model.get(
@@ -1626,6 +2209,23 @@ def main():
             model.get(
                 "dataEndDate"
             ),
+
+        "integrity": {
+            "resultParser":
+                "v9.2-compatible-dual-schema",
+
+            "strictOddsColumns":
+                120,
+
+            "fallbackByNumericPosition":
+                False,
+
+            "validationOnlyStrategySelection":
+                True,
+
+            "finalTestFrozen":
+                True,
+        },
 
         "design": {
             "predictEveryRace":
@@ -1664,7 +2264,9 @@ def main():
                 args.validation_days,
 
             "raceCount":
-                len(validation_rows),
+                len(
+                    validation_rows
+                ),
 
             "strictOddsCoverage":
                 strict_validation,
@@ -1692,7 +2294,9 @@ def main():
                 args.test_days,
 
             "raceCount":
-                len(test_rows),
+                len(
+                    test_rows
+                ),
 
             "strictOddsCoverage":
                 strict_test,
@@ -1711,23 +2315,30 @@ def main():
 
         "frozenStrategy": {
             "threshold":
-                best["threshold"],
+                best[
+                    "threshold"
+                ],
 
             "maxTickets":
-                best["maxTickets"],
+                best[
+                    "maxTickets"
+                ],
 
             "weights":
                 frozen_weights,
 
-            "featureRanges":
-                {
-                    key: [
-                        float(value[0]),
-                        float(value[1]),
-                    ]
-                    for key, value
-                    in ranges.items()
-                },
+            "featureRanges": {
+                key: [
+                    float(
+                        value[0]
+                    ),
+                    float(
+                        value[1]
+                    ),
+                ]
+                for key, value
+                in ranges.items()
+            },
 
             "venuePrior":
                 venue_stats,
@@ -1755,13 +2366,16 @@ def main():
 
         "important":
             (
-                "Purchase score is a ranking "
-                "score, not a calibrated "
-                "probability or guaranteed EV."
+                "Purchase score is a "
+                "ranking score, not a "
+                "calibrated probability "
+                "or guaranteed EV."
             ),
     }
 
-    output_path = Path(args.output)
+    output_path = Path(
+        args.output
+    )
 
     output_path.parent.mkdir(
         parents=True,
