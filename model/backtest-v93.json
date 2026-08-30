@@ -1,6 +1,6 @@
 {
   "version": "v9.3-continuous-purchase-score",
-  "generatedAt": "2026-08-30T02:05:34.808369+00:00",
+  "generatedAt": "2026-08-30T14:34:53.852115+00:00",
   "modelVersion": "v9.1-conditional-logit-evaluation-holdout45",
   "modelDataStartDate": "2026-03-18",
   "modelDataEndDate": "2026-07-15",
