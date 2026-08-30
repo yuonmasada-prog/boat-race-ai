@@ -10,11 +10,6 @@ const VENUES = {
   '21':'芦屋','22':'福岡','23':'唐津','24':'大村'
 };
 
-
-/* =========================
-   基本ユーティリティ
-========================= */
-
 function clean(value) {
   return String(value || '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -29,46 +24,32 @@ function clean(value) {
     .trim();
 }
 
-
 function compact(value) {
-  return clean(value)
-    .replace(/\s+/g, ' ')
-    .trim();
+  return clean(value).replace(/\s+/g, ' ').trim();
 }
 
-
 function numberFrom(value) {
-  if (value == null) {
-    return null;
-  }
+  if (value == null) return null;
 
   const match = String(value)
     .replace(/,/g, '')
     .match(/-?\d+(?:\.\d+)?/);
 
-  if (!match) {
-    return null;
-  }
+  if (!match) return null;
 
-  const number = Number(match[0]);
+  const n = Number(match[0]);
 
-  return Number.isFinite(number)
-    ? number
-    : null;
+  return Number.isFinite(n) ? n : null;
 }
-
 
 function normalizeFullWidth(value) {
   return String(value || '')
-    .replace(/[０-９]/g, char =>
+    .replace(/[０-９]/g, c =>
       String.fromCharCode(
-        char.charCodeAt(0) - 0xFEE0
+        c.charCodeAt(0) - 0xFEE0
       )
-    )
-    .replace(/Ｆ/g, 'F')
-    .replace(/Ｌ/g, 'L');
+    );
 }
-
 
 function tagBlocks(html, tag) {
   const blocks = [];
@@ -86,7 +67,6 @@ function tagBlocks(html, tag) {
 
   return blocks;
 }
-
 
 function table1Sections(html) {
   const starts = [];
@@ -110,25 +90,18 @@ function table1Sections(html) {
   });
 }
 
-
 function textLines(html) {
   return clean(html)
     .split(/\n+/)
-    .map(value => value.trim())
+    .map(v => v.trim())
     .filter(Boolean);
 }
-
 
 function numericLines(html) {
   return textLines(html)
     .map(numberFrom)
     .filter(Number.isFinite);
 }
-
-
-/* =========================
-   HTTPS IPv4
-========================= */
 
 function lookupIPv4(
   hostname,
@@ -145,138 +118,126 @@ function lookupIPv4(
   );
 }
 
-
 function fetchText(
   url,
-  timeoutMs = 26000
+  timeoutMs = 22000
 ) {
-  return new Promise((resolve, reject) => {
-    const target = new URL(url);
+  return new Promise(
+    (resolve, reject) => {
+      const target =
+        new URL(url);
 
-    let settled = false;
+      let settled = false;
 
-    function rejectOnce(error) {
-      if (settled) {
-        return;
-      }
+      const fail = error => {
+        if (settled) return;
 
-      settled = true;
-      reject(error);
-    }
+        settled = true;
+        reject(error);
+      };
 
-    const req = https.request(
-      {
-        protocol: 'https:',
-        hostname: target.hostname,
-        port: 443,
-        path: target.pathname + target.search,
-        method: 'GET',
+      const req = https.request(
+        {
+          protocol: 'https:',
+          hostname:
+            target.hostname,
+          port: 443,
+          path:
+            target.pathname
+            + target.search,
+          method: 'GET',
+          family: 4,
+          lookup: lookupIPv4,
+          servername:
+            target.hostname,
+          agent: false,
 
-        family: 4,
-        lookup: lookupIPv4,
-        servername: target.hostname,
-        agent: false,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile Safari/604.1',
 
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+            'Accept':
+              'text/html,text/plain,text/csv,application/xhtml+xml,*/*;q=0.8',
 
-          'Accept':
-            'text/html,text/plain,text/csv,application/xhtml+xml,*/*;q=0.8',
+            'Accept-Language':
+              'ja-JP,ja;q=0.9',
 
-          'Accept-Language':
-            'ja-JP,ja;q=0.9',
+            'Accept-Encoding':
+              'identity',
 
-          'Accept-Encoding':
-            'identity',
+            'Cache-Control':
+              'no-cache',
 
-          'Cache-Control':
-            'no-cache',
+            'Pragma':
+              'no-cache',
 
-          'Pragma':
-            'no-cache',
+            'Connection':
+              'close',
 
-          'Connection':
-            'close',
+            'Referer':
+              'https://www.boatrace.jp/'
+          }
+        },
 
-          'Referer':
-            'https://www.boatrace.jp/'
+        response => {
+          const chunks = [];
+
+          response.on(
+            'data',
+            chunk => {
+              chunks.push(chunk);
+            }
+          );
+
+          response.on(
+            'end',
+            () => {
+              if (settled) return;
+
+              settled = true;
+
+              const body =
+                Buffer.concat(chunks)
+                  .toString('utf8');
+
+              if (
+                response.statusCode < 200 ||
+                response.statusCode >= 300
+              ) {
+                const error =
+                  new Error(
+                    `HTTP ${response.statusCode}`
+                  );
+
+                return reject(error);
+              }
+
+              resolve(body);
+            }
+          );
         }
-      },
+      );
 
-      response => {
-        const chunks = [];
+      req.setTimeout(
+        timeoutMs,
+        () => {
+          req.destroy(
+            new Error(
+              'request-timeout'
+            )
+          );
+        }
+      );
 
-        response.on(
-          'data',
-          chunk => {
-            chunks.push(chunk);
-          }
-        );
+      req.on(
+        'error',
+        fail
+      );
 
-        response.on(
-          'end',
-          () => {
-            if (settled) {
-              return;
-            }
-
-            settled = true;
-
-            const body =
-              Buffer.concat(chunks)
-                .toString('utf8');
-
-            if (
-              response.statusCode < 200 ||
-              response.statusCode >= 300
-            ) {
-              const error =
-                new Error(
-                  `HTTP ${response.statusCode}`
-                );
-
-              error.code =
-                'UPSTREAM_HTTP';
-
-              error.statusCode =
-                response.statusCode;
-
-              return reject(error);
-            }
-
-            resolve(body);
-          }
-        );
-      }
-    );
-
-    req.setTimeout(
-      timeoutMs,
-      () => {
-        const error =
-          new Error('request-timeout');
-
-        error.code =
-          'UPSTREAM_TIMEOUT';
-
-        req.destroy(error);
-      }
-    );
-
-    req.on(
-      'error',
-      rejectOnce
-    );
-
-    req.end();
-  });
+      req.end();
+    }
+  );
 }
-
-
-/* =========================
-   出走表
-========================= */
 
 function emptyRacer(lane) {
   return {
@@ -286,12 +247,8 @@ function emptyRacer(lane) {
     name: null,
     grade: null,
 
-    age: null,
-    weight: null,
-
     fCount: null,
     lCount: null,
-
     avgSt: null,
 
     nationalWin: null,
@@ -314,6 +271,20 @@ function emptyRacer(lane) {
   };
 }
 
+function createRacers() {
+  const racers = {};
+
+  for (
+    let lane = 1;
+    lane <= 6;
+    lane++
+  ) {
+    racers[lane] =
+      emptyRacer(lane);
+  }
+
+  return racers;
+}
 
 function parseIdentity(
   cell,
@@ -335,43 +306,28 @@ function parseIdentity(
       idGrade[2];
   }
 
-
-  const age =
-    text.match(
-      /(\d+)歳/
-    );
-
-  if (age) {
-    racer.age =
-      Number(age[1]);
-  }
-
-
-  const weight =
-    text.match(
-      /(\d+(?:\.\d+)?)kg/
-    );
-
-  if (weight) {
-    racer.weight =
-      Number(weight[1]);
-  }
-
-
   const anchors = [
     ...cell.matchAll(
       /<a\b[^>]*>([\s\S]*?)<\/a>/gi
     )
   ];
 
-  for (const anchor of anchors) {
+  for (
+    const anchor
+    of anchors
+  ) {
     const candidate =
       compact(anchor[1])
-        .replace(/\s+/g, '');
+        .replace(
+          /\s+/g,
+          ''
+        );
 
     if (
       candidate &&
-      !/^\d+$/.test(candidate)
+      !/^\d+$/.test(
+        candidate
+      )
     ) {
       racer.name =
         candidate;
@@ -381,7 +337,6 @@ function parseIdentity(
   }
 }
 
-
 function parseStatus(
   cell,
   racer
@@ -389,15 +344,23 @@ function parseStatus(
   const lines =
     textLines(cell);
 
-  if (lines.length >= 3) {
+  if (
+    lines.length >= 3
+  ) {
     racer.fCount =
-      numberFrom(lines[0]);
+      numberFrom(
+        lines[0]
+      );
 
     racer.lCount =
-      numberFrom(lines[1]);
+      numberFrom(
+        lines[1]
+      );
 
     racer.avgSt =
-      numberFrom(lines[2]);
+      numberFrom(
+        lines[2]
+      );
 
     return;
   }
@@ -415,7 +378,6 @@ function parseStatus(
     values[2] ?? null;
 }
 
-
 function assignThree(
   cell,
   racer,
@@ -424,7 +386,9 @@ function assignThree(
   const values =
     numericLines(cell);
 
-  if (values.length < 3) {
+  if (
+    values.length < 3
+  ) {
     return;
   }
 
@@ -438,200 +402,52 @@ function assignThree(
     values[2];
 }
 
-
-function detectMeetingDay(html) {
-  const text =
-    normalizeFullWidth(
-      clean(html)
-    );
-
-  if (/初日/.test(text)) {
-    return 1;
-  }
-
-  const patterns = [
-    /(\d+)日目/,
-    /第(\d+)日/,
-    /(\d+)日/
-  ];
-
-  for (const pattern of patterns) {
-    const match =
-      text.match(pattern);
-
-    if (!match) {
-      continue;
-    }
-
-    const value =
-      Number(match[1]);
-
-    if (
-      Number.isInteger(value) &&
-      value >= 1 &&
-      value <= 7
-    ) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-
-/* =========================
-   公式HTML今節成績
-   フォールバック
-========================= */
-
-function parseCurrentMeetFromHtml(
-  html,
+function countCompleteRacers(
   racers
 ) {
-  const page =
-    clean(html);
-
-  const position =
-    page.indexOf(
-      '今節成績'
-    );
-
-  if (position < 0) {
-    return false;
-  }
-
-  const meet =
-    page.slice(position);
-
-  let detected = false;
-
-  for (
-    let lane = 1;
-    lane <= 6;
-    lane++
-  ) {
-    const entries = [];
-
-    const regex =
-      new RegExp(
-        `(?:^|\\n)${lane}(?:\\n|\\s)`,
-        'g'
-      );
-
-    const laneMatch =
-      regex.exec(meet);
-
-    if (!laneMatch) {
-      continue;
-    }
-
-    const window =
-      meet.slice(
-        laneMatch.index,
-        laneMatch.index + 2200
-      );
-
-    const raceRegex =
-      /\b([1-6])\s+(F|L)?\.?([0-3]\d)\s+([1-6])\b/g;
-
-    let match;
-
-    while (
-      (
-        match =
-          raceRegex.exec(window)
-      )
-    ) {
-      entries.push({
-        course:
-          Number(match[1]),
-
-        flag:
-          match[2] || null,
-
-        st:
-          Number(
-            `0.${match[3]}`
-          ),
-
-        finish:
-          Number(match[4])
-      });
-
-      if (
-        entries.length >= 14
-      ) {
-        break;
-      }
-    }
-
-    if (entries.length) {
-      racers[lane].currentMeet =
-        entries;
-
-      detected = true;
-    }
-  }
-
-  return detected;
+  return Object
+    .values(racers)
+    .filter(
+      racer =>
+        racer.racerId != null &&
+        racer.grade != null &&
+        racer.avgSt != null &&
+        racer.nationalWin != null &&
+        racer.national2 != null &&
+        racer.localWin != null &&
+        racer.motor2 != null &&
+        racer.boat2 != null
+    )
+    .length;
 }
 
-
-/* =========================
-   出走表HTML解析
-========================= */
-
-function parseRaceList(html) {
-  const racers = {};
-
-  for (
-    let lane = 1;
-    lane <= 6;
-    lane++
-  ) {
-    racers[lane] =
-      emptyRacer(lane);
-  }
-
+function parseRaceList(
+  html
+) {
+  const racers =
+    createRacers();
 
   const sections =
-    table1Sections(html);
+    table1Sections(
+      html
+    );
 
-  const raceTable =
+  const table =
     sections[1];
 
-  if (!raceTable) {
+  if (!table) {
     return {
       racers,
       parserOk: false,
-      parsedCount: 0,
-      table1Count:
-        sections.length,
-      tbodyCount: 0,
-      currentMeetDetected: false
+      parsedCount: 0
     };
   }
-
 
   const tbodies =
     tagBlocks(
-      raceTable,
+      table,
       'tbody'
     );
-
-  if (tbodies.length < 6) {
-    return {
-      racers,
-      parserOk: false,
-      parsedCount: 0,
-      table1Count:
-        sections.length,
-      tbodyCount:
-        tbodies.length,
-      currentMeetDetected: false
-    };
-  }
-
 
   for (
     let lane = 1;
@@ -639,7 +455,13 @@ function parseRaceList(html) {
     lane++
   ) {
     const row =
-      tbodies[lane - 1];
+      tbodies[
+        lane - 1
+      ];
+
+    if (!row) {
+      continue;
+    }
 
     const cells =
       tagBlocks(
@@ -647,25 +469,24 @@ function parseRaceList(html) {
         'td'
       );
 
-    const racer =
-      racers[lane];
-
-    if (cells.length < 8) {
+    if (
+      cells.length < 8
+    ) {
       continue;
     }
 
+    const racer =
+      racers[lane];
 
     parseIdentity(
       cells[2],
       racer
     );
 
-
     parseStatus(
       cells[3],
       racer
     );
-
 
     assignThree(
       cells[4],
@@ -677,7 +498,6 @@ function parseRaceList(html) {
       ]
     );
 
-
     assignThree(
       cells[5],
       racer,
@@ -688,7 +508,6 @@ function parseRaceList(html) {
       ]
     );
 
-
     assignThree(
       cells[6],
       racer,
@@ -698,7 +517,6 @@ function parseRaceList(html) {
         'motor3'
       ]
     );
-
 
     assignThree(
       cells[7],
@@ -711,53 +529,18 @@ function parseRaceList(html) {
     );
   }
 
-
-  const currentMeetDetected =
-    parseCurrentMeetFromHtml(
-      html,
+  const parsedCount =
+    countCompleteRacers(
       racers
     );
 
-
-  const parsedCount =
-    Object.values(racers)
-      .filter(
-        racer =>
-          racer.racerId != null &&
-          racer.grade != null &&
-          racer.avgSt != null &&
-          racer.nationalWin != null &&
-          racer.national2 != null &&
-          racer.national3 != null &&
-          racer.localWin != null &&
-          racer.motor2 != null &&
-          racer.boat2 != null
-      )
-      .length;
-
-
   return {
     racers,
-
-    currentMeetDetected,
-
     parserOk:
       parsedCount === 6,
-
-    parsedCount,
-
-    table1Count:
-      sections.length,
-
-    tbodyCount:
-      tbodies.length
+    parsedCount
   };
 }
-
-
-/* =========================
-   CSV
-========================= */
 
 function parseCsvLine(line) {
   const cells = [];
@@ -766,20 +549,23 @@ function parseCsvLine(line) {
   let quoted = false;
 
   for (
-    let index = 0;
-    index < line.length;
-    index++
+    let i = 0;
+    i < line.length;
+    i++
   ) {
     const char =
-      line[index];
+      line[i];
 
-    if (char === '"') {
+    if (
+      char === '"'
+    ) {
       if (
         quoted &&
-        line[index + 1] === '"'
+        line[i + 1]
+          === '"'
       ) {
         current += '"';
-        index++;
+        i++;
       } else {
         quoted =
           !quoted;
@@ -792,66 +578,80 @@ function parseCsvLine(line) {
       char === ',' &&
       !quoted
     ) {
-      cells.push(current);
+      cells.push(
+        current
+      );
+
       current = '';
+
       continue;
     }
 
-    current +=
-      char;
+    current += char;
   }
 
-  cells.push(current);
+  cells.push(
+    current
+  );
 
   return cells;
 }
 
-
 function parseCsv(text) {
   const lines =
-    String(text || '')
-      .replace(/^\uFEFF/, '')
-      .split(/\r?\n/)
+    String(
+      text || ''
+    )
+      .replace(
+        /^\uFEFF/,
+        ''
+      )
+      .split(
+        /\r?\n/
+      )
       .filter(
         line =>
-          line.trim().length
+          line.trim()
+            .length
       );
 
-  if (lines.length < 2) {
+  if (
+    lines.length < 2
+  ) {
     return [];
   }
 
-
   const headers =
-    parseCsvLine(lines[0])
+    parseCsvLine(
+      lines[0]
+    )
       .map(
         value =>
           value.trim()
       );
 
-
   const rows = [];
 
   for (
-    let index = 1;
-    index < lines.length;
-    index++
+    let i = 1;
+    i < lines.length;
+    i++
   ) {
     const values =
       parseCsvLine(
-        lines[index]
+        lines[i]
       );
-
-    if (!values.length) {
-      continue;
-    }
 
     const row = {};
 
     headers.forEach(
-      (header, column) => {
+      (
+        header,
+        column
+      ) => {
         row[header] =
-          values[column] ?? '';
+          values[column]
+          ?? '';
       }
     );
 
@@ -861,12 +661,14 @@ function parseCsv(text) {
   return rows;
 }
 
-
 function firstExisting(
   row,
   keys
 ) {
-  for (const key of keys) {
+  for (
+    const key
+    of keys
+  ) {
     if (
       Object.prototype
         .hasOwnProperty
@@ -882,63 +684,119 @@ function firstExisting(
   return '';
 }
 
-
-function normalizeRaceNumber(value) {
+function normalizeNumber(
+  value
+) {
   const match =
-    normalizeFullWidth(value)
-      .match(/\d+/);
+    normalizeFullWidth(
+      value
+    )
+      .match(
+        /\d+/
+      );
 
   return match
-    ? Number(match[0])
+    ? Number(
+        match[0]
+      )
     : null;
 }
 
+function findRaceRow(
+  rows,
+  venue,
+  race
+) {
+  const targetVenue =
+    Number(venue);
 
-function normalizeVenueNumber(value) {
-  const match =
-    normalizeFullWidth(value)
-      .match(/\d+/);
+  return rows.find(
+    row => {
+      const venueValue =
+        normalizeNumber(
+          firstExisting(
+            row,
+            [
+              'レース場コード',
+              '場コード',
+              '場番号'
+            ]
+          )
+        );
 
-  return match
-    ? Number(match[0])
-    : null;
+      const raceValue =
+        normalizeNumber(
+          firstExisting(
+            row,
+            [
+              'レース回',
+              'R',
+              'レース番号'
+            ]
+          )
+        );
+
+      return (
+        venueValue
+          === targetVenue &&
+        raceValue
+          === Number(race)
+      );
+    }
+  ) || null;
 }
 
+function laneValue(
+  row,
+  lane,
+  names
+) {
+  for (
+    const name
+    of names
+  ) {
+    const key =
+      `艇${lane}_${name}`;
 
-function normalizeFinish(value) {
-  const text =
-    normalizeFullWidth(value)
-      .trim();
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          row,
+          key
+        )
+    ) {
+      return row[key];
+    }
+  }
+
+  return '';
+}
+
+function fill(
+  racer,
+  key,
+  value
+) {
+  if (
+    racer[key] != null &&
+    racer[key] !== ''
+  ) {
+    return;
+  }
 
   if (
-    /^[1-6]$/.test(text)
+    value == null ||
+    value === ''
   ) {
-    return {
-      finish:
-        Number(text),
-      flag: null
-    };
+    return;
   }
 
-  if (!text) {
-    return {
-      finish: null,
-      flag: null
-    };
-  }
-
-  return {
-    finish: null,
-    flag: text
-  };
+  racer[key] =
+    value;
 }
 
-
-/* =========================
-   今節成績CSV補完
-========================= */
-
-function enrichCurrentMeetFromCsv(
+function enrichFromCsv(
   csv,
   venue,
   race,
@@ -947,86 +805,283 @@ function enrichCurrentMeetFromCsv(
   const rows =
     parseCsv(csv);
 
-  if (!rows.length) {
-    return {
-      detected: false,
-      maxDay: 0,
-      matched: false,
-      rowCount: 0
-    };
-  }
-
-
-  const targetVenue =
-    Number(venue);
-
-  const targetRace =
-    Number(race);
-
-
   const row =
-    rows.find(
-      item => {
-        const venueValue =
-          normalizeVenueNumber(
-            firstExisting(
-              item,
-              [
-                'レース場コード',
-                '場コード',
-                '場番号',
-                'stadium_code'
-              ]
-            )
-          );
-
-
-        const raceValue =
-          normalizeRaceNumber(
-            firstExisting(
-              item,
-              [
-                'レース回',
-                'R',
-                'レース番号',
-                'race_number'
-              ]
-            )
-          );
-
-
-        return (
-          venueValue ===
-            targetVenue &&
-          raceValue ===
-            targetRace
-        );
-      }
+    findRaceRow(
+      rows,
+      venue,
+      race
     );
-
 
   if (!row) {
     return {
-      detected: false,
-      maxDay: 0,
       matched: false,
       rowCount:
-        rows.length
+        rows.length,
+      row: null
     };
   }
-
-
-  let detected = false;
-  let maxDay = 0;
-
 
   for (
     let lane = 1;
     lane <= 6;
     lane++
   ) {
-    const entries = [];
+    const racer =
+      racers[lane];
 
+    fill(
+      racer,
+      'racerId',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            '登録番号',
+            '選手登録番号'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'name',
+      String(
+        laneValue(
+          row,
+          lane,
+          ['選手名']
+        )
+      ).trim()
+    );
+
+    fill(
+      racer,
+      'grade',
+      String(
+        laneValue(
+          row,
+          lane,
+          ['級別']
+        )
+      ).trim()
+    );
+
+    fill(
+      racer,
+      'fCount',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          ['F本数']
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'lCount',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          ['L本数']
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'avgSt',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            '全国平均ST',
+            '平均ST'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'nationalWin',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          ['全国勝率']
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'national2',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            '全国2連対率',
+            '全国2連率'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'national3',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            '全国3連対率',
+            '全国3連率'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'localWin',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          ['当地勝率']
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'local2',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            '当地2連対率',
+            '当地2連率'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'local3',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            '当地3連対率',
+            '当地3連率'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'motorNo',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            'モーター番号',
+            'モーターNo'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'motor2',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            'モーター2連対率',
+            'モーター2連率'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'motor3',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            'モーター3連対率',
+            'モーター3連率'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'boatNo',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            'ボート番号',
+            'ボートNo'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'boat2',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            'ボート2連対率',
+            'ボート2連率'
+          ]
+        )
+      )
+    );
+
+    fill(
+      racer,
+      'boat3',
+      numberFrom(
+        laneValue(
+          row,
+          lane,
+          [
+            'ボート3連対率',
+            'ボート3連率'
+          ]
+        )
+      )
+    );
+
+    const entries = [];
 
     for (
       let day = 1;
@@ -1041,30 +1096,12 @@ function enrichCurrentMeetFromCsv(
         const prefix =
           `艇${lane}_節D${day}走${run}_`;
 
-
-        const raceNo =
+        const finish =
           numberFrom(
             row[
-              `${prefix}R番号`
+              `${prefix}着順`
             ]
           );
-
-
-        const course =
-          numberFrom(
-            row[
-              `${prefix}進入`
-            ]
-          );
-
-
-        const frame =
-          numberFrom(
-            row[
-              `${prefix}枠`
-            ]
-          );
-
 
         const st =
           numberFrom(
@@ -1073,84 +1110,46 @@ function enrichCurrentMeetFromCsv(
             ]
           );
 
-
-        const finishInfo =
-          normalizeFinish(
+        const course =
+          numberFrom(
             row[
-              `${prefix}着順`
+              `${prefix}進入`
             ]
           );
 
-
-        const hasAny =
-          raceNo != null ||
-          course != null ||
-          frame != null ||
-          st != null ||
-          finishInfo.finish != null ||
-          finishInfo.flag != null;
-
-
-        if (!hasAny) {
+        if (
+          finish == null &&
+          st == null &&
+          course == null
+        ) {
           continue;
         }
-
 
         entries.push({
           day,
           run,
-
-          raceNo:
-            raceNo ?? null,
-
-          course:
-            course ?? null,
-
-          frame:
-            frame ?? null,
-
-          st:
-            st ?? null,
-
-          finish:
-            finishInfo.finish,
-
-          flag:
-            finishInfo.flag
+          finish,
+          st,
+          course
         });
-
-
-        detected = true;
-
-        maxDay =
-          Math.max(
-            maxDay,
-            day
-          );
       }
     }
 
-
-    if (entries.length) {
-      racers[lane].currentMeet =
+    if (
+      entries.length
+    ) {
+      racer.currentMeet =
         entries;
     }
   }
 
-
   return {
-    detected,
-    maxDay,
     matched: true,
     rowCount:
-      rows.length
+      rows.length,
+    row
   };
 }
-
-
-/* =========================
-   API
-========================= */
 
 module.exports =
 async function handler(
@@ -1170,7 +1169,6 @@ async function handler(
           ''
         );
 
-
     const venue =
       String(
         req.query.venue || ''
@@ -1180,12 +1178,10 @@ async function handler(
           '0'
         );
 
-
     const race =
       Number(
         req.query.race || 1
       );
-
 
     if (
       !/^\d{8}$/.test(date) ||
@@ -1203,6 +1199,14 @@ async function handler(
         });
     }
 
+    const yyyy =
+      date.slice(0, 4);
+
+    const mm =
+      date.slice(4, 6);
+
+    const dd =
+      date.slice(6, 8);
 
     const officialUrl =
       'https://www.boatrace.jp'
@@ -1215,189 +1219,131 @@ async function handler(
       +
       `&hd=${date}`;
 
-
-    const yyyy =
-      date.slice(0, 4);
-
-    const mm =
-      date.slice(4, 6);
-
-    const dd =
-      date.slice(6, 8);
-
-
-    /*
-     * 修正点：
-     * /data/programs/race_cards/
-     */
-    const meetCsvUrl =
+    const csvUrl =
       'https://boatracecsv.github.io'
       +
       '/data/programs/race_cards/'
       +
       `${yyyy}/${mm}/${dd}.csv`;
 
-
-    /*
-     * 公式出走表と今節補完を並列取得。
-     * 公式側は最大26秒。
-     */
     const [
       officialResult,
-      meetResult
+      csvResult
     ] =
       await Promise.allSettled([
         fetchText(
           officialUrl,
-          26000
+          22000
         ),
 
         fetchText(
-          meetCsvUrl,
+          csvUrl,
           12000
         )
       ]);
 
+    let racers =
+      createRacers();
+
+    let officialParsed =
+      null;
+
+    let officialError =
+      null;
 
     if (
-      officialResult.status !==
-      'fulfilled'
+      officialResult.status
+      === 'fulfilled'
     ) {
-      throw officialResult.reason;
+      officialParsed =
+        parseRaceList(
+          officialResult.value
+        );
+
+      racers =
+        officialParsed.racers;
+    } else {
+      officialError =
+        officialResult.reason
+          ?.message
+        || 'official-fetch-failed';
     }
 
+    let csvInfo = {
+      matched: false,
+      rowCount: 0
+    };
 
-    const html =
-      officialResult.value;
+    let csvError =
+      null;
 
+    if (
+      csvResult.status
+      === 'fulfilled'
+    ) {
+      csvInfo =
+        enrichFromCsv(
+          csvResult.value,
+          venue,
+          race,
+          racers
+        );
+    } else {
+      csvError =
+        csvResult.reason
+          ?.message
+        || 'csv-fetch-failed';
+    }
 
-    const parsed =
-      parseRaceList(html);
+    const parsedCount =
+      countCompleteRacers(
+        racers
+      );
 
-
-    if (!parsed.parserOk) {
+    if (
+      parsedCount !== 6
+    ) {
       return res
         .status(200)
         .json({
           ok: false,
 
           error:
-            'race-list-parser-failed',
+            'race-list-unavailable',
 
-          source:
-            'official-racelist-v6',
+          parsedCount,
 
-          transport:
-            'node-https-ipv4',
+          officialParsedCount:
+            officialParsed
+              ?.parsedCount
+            ?? 0,
 
-          htmlLength:
-            html.length,
+          officialError,
 
-          parsedCount:
-            parsed.parsedCount,
+          csvMatched:
+            csvInfo.matched,
 
-          table1Count:
-            parsed.table1Count,
+          csvRows:
+            csvInfo.rowCount,
 
-          tbodyCount:
-            parsed.tbodyCount,
+          csvError,
 
           elapsedMs:
-            Date.now() -
-            started
+            Date.now()
+            - started
         });
     }
 
+    const fallbackUsed =
+      !officialParsed
+      || !officialParsed
+        .parserOk;
 
-    let meetingDay =
-      detectMeetingDay(html);
-
-
-    let supplement = {
-      detected: false,
-      maxDay: 0,
-      matched: false,
-      rowCount: 0
-    };
-
-
-    let supplementError =
-      null;
-
-
-    if (
-      meetResult.status ===
-      'fulfilled'
-    ) {
-      supplement =
-        enrichCurrentMeetFromCsv(
-          meetResult.value,
-          venue,
-          race,
-          parsed.racers
-        );
-    } else {
-      supplementError =
-        meetResult.reason?.message ||
-        String(
-          meetResult.reason || ''
-        );
-    }
-
-
-    /*
-     * CSVを優先。
-     * CSVが取れなければ公式HTML解析。
-     */
-    let currentMeetDetected =
-      supplement.detected ||
-      parsed.currentMeetDetected;
-
-
-    let currentMeetSource =
-      supplement.detected
-        ?
-        'boatcast-race-cards'
-        :
-        parsed.currentMeetDetected
-          ?
-          'official-racelist-html'
-          :
-          null;
-
-
-    /*
-     * HTMLで開催日が取れなかった場合。
-     */
-    if (
-      meetingDay == null &&
-      supplement.maxDay > 0
-    ) {
-      meetingDay =
-        Math.min(
-          7,
-          supplement.maxDay + 1
-        );
-    }
-
-
-    /*
-     * 初日は今節成績が存在しなくて正常。
-     */
-    if (meetingDay === 1) {
-      currentMeetDetected =
-        true;
-
-      currentMeetSource =
-        'not-applicable-first-day';
-    }
-
-
-    const currentMeetCounts = {};
+    const currentMeetCounts =
+      {};
 
     let racersWithMeetData =
       0;
-
 
     for (
       let lane = 1;
@@ -1405,51 +1351,25 @@ async function handler(
       lane++
     ) {
       const count =
-        Array.isArray(
-          parsed.racers[lane]
-            .currentMeet
-        )
-          ?
-          parsed.racers[lane]
-            .currentMeet
-            .length
-          :
-          0;
+        racers[lane]
+          .currentMeet
+          .length;
 
+      currentMeetCounts[
+        lane
+      ] = count;
 
-      currentMeetCounts[lane] =
-        count;
-
-
-      if (count > 0) {
+      if (
+        count > 0
+      ) {
         racersWithMeetData++;
       }
     }
-
-
-    /*
-     * 2日目以降は、
-     * 実際に艇の今節成績が入った場合のみ
-     * 完全取得扱い。
-     */
-    if (
-      meetingDay != null &&
-      meetingDay > 1 &&
-      racersWithMeetData === 0
-    ) {
-      currentMeetDetected =
-        false;
-
-      currentMeetSource =
-        null;
-    }
-
 
     res.setHeader(
       'Cache-Control',
       'no-store'
     );
-
 
     return res
       .status(200)
@@ -1461,69 +1381,63 @@ async function handler(
 
         race,
 
-        meetingDay,
-
         source:
-          'official-racelist-v6',
+          fallbackUsed
+            ? 'boatracecsv-fallback-v7'
+            : 'official+boatracecsv-v7',
 
-        transport:
-          'node-https-ipv4',
+        fallbackUsed,
 
-        htmlLength:
-          html.length,
+        parserOk: true,
 
-        elapsedMs:
-          Date.now() -
-          started,
+        parsedCount,
 
-        parserOk:
-          parsed.parserOk,
+        officialParserOk:
+          officialParsed
+            ?.parserOk
+          ?? false,
 
-        parsedCount:
-          parsed.parsedCount,
+        officialError,
 
-        currentMeetDetected,
+        csvMatched:
+          csvInfo.matched,
 
-        currentMeetSource,
+        currentMeetDetected:
+          racersWithMeetData > 0,
+
+        currentMeetSource:
+          racersWithMeetData > 0
+            ? 'boatracecsv-race-cards'
+            : null,
 
         currentMeetCounts,
 
         racersWithMeetData,
 
-        currentMeetSupplementMatched:
-          supplement.matched,
+        elapsedMs:
+          Date.now()
+          - started,
 
-        currentMeetSupplementRows:
-          supplement.rowCount,
-
-        currentMeetSupplementError:
-          supplementError,
-
-        racers:
-          parsed.racers
+        racers
       });
+  }
 
-
-  } catch (error) {
+  catch (error) {
     return res
       .status(200)
       .json({
         ok: false,
 
         error:
-          error?.message ||
-          String(error),
-
-        code:
-          error?.code ||
-          null,
+          error?.message
+          || String(error),
 
         source:
-          'official-racelist-v6',
+          'race-v7-fallback',
 
         elapsedMs:
-          Date.now() -
-          started
+          Date.now()
+          - started
       });
   }
 };
