@@ -1,0 +1,497 @@
+name: BOAT RACE AI v10 Feature Experiment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boat-race-ai-v10-experiment
+  cancel-in-progress: false
+
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas requests
+
+      # ==========================================================
+      # 0. 実験コード検査
+      # ==========================================================
+
+      - name: Syntax check
+        run: |
+          python -m py_compile training/experiment_v10_features.py
+
+      # ==========================================================
+      # 1. v10 特徴量実験
+      #
+      # Baseline:
+      #   現行15特徴量
+      #
+      # Enhanced:
+      #   現行15特徴量
+      #   +
+      #   展示タイム相対値
+      #   展示ST相対値
+      #   進入変化
+      #   体重相対値
+      #   チルト相対値
+      #   展示F
+      #
+      # 学習 120日
+      # validation 15日
+      # final OOS test 30日
+      #
+      # 本番モデルは変更しない
+      # ==========================================================
+
+      - name: Run v10 paired OOS experiment
+        run: |
+          python training/experiment_v10_features.py \
+            --train-days 120 \
+            --validation-days 15 \
+            --test-days 30 \
+            --epochs 300 \
+            --lr 0.035 \
+            --l2 0.002 \
+            --min-train-races 500 \
+            --min-test-races 300 \
+            --output model/experiment-v10-features.json
+
+      # ==========================================================
+      # 2. 出力完全性検査
+      # ==========================================================
+
+      - name: Validate v10 experiment
+        run: |
+          python - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          path = Path(
+              "model/experiment-v10-features.json"
+          )
+
+          if not path.exists():
+              raise SystemExit(
+                  "v10 experiment output missing"
+              )
+
+          data = json.loads(
+              path.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          expected_version = (
+              "v10-live-relative-"
+              "feature-experiment"
+          )
+
+          if (
+              data.get("version")
+              != expected_version
+          ):
+              raise SystemExit(
+                  "wrong experiment version"
+              )
+
+          design = data.get(
+              "design",
+              {},
+          )
+
+          if (
+              design.get(
+                  "productionChanged"
+              )
+              is not False
+          ):
+              raise SystemExit(
+                  "production must not change"
+              )
+
+          if (
+              design.get(
+                  "pairedRaceComparison"
+              )
+              is not True
+          ):
+              raise SystemExit(
+                  "paired comparison required"
+              )
+
+          if (
+              design.get(
+                  "dataLeakageGuard"
+              )
+              is not True
+          ):
+              raise SystemExit(
+                  "data leakage guard missing"
+              )
+
+          if (
+              design.get(
+                  "fixedExhibitionBaseline680Used"
+              )
+              is not False
+          ):
+              raise SystemExit(
+                  "fixed 6.80 baseline must be disabled"
+              )
+
+          if (
+              design.get(
+                  "purchaseLogicChanged"
+              )
+              is not False
+          ):
+              raise SystemExit(
+                  "purchase logic must remain unchanged"
+              )
+
+          periods = data[
+              "periods"
+          ]
+
+          if (
+              int(
+                  periods[
+                      "validation"
+                  ][
+                      "races"
+                  ]
+              )
+              < 100
+          ):
+              raise SystemExit(
+                  "too few validation races"
+              )
+
+          if (
+              int(
+                  periods[
+                      "finalTest"
+                  ][
+                      "races"
+                  ]
+              )
+              < 300
+          ):
+              raise SystemExit(
+                  "too few final-test races"
+              )
+
+          final_test = data[
+              "finalTest"
+          ]
+
+          baseline = final_test[
+              "baseline"
+          ]
+
+          enhanced = final_test[
+              "enhanced"
+          ]
+
+          metrics = (
+              "winnerTop1",
+              "winnerTop3",
+              "logLoss",
+              "brier",
+              "trifectaTop1",
+              "trifectaTop3",
+              "trifectaTop5",
+          )
+
+          for model_name, model in (
+              (
+                  "baseline",
+                  baseline,
+              ),
+              (
+                  "enhanced",
+                  enhanced,
+              ),
+          ):
+              for metric in metrics:
+                  value = float(
+                      model[
+                          metric
+                      ]
+                  )
+
+                  if not math.isfinite(
+                      value
+                  ):
+                      raise SystemExit(
+                          f"{model_name} "
+                          f"{metric} "
+                          "is not finite"
+                      )
+
+          for metric in (
+              "winnerTop1",
+              "winnerTop3",
+              "trifectaTop1",
+              "trifectaTop3",
+              "trifectaTop5",
+          ):
+              for model in (
+                  baseline,
+                  enhanced,
+              ):
+                  value = float(
+                      model[
+                          metric
+                      ]
+                  )
+
+                  if (
+                      value < 0
+                      or
+                      value > 1
+                  ):
+                      raise SystemExit(
+                          f"invalid rate: "
+                          f"{metric}"
+                      )
+
+          print(
+              "V10 EXPERIMENT VALIDATION PASSED"
+          )
+
+          print(
+              json.dumps(
+                  {
+                      "baseline":
+                          baseline,
+
+                      "enhanced":
+                          enhanced,
+
+                      "change":
+                          final_test[
+                              "enhancedMinusBaseline"
+                          ],
+
+                      "promotionCandidate":
+                          data[
+                              "promotionCandidate"
+                          ],
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+              )
+          )
+          PY
+
+      # ==========================================================
+      # 3. 比較結果サマリー作成
+      # ==========================================================
+
+      - name: Create v10 comparison summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = Path(
+              "model/experiment-v10-features.json"
+          )
+
+          data = json.loads(
+              source.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          final_test = data[
+              "finalTest"
+          ]
+
+          baseline = final_test[
+              "baseline"
+          ]
+
+          enhanced = final_test[
+              "enhanced"
+          ]
+
+          change = final_test[
+              "enhancedMinusBaseline"
+          ]
+
+          summary = {
+              "version":
+                  "v10-feature-comparison",
+
+              "productionChanged":
+                  False,
+
+              "promotionCandidate":
+                  data[
+                      "promotionCandidate"
+                  ],
+
+              "period":
+                  data[
+                      "periods"
+                  ][
+                      "finalTest"
+                  ],
+
+              "baseline": {
+                  "winnerTop1":
+                      baseline[
+                          "winnerTop1"
+                      ],
+
+                  "winnerTop3":
+                      baseline[
+                          "winnerTop3"
+                      ],
+
+                  "trifectaTop1":
+                      baseline[
+                          "trifectaTop1"
+                      ],
+
+                  "trifectaTop3":
+                      baseline[
+                          "trifectaTop3"
+                      ],
+
+                  "trifectaTop5":
+                      baseline[
+                          "trifectaTop5"
+                      ],
+
+                  "logLoss":
+                      baseline[
+                          "logLoss"
+                      ],
+
+                  "brier":
+                      baseline[
+                          "brier"
+                      ],
+              },
+
+              "enhanced": {
+                  "winnerTop1":
+                      enhanced[
+                          "winnerTop1"
+                      ],
+
+                  "winnerTop3":
+                      enhanced[
+                          "winnerTop3"
+                      ],
+
+                  "trifectaTop1":
+                      enhanced[
+                          "trifectaTop1"
+                      ],
+
+                  "trifectaTop3":
+                      enhanced[
+                          "trifectaTop3"
+                      ],
+
+                  "trifectaTop5":
+                      enhanced[
+                          "trifectaTop5"
+                      ],
+
+                  "logLoss":
+                      enhanced[
+                          "logLoss"
+                      ],
+
+                  "brier":
+                      enhanced[
+                          "brier"
+                      ],
+              },
+
+              "change":
+                  change,
+
+              "decision":
+                  (
+                      "candidate-for-next-stage"
+                      if data[
+                          "promotionCandidate"
+                      ]
+                      else
+                      "reject-current-feature-set"
+                  ),
+          }
+
+          Path(
+              "model/comparison-v10.json"
+          ).write_text(
+              json.dumps(
+                  summary,
+                  ensure_ascii=False,
+                  indent=2,
+              ),
+              encoding="utf-8",
+          )
+
+          print(
+              "=== V10 FEATURE COMPARISON ==="
+          )
+
+          print(
+              json.dumps(
+                  summary,
+                  ensure_ascii=False,
+                  indent=2,
+              )
+          )
+          PY
+
+      # ==========================================================
+      # 4. 実験結果だけ保存
+      #
+      # model/model.json は絶対に変更しない
+      # ==========================================================
+
+      - name: Commit experiment results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            model/experiment-v10-features.json \
+            model/comparison-v10.json
+
+          if git diff --cached --quiet; then
+            echo "No experiment changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: update v10 feature experiment results"
+          git push
