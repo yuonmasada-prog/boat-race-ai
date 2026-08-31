@@ -1,0 +1,90 @@
+{
+  "champion": "production-current",
+  "history": [
+    {
+      "evaluatedAt": "2026-08-31T04:01:31.052553+00:00",
+      "experimentVersion": "v10-live-relative-feature-experiment",
+      "passedGate": true,
+      "checks": {
+        "oosRaces": true,
+        "winnerTop1": true,
+        "winnerTop3": true,
+        "trifectaTop3": true,
+        "trifectaTop5": true,
+        "logLoss": true,
+        "brier": true
+      },
+      "baseline": {
+        "races": 4266,
+        "winnerTop1": 0.5550867323019222,
+        "winnerTop3": 0.8647444913267698,
+        "logLoss": 1.2422286784842698,
+        "brier": 0.10087689629357796,
+        "trifectaTop1": 0.09540553211439287,
+        "trifectaTop3": 0.2226910454758556,
+        "trifectaTop5": 0.31247069854664794
+      },
+      "challenger": {
+        "races": 4266,
+        "winnerTop1": 0.556024378809189,
+        "winnerTop3": 0.86685419596812,
+        "logLoss": 1.227516439861908,
+        "brier": 0.1000073125393382,
+        "trifectaTop1": 0.09540553211439287,
+        "trifectaTop3": 0.22691045475855603,
+        "trifectaTop5": 0.3246601031411158
+      },
+      "addedFeatures": [
+        "ex_time_rel",
+        "ex_st_rel",
+        "course_gain",
+        "weight_rel",
+        "tilt_rel",
+        "ex_flying"
+      ]
+    }
+  ],
+  "latestChallenger": {
+    "evaluatedAt": "2026-08-31T04:01:31.052553+00:00",
+    "experimentVersion": "v10-live-relative-feature-experiment",
+    "passedGate": true,
+    "checks": {
+      "oosRaces": true,
+      "winnerTop1": true,
+      "winnerTop3": true,
+      "trifectaTop3": true,
+      "trifectaTop5": true,
+      "logLoss": true,
+      "brier": true
+    },
+    "baseline": {
+      "races": 4266,
+      "winnerTop1": 0.5550867323019222,
+      "winnerTop3": 0.8647444913267698,
+      "logLoss": 1.2422286784842698,
+      "brier": 0.10087689629357796,
+      "trifectaTop1": 0.09540553211439287,
+      "trifectaTop3": 0.2226910454758556,
+      "trifectaTop5": 0.31247069854664794
+    },
+    "challenger": {
+      "races": 4266,
+      "winnerTop1": 0.556024378809189,
+      "winnerTop3": 0.86685419596812,
+      "logLoss": 1.227516439861908,
+      "brier": 0.1000073125393382,
+      "trifectaTop1": 0.09540553211439287,
+      "trifectaTop3": 0.22691045475855603,
+      "trifectaTop5": 0.3246601031411158
+    },
+    "addedFeatures": [
+      "ex_time_rel",
+      "ex_st_rel",
+      "course_gain",
+      "weight_rel",
+      "tilt_rel",
+      "ex_flying"
+    ]
+  },
+  "candidate": "challenger-v10-live-relative"
+}
