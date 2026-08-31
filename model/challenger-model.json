@@ -1,7 +1,7 @@
 {
   "version": "challenger-v10-live-relative",
   "status": "validated-challenger",
-  "generatedAt": "2026-08-31T07:40:55.042023+00:00",
+  "generatedAt": "2026-08-31T17:44:36.894331+00:00",
   "features": [
     "lane1",
     "lane2",
@@ -95,7 +95,7 @@
     -0.0049197328020281275
   ],
   "validationEvidence": {
-    "evaluatedAt": "2026-08-31T07:40:55.042008+00:00",
+    "evaluatedAt": "2026-08-31T17:44:36.894319+00:00",
     "experimentVersion": "v10-live-relative-feature-experiment",
     "passedGate": true,
     "checks": {
