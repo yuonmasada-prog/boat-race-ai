@@ -1,0 +1,1119 @@
+name: BOAT RACE AI Promote v11
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boat-race-ai-production-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # ==========================================================
+      # 1. Pre-flight
+      # ==========================================================
+
+      - name: Pre-flight checks
+        run: |
+          set -e
+
+          test -f index.html
+          test -f api/before.js
+          test -f model/model.json
+          test -f model/automl-search.json
+          test -f model/automl-challenger.json
+          test -f training/promote_automl.py
+
+          python -m py_compile training/promote_automl.py
+
+          node --check api/before.js
+
+      # ==========================================================
+      # 2. Update runtime for v11 live features
+      #
+      # Adds:
+      #   weight
+      #   ex_time_rel
+      #   weight_rel
+      #   ex_flying
+      #
+      # Legacy v8.5 model keeps old adjustment behavior.
+      # v11 race-relative model uses model features directly.
+      # ==========================================================
+
+      - name: Upgrade runtime to v11
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          before_path = Path("api/before.js")
+          index_path = Path("index.html")
+
+          before = before_path.read_text(
+              encoding="utf-8"
+          )
+
+          index = index_path.read_text(
+              encoding="utf-8"
+          )
+
+          # ------------------------------------------------------
+          # BEFORE.JS
+          # ------------------------------------------------------
+
+          if "weight:null" not in before:
+
+              target = """    exTime:null,
+
+    tilt:null,"""
+
+              replacement = """    exTime:null,
+
+    weight:null,
+
+    tilt:null,"""
+
+              if target not in before:
+                  raise SystemExit(
+                      "before.js emptyBoat patch target not found"
+                  )
+
+              before = before.replace(
+                  target,
+                  replacement,
+                  1,
+              )
+
+          if "boat.weight=" not in before:
+
+              marker = """      const tiltCandidates=[];"""
+
+              weight_block = """
+      // v11: body weight for race-relative feature
+      const weightCandidates=[];
+
+      for(
+        const cell
+        of cells
+      ){
+
+        const text=
+          compact(
+            cell
+          );
+
+        const values=[
+          ...text.matchAll(
+            /(?:^|\\s)([4-6]\\d(?:\\.\\d+)?)(?:\\s*kg)?(?:\\s|$)/gi
+          )
+        ]
+        .map(
+          match =>
+            Number(
+              match[1]
+            )
+        )
+        .filter(
+          value =>
+            Number.isFinite(value)
+            &&
+            value >= 40
+            &&
+            value <= 69
+        );
+
+        weightCandidates.push(
+          ...values
+        );
+      }
+
+      if(
+        weightCandidates.length
+      ){
+        boat.weight=
+          weightCandidates[0];
+      }
+
+
+"""
+
+              if marker not in before:
+                  raise SystemExit(
+                      "before.js exhibition patch target not found"
+                  )
+
+              before = before.replace(
+                  marker,
+                  weight_block + marker,
+                  1,
+              )
+
+          before_path.write_text(
+              before,
+              encoding="utf-8",
+          )
+
+          # ------------------------------------------------------
+          # INDEX.HTML
+          # ------------------------------------------------------
+
+          helper_marker = """
+function modelLaneProbabilities(
+  racers
+){"""
+
+          if "function raceRelativeLiveMaps(" not in index:
+
+              helpers = r'''
+function relativeRaceValues(
+  values,
+  lowerIsBetter = false
+){
+
+  const finiteValues =
+    values
+      .map(
+        value =>
+          finite(
+            value
+          )
+      );
+
+  const available =
+    finiteValues
+      .filter(
+        value =>
+          value !== null
+      );
+
+  if(
+    available.length < 2
+  ){
+    return values.map(
+      () => null
+    );
+  }
+
+  const mean =
+    available.reduce(
+      (a,b) => a + b,
+      0
+    )
+    /
+    available.length;
+
+  const variance =
+    available.reduce(
+      (
+        sum,
+        value
+      ) =>
+        sum
+        +
+        Math.pow(
+          value - mean,
+          2
+        ),
+      0
+    )
+    /
+    available.length;
+
+  const sd =
+    Math.sqrt(
+      variance
+    );
+
+  if(
+    sd < 1e-8
+  ){
+    return finiteValues.map(
+      value =>
+        value === null
+          ? null
+          : 0
+    );
+  }
+
+  return finiteValues.map(
+    value => {
+
+      if(
+        value === null
+      ){
+        return null;
+      }
+
+      return lowerIsBetter
+        ?
+        (
+          mean - value
+        )
+        /
+        sd
+        :
+        (
+          value - mean
+        )
+        /
+        sd;
+
+    }
+  );
+
+}
+
+
+function raceRelativeLiveMaps(
+  racers,
+  before
+){
+
+  const boats =
+    racers.map(
+      racer =>
+        getBeforeBoat(
+          before,
+          Number(
+            racer.lane
+          )
+        )
+    );
+
+  const exhibitionTimes =
+    boats.map(
+      boat =>
+        finite(
+          boat?.exTime
+          ??
+          boat?.exhibitionTime
+        )
+    );
+
+  const weights =
+    boats.map(
+      boat =>
+        finite(
+          boat?.weight
+          ??
+          boat?.bodyWeight
+        )
+    );
+
+  const exTimeRel =
+    relativeRaceValues(
+      exhibitionTimes,
+      true
+    );
+
+  const weightRel =
+    relativeRaceValues(
+      weights,
+      true
+    );
+
+  return racers.map(
+    (
+      racer,
+      index
+    ) => {
+
+      const boat =
+        boats[
+          index
+        ];
+
+      const exSt =
+        finite(
+          boat?.exSt
+          ??
+          boat?.st
+        );
+
+      return{
+
+        ex_time_rel:
+          exTimeRel[
+            index
+          ],
+
+        weight_rel:
+          weightRel[
+            index
+          ],
+
+        ex_flying:
+          (
+            boat?.exFlying
+            ||
+            boat?.flying
+            ||
+            (
+              exSt !== null
+              &&
+              exSt < 0
+            )
+          )
+            ? 1
+            : 0
+
+      };
+
+    }
+  );
+
+}
+
+
+'''
+
+              if helper_marker not in index:
+                  raise SystemExit(
+                      "index helper insertion target not found"
+                  )
+
+              index = index.replace(
+                  helper_marker,
+                  helpers + helper_marker,
+                  1,
+              )
+
+          # ------------------------------------------------------
+          # Replace modelLaneProbabilities
+          # ------------------------------------------------------
+
+          model_pattern = re.compile(
+              r"""function modelLaneProbabilities\(
+  racers
+\)\{[\s\S]*?
+\}
+
+
+function getBeforeBoat\(""",
+              re.M,
+          )
+
+          new_model_function = r'''function modelLaneProbabilities(
+  racers,
+  before = null,
+  useLive = false
+){
+
+  if(
+    !trainedModel
+  ){
+
+    throw new Error(
+      'model-not-loaded'
+    );
+
+  }
+
+
+  const relativeLive =
+    (
+      useLive
+      &&
+      trainedModel.liveFeatureMode
+        ===
+        'race-relative'
+    )
+      ?
+      raceRelativeLiveMaps(
+        racers,
+        before
+      )
+      :
+      racers.map(
+        () => ({})
+      );
+
+
+  const scores =
+    racers.map(
+      (
+        racer,
+        racerIndex
+      ) => {
+
+        const raw =
+          {
+            ...rawFeatureMap(
+              racer
+            ),
+
+            ...relativeLive[
+              racerIndex
+            ]
+          };
+
+
+        let score =
+          0;
+
+
+        trainedModel.features
+          .forEach(
+            (
+              name,
+              index
+            ) => {
+
+              let value =
+                finite(
+                  raw[name]
+                );
+
+
+              if(
+                value === null
+              ){
+
+                value =
+                  trainedModel.mean[
+                    index
+                  ];
+
+              }
+
+
+              const scale =
+                Math.abs(
+                  trainedModel.scale[
+                    index
+                  ]
+                )
+                >
+                1e-9
+                  ?
+                  trainedModel.scale[
+                    index
+                  ]
+                  :
+                  1;
+
+
+              const z =
+                (
+                  value
+                  -
+                  trainedModel.mean[
+                    index
+                  ]
+                )
+                /
+                scale;
+
+
+              score +=
+                z
+                *
+                trainedModel.coefficients[
+                  index
+                ];
+
+            }
+          );
+
+
+        return score;
+
+      }
+    );
+
+
+  return softmax(
+    scores
+  );
+
+}
+
+
+function getBeforeBoat('''
+
+          match = model_pattern.search(
+              index
+          )
+
+          if not match:
+              if "racerIndex" not in index:
+                  raise SystemExit(
+                      "modelLaneProbabilities target not found"
+                  )
+          else:
+              index = (
+                  index[:match.start()]
+                  +
+                  new_model_function
+                  +
+                  index[match.end():]
+              )
+
+          # ------------------------------------------------------
+          # Replace adjustedLaneProbabilities
+          # ------------------------------------------------------
+
+          adjusted_pattern = re.compile(
+              r"""function adjustedLaneProbabilities\(
+  racers,
+  before,
+  useLive
+\)\{[\s\S]*?
+\}
+
+
+function trifectaProbabilities\(""",
+              re.M,
+          )
+
+          new_adjusted = r'''function adjustedLaneProbabilities(
+  racers,
+  before,
+  useLive
+){
+
+  const isRaceRelativeModel =
+    trainedModel?.liveFeatureMode
+    ===
+    'race-relative';
+
+
+  // v11+
+  //
+  // Live features were learned inside the model.
+  // Do NOT apply the old fixed 6.80 exhibition adjustment
+  // a second time.
+  if(
+    isRaceRelativeModel
+  ){
+
+    return modelLaneProbabilities(
+      racers,
+      before,
+      useLive
+    );
+
+  }
+
+
+  // Legacy production model
+  const base =
+    modelLaneProbabilities(
+      racers
+    );
+
+
+  if(
+    !useLive
+  ){
+
+    return base;
+
+  }
+
+
+  const scores =
+    base.map(
+      (
+        probability,
+        index
+      ) => {
+
+        const lane =
+          Number(
+            racers[index].lane
+            ||
+            index + 1
+          );
+
+
+        return(
+
+          Math.log(
+            Math.max(
+              probability,
+              1e-9
+            )
+          )
+
+          +
+
+          liveAdjustment(
+            racers[index],
+            getBeforeBoat(
+              before,
+              lane
+            )
+          )
+
+        );
+
+      }
+    );
+
+
+  return softmax(
+    scores
+  );
+
+}
+
+
+function trifectaProbabilities('''
+
+          adjusted_match = adjusted_pattern.search(
+              index
+          )
+
+          if not adjusted_match:
+              if "isRaceRelativeModel" not in index:
+                  raise SystemExit(
+                      "adjustedLaneProbabilities target not found"
+                  )
+          else:
+              index = (
+                  index[:adjusted_match.start()]
+                  +
+                  new_adjusted
+                  +
+                  index[adjusted_match.end():]
+              )
+
+          # Visible version update
+          index = index.replace(
+              "<title>BOAT RACE AI v8.5</title>",
+              "<title>BOAT RACE AI v11</title>",
+          )
+
+          index = index.replace(
+              "v8.5 / PREDICTION + BUY DECISION",
+              "v11 / AutoML + RACE-RELATIVE LIVE MODEL",
+          )
+
+          index_path.write_text(
+              index,
+              encoding="utf-8",
+          )
+
+          print(
+              "v11 runtime migration applied"
+          )
+          PY
+
+      # ==========================================================
+      # 3. Promote model
+      # ==========================================================
+
+      - name: Promote AutoML challenger
+        run: |
+          python training/promote_automl.py \
+            --report model/automl-search.json \
+            --challenger model/automl-challenger.json \
+            --production model/model.json \
+            --backup model/model.previous.json \
+            --manifest model/production-manifest.json
+
+      # ==========================================================
+      # 4. Static validation
+      # ==========================================================
+
+      - name: Validate JavaScript
+        run: |
+          node --check api/before.js
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          html = Path(
+              "index.html"
+          ).read_text(
+              encoding="utf-8"
+          )
+
+          scripts = re.findall(
+              r"<script>([\s\S]*?)</script>",
+              html,
+              flags=re.I,
+          )
+
+          if not scripts:
+              raise SystemExit(
+                  "no inline JavaScript found"
+              )
+
+          js = "\n".join(
+              scripts
+          )
+
+          with tempfile.NamedTemporaryFile(
+              suffix=".js",
+              mode="w",
+              encoding="utf-8",
+              delete=False,
+          ) as f:
+              f.write(js)
+              path = f.name
+
+          subprocess.run(
+              [
+                  "node",
+                  "--check",
+                  path,
+              ],
+              check=True,
+          )
+
+          print(
+              "index JavaScript syntax OK"
+          )
+          PY
+
+      # ==========================================================
+      # 5. Model dimension / runtime contract
+      # ==========================================================
+
+      - name: Validate production model
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          model = json.loads(
+              Path(
+                  "model/model.json"
+              ).read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          features = model.get(
+              "features",
+              []
+          )
+
+          mean = model.get(
+              "mean",
+              []
+          )
+
+          scale = model.get(
+              "scale",
+              []
+          )
+
+          coef = model.get(
+              "coefficients",
+              []
+          )
+
+          n = len(
+              features
+          )
+
+          if (
+              n != 18
+              or
+              len(mean) != n
+              or
+              len(scale) != n
+              or
+              len(coef) != n
+          ):
+              raise SystemExit(
+                  "production model dimension mismatch"
+              )
+
+          required_live = {
+              "ex_time_rel",
+              "weight_rel",
+              "ex_flying",
+          }
+
+          if not required_live.issubset(
+              set(features)
+          ):
+              raise SystemExit(
+                  "required v11 live features missing"
+              )
+
+          if (
+              model.get(
+                  "liveFeatureMode"
+              )
+              !=
+              "race-relative"
+          ):
+              raise SystemExit(
+                  "liveFeatureMode mismatch"
+              )
+
+          if (
+              model.get(
+                  "missingLivePolicy"
+              )
+              !=
+              "training-mean-neutral"
+          ):
+              raise SystemExit(
+                  "missingLivePolicy mismatch"
+              )
+
+          print(
+              "Production model contract OK"
+          )
+
+          print(
+              "Version:",
+              model.get(
+                  "version"
+              )
+          )
+
+          print(
+              "Features:",
+              n
+          )
+          PY
+
+      # ==========================================================
+      # 6. Ensure runtime actually references all v11 features
+      # ==========================================================
+
+      - name: Validate frontend feature support
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          html = Path(
+              "index.html"
+          ).read_text(
+              encoding="utf-8"
+          )
+
+          before = Path(
+              "api/before.js"
+          ).read_text(
+              encoding="utf-8"
+          )
+
+          checks = {
+              "ex_time_rel":
+                  "ex_time_rel" in html,
+
+              "weight_rel":
+                  "weight_rel" in html,
+
+              "ex_flying":
+                  "ex_flying" in html,
+
+              "relative engine":
+                  "raceRelativeLiveMaps" in html,
+
+              "double-adjustment guard":
+                  "isRaceRelativeModel" in html,
+
+              "weight API":
+                  "weight:null" in before
+                  and
+                  "boat.weight=" in before,
+          }
+
+          failed = [
+              name
+              for name, ok
+              in checks.items()
+              if not ok
+          ]
+
+          if failed:
+              raise SystemExit(
+                  "runtime feature validation failed: "
+                  +
+                  ", ".join(
+                      failed
+                  )
+              )
+
+          print(
+              "v11 runtime support OK"
+          )
+          PY
+
+      # ==========================================================
+      # 7. Verify rollback exists
+      # ==========================================================
+
+      - name: Validate rollback backup
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          previous = Path(
+              "model/model.previous.json"
+          )
+
+          manifest = Path(
+              "model/production-manifest.json"
+          )
+
+          if not previous.exists():
+              raise SystemExit(
+                  "rollback model missing"
+              )
+
+          if not manifest.exists():
+              raise SystemExit(
+                  "production manifest missing"
+              )
+
+          data = json.loads(
+              manifest.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          if not data.get(
+              "automaticRollbackReady"
+          ):
+              raise SystemExit(
+                  "rollback manifest invalid"
+              )
+
+          print(
+              "Rollback backup ready"
+          )
+          PY
+
+      # ==========================================================
+      # 8. Commit production migration
+      #
+      # Any earlier failure prevents this step,
+      # therefore main stays unchanged.
+      # ==========================================================
+
+      - name: Commit v11 production
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            index.html \
+            api/before.js \
+            model/model.json \
+            model/model.previous.json \
+            model/production-manifest.json
+
+          if git diff --cached --quiet; then
+            echo "No production changes"
+            exit 0
+          fi
+
+          git commit -m "feat: promote AutoML v11 to production"
+          git push
+
+      # ==========================================================
+      # 9. Summary
+      # ==========================================================
+
+      - name: Production summary
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          model = json.loads(
+              Path(
+                  "model/model.json"
+              ).read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          validation = model.get(
+              "validation",
+              {}
+          )
+
+          replication = model.get(
+              "replicationValidation",
+              {}
+          )
+
+          lines = [
+              "# BOAT RACE AI v11 Production",
+              "",
+              f"Active model: `{model.get('version')}`",
+              "",
+              f"Features: `{len(model.get('features', []))}`",
+              "",
+              "Live features:",
+              "",
+              *[
+                  f"- `{name}`"
+                  for name
+                  in model.get(
+                      "liveFeatures",
+                      []
+                  )
+              ],
+              "",
+              "## Latest OOS",
+              "",
+              f"- Winner Top1: {validation.get('top1Accuracy', 0)*100:.2f}%",
+              f"- Winner Top3: {validation.get('winnerInTop3', 0)*100:.2f}%",
+              f"- Trifecta Top3: {validation.get('trifectaTop3', 0)*100:.2f}%",
+              f"- Trifecta Top5: {validation.get('trifectaTop5', 0)*100:.2f}%",
+              "",
+              "## Replication OOS",
+              "",
+              f"- Winner Top1: {replication.get('winnerTop1', 0)*100:.2f}%",
+              f"- Trifecta Top3: {replication.get('trifectaTop3', 0)*100:.2f}%",
+              f"- Trifecta Top5: {replication.get('trifectaTop5', 0)*100:.2f}%",
+              "",
+              "Rollback model: `model/model.previous.json`",
+          ]
+
+          with open(
+              os.environ[
+                  "GITHUB_STEP_SUMMARY"
+              ],
+              "a",
+              encoding="utf-8",
+          ) as f:
+              f.write(
+                  "\n".join(
+                      lines
+                  )
+              )
+          PY
