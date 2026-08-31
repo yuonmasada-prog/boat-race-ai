@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<title>BOAT RACE AI v8.5</title>
+<title>BOAT RACE AI v11</title>
 
 <style>
 :root{
@@ -563,7 +563,7 @@ td:first-child{
 </h1>
 
 <div class="sub">
-  v8.5 / PREDICTION + BUY DECISION
+  v11 / AutoML + RACE-RELATIVE LIVE MODEL
 </div>
 
 
@@ -1588,33 +1588,265 @@ function rawFeatureMap(
 }
 
 
+function relativeRaceValues(
+  values,
+  lowerIsBetter = false
+){
+
+  const parsed =
+    values.map(
+      value =>
+        finite(
+          value
+        )
+    );
+
+  const available =
+    parsed.filter(
+      value =>
+        value !== null
+    );
+
+  if(
+    available.length < 2
+  ){
+    return parsed.map(
+      () => null
+    );
+  }
+
+
+  const mean =
+    available.reduce(
+      (sum,value) =>
+        sum + value,
+      0
+    )
+    /
+    available.length;
+
+
+  const variance =
+    available.reduce(
+      (
+        sum,
+        value
+      ) =>
+        sum
+        +
+        Math.pow(
+          value - mean,
+          2
+        ),
+      0
+    )
+    /
+    available.length;
+
+
+  const sd =
+    Math.sqrt(
+      variance
+    );
+
+
+  if(
+    sd < 1e-8
+  ){
+    return parsed.map(
+      value =>
+        value === null
+          ? null
+          : 0
+    );
+  }
+
+
+  return parsed.map(
+    value => {
+
+      if(
+        value === null
+      ){
+        return null;
+      }
+
+      return lowerIsBetter
+        ?
+        (
+          mean - value
+        )
+        /
+        sd
+        :
+        (
+          value - mean
+        )
+        /
+        sd;
+
+    }
+  );
+
+}
+
+
+function raceRelativeLiveMaps(
+  racers,
+  before
+){
+
+  const boats =
+    racers.map(
+      racer =>
+        getBeforeBoat(
+          before,
+          Number(
+            racer.lane
+          )
+        )
+    );
+
+
+  const exhibitionTimes =
+    boats.map(
+      boat =>
+        finite(
+          boat?.exTime
+          ??
+          boat?.exhibitionTime
+        )
+    );
+
+
+  const weights =
+    boats.map(
+      boat =>
+        finite(
+          boat?.weight
+          ??
+          boat?.bodyWeight
+        )
+    );
+
+
+  const exTimeRel =
+    relativeRaceValues(
+      exhibitionTimes,
+      true
+    );
+
+
+  const weightRel =
+    relativeRaceValues(
+      weights,
+      true
+    );
+
+
+  return racers.map(
+    (
+      racer,
+      index
+    ) => {
+
+      const boat =
+        boats[index];
+
+
+      const exhibitionSt =
+        finite(
+          boat?.exSt
+          ??
+          boat?.st
+        );
+
+
+      return{
+
+        ex_time_rel:
+          exTimeRel[index],
+
+        weight_rel:
+          weightRel[index],
+
+        ex_flying:
+          (
+            boat?.exFlying
+            ||
+            boat?.flying
+            ||
+            (
+              exhibitionSt !== null
+              &&
+              exhibitionSt < 0
+            )
+          )
+            ? 1
+            : 0
+
+      };
+
+    }
+  );
+
+}
+
+
+
 function modelLaneProbabilities(
-  racers
+  racers,
+  before = null,
+  useLive = false
 ){
 
   if(
     !trainedModel
   ){
-
     throw new Error(
       'model-not-loaded'
     );
-
   }
+
+
+  const relativeLive =
+    (
+      useLive
+      &&
+      trainedModel.liveFeatureMode
+      ===
+      'race-relative'
+    )
+      ?
+      raceRelativeLiveMaps(
+        racers,
+        before
+      )
+      :
+      racers.map(
+        () => ({})
+      );
 
 
   const scores =
     racers.map(
-      racer => {
+      (
+        racer,
+        racerIndex
+      ) => {
 
-        const raw =
-          rawFeatureMap(
+        const raw = {
+          ...rawFeatureMap(
             racer
-          );
+          ),
+
+          ...relativeLive[
+            racerIndex
+          ]
+        };
 
 
-        let score =
-          0;
+        let score = 0;
 
 
         trainedModel.features
@@ -1633,12 +1865,10 @@ function modelLaneProbabilities(
               if(
                 value === null
               ){
-
                 value =
                   trainedModel.mean[
                     index
                   ];
-
               }
 
 
@@ -1894,12 +2124,37 @@ function liveAdjustment(
 }
 
 
+
 function adjustedLaneProbabilities(
   racers,
   before,
   useLive
 ){
 
+  const raceRelativeModel =
+    trainedModel?.liveFeatureMode
+    ===
+    'race-relative';
+
+
+  // v11+
+  //
+  // 展示特徴量はモデル内部で学習済み。
+  // 旧6.80秒固定補正を二重適用しない。
+  if(
+    raceRelativeModel
+  ){
+
+    return modelLaneProbabilities(
+      racers,
+      before,
+      useLive
+    );
+
+  }
+
+
+  // legacy model
   const base =
     modelLaneProbabilities(
       racers
@@ -1909,9 +2164,7 @@ function adjustedLaneProbabilities(
   if(
     !useLive
   ){
-
     return base;
-
   }
 
 
@@ -1931,7 +2184,6 @@ function adjustedLaneProbabilities(
 
 
         return(
-
           Math.log(
             Math.max(
               probability,
@@ -1948,7 +2200,6 @@ function adjustedLaneProbabilities(
               lane
             )
           )
-
         );
 
       }

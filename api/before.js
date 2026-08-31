@@ -236,6 +236,8 @@ function emptyBoat(lane){
 
     exTime:null,
 
+    weight:null,
+
     tilt:null,
 
     parts:[],
@@ -365,6 +367,20 @@ function parseExhibition(
             value;
         }
       }
+
+      // v11 body weight
+      const weightMatch=
+        rowText.match(
+          /\b([4-6]\d(?:\.\d+)?)\s*kg\b/i
+        );
+
+      if(weightMatch){
+        boat.weight=
+          Number(
+            weightMatch[1]
+          );
+      }
+
 
       const tiltCandidates=[];
 
