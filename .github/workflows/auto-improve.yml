@@ -1,0 +1,255 @@
+name: BOAT RACE AI Auto Improve
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # 毎日 19:30 JST
+    - cron: "30 10 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boat-race-ai-auto-improve
+  cancel-in-progress: false
+
+jobs:
+  improve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas requests
+
+      # ==========================================================
+      # 0. コード検査
+      # ==========================================================
+
+      - name: Syntax check
+        run: |
+          python -m py_compile training/experiment_v10_features.py
+          python -m py_compile training/champion_challenger.py
+
+      # ==========================================================
+      # 1. 最新データでChampion vs Challenger再検証
+      #
+      # 本番model/model.jsonは変更しない
+      # ==========================================================
+
+      - name: Run latest paired OOS experiment
+        run: |
+          python training/experiment_v10_features.py \
+            --train-days 120 \
+            --validation-days 15 \
+            --test-days 30 \
+            --epochs 300 \
+            --lr 0.035 \
+            --l2 0.002 \
+            --min-train-races 500 \
+            --min-test-races 300 \
+            --output model/experiment-v10-features.json
+
+      # ==========================================================
+      # 2. 自動昇格候補判定
+      #
+      # ここでは本番反映しない。
+      # Gateを通過したモデルのみ
+      # challenger-model.jsonへ保存。
+      # ==========================================================
+
+      - name: Run champion challenger gate
+        run: |
+          python training/champion_challenger.py \
+            --experiment model/experiment-v10-features.json \
+            --registry model/model-registry.json \
+            --candidate model/challenger-model.json
+
+      # ==========================================================
+      # 3. 安全性検証
+      # ==========================================================
+
+      - name: Validate auto improvement outputs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          experiment_path = Path(
+              "model/experiment-v10-features.json"
+          )
+
+          registry_path = Path(
+              "model/model-registry.json"
+          )
+
+          if not experiment_path.exists():
+              raise SystemExit(
+                  "experiment result missing"
+              )
+
+          if not registry_path.exists():
+              raise SystemExit(
+                  "model registry missing"
+              )
+
+          experiment = json.loads(
+              experiment_path.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          registry = json.loads(
+              registry_path.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          latest = registry.get(
+              "latestChallenger"
+          )
+
+          if not latest:
+              raise SystemExit(
+                  "latest challenger record missing"
+              )
+
+          checks = latest.get(
+              "checks",
+              {}
+          )
+
+          required_checks = (
+              "oosRaces",
+              "winnerTop1",
+              "winnerTop3",
+              "trifectaTop3",
+              "trifectaTop5",
+              "logLoss",
+              "brier",
+          )
+
+          for key in required_checks:
+              if key not in checks:
+                  raise SystemExit(
+                      f"missing gate check: {key}"
+                  )
+
+          passed = bool(
+              latest.get(
+                  "passedGate"
+              )
+          )
+
+          candidate_path = Path(
+              "model/challenger-model.json"
+          )
+
+          if passed:
+              if not candidate_path.exists():
+                  raise SystemExit(
+                      "gate passed but challenger model missing"
+                  )
+
+              candidate = json.loads(
+                  candidate_path.read_text(
+                      encoding="utf-8"
+                  )
+              )
+
+              if (
+                  candidate.get(
+                      "productionPromoted"
+                  )
+                  is not False
+              ):
+                  raise SystemExit(
+                      "candidate must not auto-promote"
+                  )
+
+              if (
+                  candidate.get(
+                      "status"
+                  )
+                  != "validated-challenger"
+              ):
+                  raise SystemExit(
+                      "invalid challenger status"
+                  )
+
+          print(
+              "AUTO IMPROVEMENT VALIDATION PASSED"
+          )
+
+          print(
+              json.dumps(
+                  {
+                      "passedGate":
+                          passed,
+
+                      "checks":
+                          checks,
+
+                      "candidate":
+                          registry.get(
+                              "candidate"
+                          ),
+
+                      "productionChanged":
+                          False,
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+              )
+          )
+          PY
+
+      # ==========================================================
+      # 4. 実験結果・候補・履歴だけ保存
+      #
+      # model/model.jsonはgit addしない。
+      # ==========================================================
+
+      - name: Commit auto improvement state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            model/experiment-v10-features.json \
+            model/model-registry.json
+
+          if [ -f model/challenger-model.json ]; then
+            git add model/challenger-model.json
+          fi
+
+          if git diff --cached --quiet; then
+            echo "No auto-improvement changes"
+            exit 0
+          fi
+
+          git commit -m "chore: update automatic model challenger"
+          git push
+
+      # ==========================================================
+      # 5. 最終確認
+      # ==========================================================
+
+      - name: Final production safety check
+        run: |
+          echo "Production model was not promoted."
+          echo "Current model/model.json remains untouched."
