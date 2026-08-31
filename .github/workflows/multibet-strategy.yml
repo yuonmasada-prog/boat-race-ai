@@ -1,0 +1,292 @@
+name: BOAT RACE AI MultiBet OOS
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # Every Tuesday 03:30 JST
+    - cron: "30 18 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boat-race-ai-multibet-oos
+  cancel-in-progress: false
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas requests
+
+      - name: Syntax checks
+        run: |
+          python -m py_compile training/experiment_v10_features.py
+          python -m py_compile training/multibet_strategy_oos.py
+
+      - name: Run MultiBet OOS optimizer
+        run: |
+          python training/multibet_strategy_oos.py \
+            --days 30 \
+            --validation-days 15 \
+            --min-validation-bets 80 \
+            --min-test-bets 80 \
+            --model model/model.json \
+            --output model/multibet-strategy-oos.json \
+            --strategy model/multibet-strategy.json
+
+      - name: Validate report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path(
+              "model/multibet-strategy-oos.json"
+          )
+
+          assert path.exists()
+
+          report = json.loads(
+              path.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          assert (
+              report["productionChanged"]
+              is False
+          )
+
+          assert (
+              report["methodology"]["selection"]
+              ==
+              "validation-only"
+          )
+
+          assert (
+              report["methodology"]["test"]
+              ==
+              "frozen-after-selection"
+          )
+
+          best = report["best"]
+
+          assert best["betType"] in {
+              "trifecta",
+              "trio",
+              "exacta",
+              "quinella",
+          }
+
+          assert (
+              best["test"]["stake"]
+              >= 0
+          )
+
+          assert (
+              best["test"]["return"]
+              >= 0
+          )
+
+          print(
+              json.dumps(
+                  {
+                      "betType":
+                          best["betType"],
+
+                      "validationROI":
+                          best[
+                              "validation"
+                          ][
+                              "roi"
+                          ],
+
+                      "testROI":
+                          best[
+                              "test"
+                          ][
+                              "roi"
+                          ],
+
+                      "testHits":
+                          best[
+                              "test"
+                          ][
+                              "hits"
+                          ],
+
+                      "testTickets":
+                          best[
+                              "test"
+                          ][
+                              "tickets"
+                          ],
+
+                      "promotionCandidate":
+                          report[
+                              "promotionCandidate"
+                          ],
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+              )
+          )
+          PY
+
+      - name: Read promotion state
+        id: strategy
+        run: |
+          PROMOTION=$(python -c "import json; print(str(json.load(open('model/multibet-strategy-oos.json'))['promotionCandidate']).lower())")
+
+          echo "promotion=$PROMOTION" >> "$GITHUB_OUTPUT"
+
+          echo "Promotion candidate: $PROMOTION"
+
+      - name: Validate challenger
+        if: steps.strategy.outputs.promotion == 'true'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path(
+              "model/multibet-strategy.json"
+          )
+
+          assert path.exists()
+
+          strategy = json.loads(
+              path.read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          assert (
+              strategy["status"]
+              ==
+              "oos-positive-challenger"
+          )
+
+          assert (
+              strategy["productionPromoted"]
+              is False
+          )
+
+          assert (
+              strategy["test"]["roi"]
+              >=
+              100.0
+          )
+
+          assert (
+              strategy["test"]["profit"]
+              >
+              0
+          )
+          PY
+
+      - name: Commit OOS evaluation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            model/multibet-strategy-oos.json
+
+          if [ "${{ steps.strategy.outputs.promotion }}" = "true" ]; then
+            git add \
+              model/multibet-strategy.json
+          fi
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+
+          if [ "${{ steps.strategy.outputs.promotion }}" = "true" ]; then
+            git commit -m "feat: register profitable MultiBet challenger"
+          else
+            git commit -m "chore: update MultiBet OOS evaluation"
+          fi
+
+          git push
+
+      - name: Summary
+        run: |
+          python - <<'PY'
+          import json
+
+          report = json.load(
+              open(
+                  "model/multibet-strategy-oos.json",
+                  encoding="utf-8",
+              )
+          )
+
+          best = report["best"]
+
+          labels = {
+              "trifecta": "3連単",
+              "trio": "3連複",
+              "exacta": "2連単",
+              "quinella": "2連複",
+          }
+
+          print(
+              "Selected:",
+              labels[
+                  best["betType"]
+              ],
+          )
+
+          print(
+              "Validation ROI:",
+              round(
+                  best[
+                      "validation"
+                  ][
+                      "roi"
+                  ],
+                  2,
+              ),
+              "%",
+          )
+
+          print(
+              "Frozen test ROI:",
+              round(
+                  best[
+                      "test"
+                  ][
+                      "roi"
+                  ],
+                  2,
+              ),
+              "%",
+          )
+
+          print(
+              "Promotion candidate:",
+              report[
+                  "promotionCandidate"
+              ],
+          )
+          PY
