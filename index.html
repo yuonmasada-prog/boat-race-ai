@@ -563,7 +563,7 @@ td:first-child{
 </h1>
 
 <div class="sub">
-  v11 / AutoML + RACE-RELATIVE LIVE MODEL
+  AUTO CHAMPION / RACE-RELATIVE LIVE MODEL
 </div>
 
 
@@ -1719,6 +1719,28 @@ function raceRelativeLiveMaps(
     );
 
 
+  const exhibitionStarts =
+    boats.map(
+      boat =>
+        finite(
+          boat?.exSt
+          ??
+          boat?.st
+        )
+    );
+
+
+  const courses =
+    boats.map(
+      boat =>
+        finite(
+          boat?.exCourse
+          ??
+          boat?.course
+        )
+    );
+
+
   const weights =
     boats.map(
       boat =>
@@ -1730,9 +1752,25 @@ function raceRelativeLiveMaps(
     );
 
 
+  const tilts =
+    boats.map(
+      boat =>
+        finite(
+          boat?.tilt
+        )
+    );
+
+
   const exTimeRel =
     relativeRaceValues(
       exhibitionTimes,
+      true
+    );
+
+
+  const exStRel =
+    relativeRaceValues(
+      exhibitionStarts,
       true
     );
 
@@ -1744,37 +1782,79 @@ function raceRelativeLiveMaps(
     );
 
 
+  const tiltRel =
+    relativeRaceValues(
+      tilts,
+      false
+    );
+
+
   return racers.map(
     (
       racer,
       index
     ) => {
 
-      const boat =
-        boats[index];
+      const lane =
+        Number(
+          racer.lane
+          ??
+          index + 1
+        );
+
+
+      const course =
+        courses[
+          index
+        ];
 
 
       const exhibitionSt =
-        finite(
-          boat?.exSt
-          ??
-          boat?.st
-        );
+        exhibitionStarts[
+          index
+        ];
 
 
       return{
 
         ex_time_rel:
-          exTimeRel[index],
+          exTimeRel[
+            index
+          ],
+
+        ex_st_rel:
+          exStRel[
+            index
+          ],
+
+        course_gain:
+          course !== null
+            ?
+            (
+              lane
+              -
+              course
+            )
+            /
+            5
+            :
+            null,
 
         weight_rel:
-          weightRel[index],
+          weightRel[
+            index
+          ],
+
+        tilt_rel:
+          tiltRel[
+            index
+          ],
 
         ex_flying:
           (
-            boat?.exFlying
+            boats[index]?.exFlying
             ||
-            boat?.flying
+            boats[index]?.flying
             ||
             (
               exhibitionSt !== null
@@ -1791,7 +1871,6 @@ function raceRelativeLiveMaps(
   );
 
 }
-
 
 
 function modelLaneProbabilities(

@@ -1,31 +1,12 @@
 {
-  "promotedAt": "2026-08-31T09:24:09.080844+00:00",
-  "active": "v11-automl-challenger",
-  "previous": "v9.1-conditional-logit-production-latest",
+  "promotedAt": "2026-08-31T11:12:28.806979+00:00",
+  "active": "v12-auto-20260831-1112",
+  "previous": "v11-automl-challenger",
   "rollbackFile": "model/model.previous.json",
   "liveFeatures": [
     "ex_time_rel",
-    "weight_rel",
-    "ex_flying"
+    "ex_st_rel",
+    "course_gain"
   ],
-  "latestOOS": {
-    "top1Accuracy": 0.5586029067041726,
-    "winnerInTop3": 0.8677918424753868,
-    "trifectaTop1": 0.09306141584622597,
-    "trifectaTop3": 0.23042662916080636,
-    "trifectaTop5": 0.32770745428973275,
-    "logLoss": 1.2202734008610592,
-    "brier": 0.0994797353107683
-  },
-  "replicationOOS": {
-    "races": 4489,
-    "winnerTop1": 0.5417687680997995,
-    "winnerTop3": 0.8654488750278458,
-    "logLoss": 1.252923453936616,
-    "brier": 0.1020107191874579,
-    "trifectaTop1": 0.0833147694364001,
-    "trifectaTop3": 0.2131877923813767,
-    "trifectaTop5": 0.3031855647137447
-  },
   "automaticRollbackReady": true
 }

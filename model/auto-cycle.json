@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-08-31T11:12:28.806979+00:00",
+  "promoted": true,
+  "previousChampion": "v11-automl-challenger",
+  "newChampion": "v12-auto-20260831-1112",
+  "liveFeatures": [
+    "ex_time_rel",
+    "ex_st_rel",
+    "course_gain"
+  ],
+  "championLatest": {
+    "races": 4266,
+    "winnerTop1": 0.5586029067041726,
+    "winnerTop3": 0.8677918424753868,
+    "logLoss": 1.2202734008610592,
+    "brier": 0.0994797353107683,
+    "trifectaTop1": 0.09306141584622597,
+    "trifectaTop3": 0.23042662916080636,
+    "trifectaTop5": 0.32770745428973275
+  },
+  "challengerLatest": {
+    "races": 4266,
+    "winnerTop1": 0.5593061415846226,
+    "winnerTop3": 0.8689639006094703,
+    "logLoss": 1.2186873149513553,
+    "brier": 0.09934429939594658,
+    "trifectaTop1": 0.09587435536802626,
+    "trifectaTop3": 0.23394280356305672,
+    "trifectaTop5": 0.33098921706516643
+  },
+  "challengerReplication": {
+    "races": 4489,
+    "winnerTop1": 0.5413232345734017,
+    "winnerTop3": 0.8705725105814213,
+    "logLoss": 1.2498367354260498,
+    "brier": 0.10188219334136064,
+    "trifectaTop1": 0.08442860325239475,
+    "trifectaTop3": 0.215415460013366,
+    "trifectaTop5": 0.3027400311873468
+  },
+  "robustnessScore": 1.5089297428450406
+}
