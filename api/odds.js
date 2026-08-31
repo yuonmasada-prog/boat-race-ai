@@ -2,10 +2,12 @@ const https = require('node:https');
 const dns = require('node:dns');
 
 const VENUES={
-  '01':'桐生','02':'戸田','03':'江戸川','04':'平和島','05':'多摩川','06':'浜名湖',
-  '07':'蒲郡','08':'常滑','09':'津','10':'三国','11':'びわこ','12':'住之江',
-  '13':'尼崎','14':'鳴門','15':'丸亀','16':'児島','17':'宮島','18':'徳山',
-  '19':'下関','20':'若松','21':'芦屋','22':'福岡','23':'唐津','24':'大村'
+  '01':'桐生','02':'戸田','03':'江戸川','04':'平和島',
+  '05':'多摩川','06':'浜名湖','07':'蒲郡','08':'常滑',
+  '09':'津','10':'三国','11':'びわこ','12':'住之江',
+  '13':'尼崎','14':'鳴門','15':'丸亀','16':'児島',
+  '17':'宮島','18':'徳山','19':'下関','20':'若松',
+  '21':'芦屋','22':'福岡','23':'唐津','24':'大村'
 };
 
 const ORDER=[
@@ -124,28 +126,16 @@ function fetchOfficial(
 
             headers:{
               'User-Agent':
-                'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+                'Mozilla/5.0',
 
               'Accept':
-                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-
-              'Accept-Language':
-                'ja-JP,ja;q=0.9',
+                'text/html,*/*',
 
               'Accept-Encoding':
                 'identity',
 
-              'Cache-Control':
-                'no-cache',
-
-              'Pragma':
-                'no-cache',
-
               'Connection':
-                'close',
-
-              'Referer':
-                'https://www.boatrace.jp/'
+                'close'
             }
           },
 
@@ -155,9 +145,8 @@ function fetchOfficial(
 
             response.on(
               'data',
-              chunk=>{
-                chunks.push(chunk);
-              }
+              chunk=>
+                chunks.push(chunk)
             );
 
             response.on(
@@ -171,24 +160,22 @@ function fetchOfficial(
                 settled=true;
 
                 const body=
-                  Buffer
-                    .concat(chunks)
-                    .toString('utf8');
+                  Buffer.concat(
+                    chunks
+                  ).toString(
+                    'utf8'
+                  );
 
                 if(
-                  response.statusCode < 200 ||
+                  response.statusCode < 200
+                  ||
                   response.statusCode >= 300
                 ){
-
-                  const error=
+                  return reject(
                     new Error(
                       `HTTP ${response.statusCode}`
-                    );
-
-                  error.code=
-                    'UPSTREAM_HTTP';
-
-                  return reject(error);
+                    )
+                  );
                 }
 
                 resolve(body);
@@ -200,16 +187,11 @@ function fetchOfficial(
       req.setTimeout(
         timeoutMs,
         ()=>{
-
-          const error=
+          req.destroy(
             new Error(
               'official-request-timeout'
-            );
-
-          error.code=
-            'UPSTREAM_TIMEOUT';
-
-          req.destroy(error);
+            )
+          );
         }
       );
 
@@ -223,7 +205,153 @@ function fetchOfficial(
   );
 }
 
-function parseOdds(html){
+async function fetchText(
+  url,
+  timeoutMs=10000
+){
+  const controller=
+    new AbortController();
+
+  const timer=
+    setTimeout(
+      ()=>controller.abort(),
+      timeoutMs
+    );
+
+  try{
+
+    const response=
+      await fetch(
+        url,
+        {
+          signal:
+            controller.signal,
+
+          cache:
+            'no-store'
+        }
+      );
+
+    if(
+      !response.ok
+    ){
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+    return await response.text();
+
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+function parseCsvLine(line){
+  const cells=[];
+  let current='';
+  let quoted=false;
+
+  for(
+    let i=0;
+    i<line.length;
+    i++
+  ){
+    const char=
+      line[i];
+
+    if(char === '"'){
+
+      if(
+        quoted
+        &&
+        line[i+1] === '"'
+      ){
+        current += '"';
+        i++;
+      }else{
+        quoted=
+          !quoted;
+      }
+
+      continue;
+    }
+
+    if(
+      char === ','
+      &&
+      !quoted
+    ){
+      cells.push(current);
+      current='';
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current);
+
+  return cells;
+}
+
+function parseCsv(text){
+  const lines=
+    String(text || '')
+      .replace(
+        /^\uFEFF/,
+        ''
+      )
+      .split(
+        /\r?\n/
+      )
+      .filter(
+        line =>
+          line.trim()
+      );
+
+  if(
+    lines.length < 2
+  ){
+    return [];
+  }
+
+  const headers=
+    parseCsvLine(
+      lines[0]
+    );
+
+  return lines
+    .slice(1)
+    .map(
+      line => {
+
+        const cells=
+          parseCsvLine(
+            line
+          );
+
+        const row={};
+
+        headers.forEach(
+          (
+            header,
+            index
+          )=>{
+            row[header]=
+              cells[index]
+              ?? '';
+          }
+        );
+
+        return row;
+      }
+    );
+}
+
+function parseTrifecta(
+  html
+){
   const values=[];
 
   const regex=
@@ -237,16 +365,12 @@ function parseOdds(html){
         regex.exec(html)
     )
   ){
-
-    const value=
+    values.push(
       toNumber(
         clean(
           match[1]
         )
-      );
-
-    values.push(
-      value
+      )
     );
   }
 
@@ -266,36 +390,117 @@ function parseOdds(html){
       values[index];
 
     if(
-      !Number.isFinite(odd) ||
+      !Number.isFinite(odd)
+      ||
       odd < 1
     ){
       continue;
     }
 
-    const combination=
+    const combo=
       String(
         ORDER[index]
       );
 
     odds[
-      `${combination[0]}-${combination[1]}-${combination[2]}`
+      `${combo[0]}-${combo[1]}-${combo[2]}`
     ]=
       odd;
   }
 
-  return {
+  return{
     odds,
-    rawOddsPointCount:
+    count:
+      Object.keys(
+        odds
+      ).length,
+    rawCount:
       values.length
   };
 }
 
-function createMarketProbabilities(
+function raceCode(
+  date,
+  venue,
+  race
+){
+  return(
+    date
+    +
+    venue
+    +
+    String(
+      race
+    ).padStart(
+      2,
+      '0'
+    )
+  );
+}
+
+function extractOdds(
+  row,
+  prefix
+){
+  const result={};
+
+  if(!row){
+    return result;
+  }
+
+  for(
+    const [
+      key,
+      raw
+    ]
+    of Object.entries(
+      row
+    )
+  ){
+
+    if(
+      !key.startsWith(
+        prefix
+      )
+    ){
+      continue;
+    }
+
+    const odd=
+      toNumber(raw);
+
+    if(
+      odd === null
+      ||
+      odd <= 0
+    ){
+      continue;
+    }
+
+    const combo=
+      key
+        .slice(
+          prefix.length
+        )
+        .replace(
+          /=/g,
+          '='
+        );
+
+    result[
+      combo
+    ]=
+      odd;
+  }
+
+  return result;
+}
+
+function marketProbabilities(
   odds
 ){
-  const inverse={};
-
   let total=0;
+  const inverse={};
 
   for(
     const [
@@ -303,15 +508,15 @@ function createMarketProbabilities(
       odd
     ]
     of Object.entries(
-      odds
+      odds || {}
     )
   ){
 
     if(
-      Number.isFinite(odd) &&
+      Number.isFinite(odd)
+      &&
       odd > 0
     ){
-
       inverse[combo]=
         1 / odd;
 
@@ -320,7 +525,7 @@ function createMarketProbabilities(
     }
   }
 
-  const probabilities={};
+  const output={};
 
   for(
     const [
@@ -331,14 +536,13 @@ function createMarketProbabilities(
       inverse
     )
   ){
-
-    probabilities[combo]=
+    output[combo]=
       total
         ? value / total
         : 0;
   }
 
-  return probabilities;
+  return output;
 }
 
 module.exports=
@@ -353,7 +557,8 @@ async function handler(
 
     const date=
       String(
-        req.query.date ||
+        req.query.date
+        ||
         ''
       )
       .replace(
@@ -363,7 +568,8 @@ async function handler(
 
     const venue=
       String(
-        req.query.venue ||
+        req.query.venue
+        ||
         ''
       )
       .padStart(
@@ -373,92 +579,169 @@ async function handler(
 
     const race=
       Number(
-        req.query.race ||
+        req.query.race
+        ||
         1
       );
 
     if(
-      !/^\d{8}$/.test(date) ||
-      !VENUES[venue] ||
-      !Number.isInteger(race) ||
-      race < 1 ||
+      !/^\d{8}$/.test(date)
+      ||
+      !VENUES[venue]
+      ||
+      !Number.isInteger(race)
+      ||
+      race < 1
+      ||
       race > 12
     ){
-
       return res
         .status(400)
         .json({
           ok:false,
-          error:'入力値が不正です'
+          error:
+            '入力値が不正です'
         });
     }
 
-    const url=
+    const officialUrl=
       `https://www.boatrace.jp/owpc/pc/race/odds3t?rno=${race}&jcd=${venue}&hd=${date}`;
 
-    const html=
-      await fetchOfficial(
-        url,
-        20000
+    const yyyy=
+      date.slice(0,4);
+
+    const mm=
+      date.slice(4,6);
+
+    const dd=
+      date.slice(6,8);
+
+    const base=
+      'https://boatracecsv.github.io/data/previews';
+
+    const code=
+      raceCode(
+        date,
+        venue,
+        race
       );
 
-    const parsed=
-      parseOdds(
-        html
-      );
+    const [
+      officialResult,
+      od1Result,
+      od2Result
+    ]=
+      await Promise.allSettled([
 
-    const odds=
-      parsed.odds;
+        fetchOfficial(
+          officialUrl,
+          20000
+        ),
 
-    const oddsCount=
-      Object
-        .keys(
-          odds
+        fetchText(
+          `${base}/od1/${yyyy}/${mm}/${dd}.csv`
+        ),
+
+        fetchText(
+          `${base}/od2/${yyyy}/${mm}/${dd}.csv`
         )
-        .length;
+
+      ]);
+
+    let odds={};
+    let officialCount=0;
+    let rawCount=0;
 
     if(
-      parsed.rawOddsPointCount !== 120 ||
-      oddsCount < 100
+      officialResult.status
+      ===
+      'fulfilled'
     ){
 
-      return res
-        .status(200)
-        .json({
-          ok:false,
+      const parsed=
+        parseTrifecta(
+          officialResult.value
+        );
 
-          venueName:
-            VENUES[venue],
+      odds=
+        parsed.odds;
 
-          race,
+      officialCount=
+        parsed.count;
 
-          source:
-            'official-odds3t-v4',
-
-          transport:
-            'node-https-ipv4',
-
-          htmlLength:
-            html.length,
-
-          rawOddsPointCount:
-            parsed.rawOddsPointCount,
-
-          oddsCount,
-
-          error:
-            'odds-incomplete',
-
-          elapsedMs:
-            Date.now() -
-            started
-        });
+      rawCount=
+        parsed.rawCount;
     }
 
-    const marketProbabilities=
-      createMarketProbabilities(
-        odds
+    let row1=null;
+    let row2=null;
+
+    if(
+      od1Result.status
+      ===
+      'fulfilled'
+    ){
+      row1=
+        parseCsv(
+          od1Result.value
+        )
+        .find(
+          row =>
+            String(
+              row['レースコード']
+              ||
+              ''
+            )
+            ===
+            code
+        )
+        ||
+        null;
+    }
+
+    if(
+      od2Result.status
+      ===
+      'fulfilled'
+    ){
+      row2=
+        parseCsv(
+          od2Result.value
+        )
+        .find(
+          row =>
+            String(
+              row['レースコード']
+              ||
+              ''
+            )
+            ===
+            code
+        )
+        ||
+        null;
+    }
+
+    const odds3f=
+      extractOdds(
+        row1,
+        '3連複_'
       );
+
+    const odds2t=
+      extractOdds(
+        row2,
+        '2連単_'
+      );
+
+    const odds2f=
+      extractOdds(
+        row2,
+        '2連複_'
+      );
+
+    const ok=
+      officialCount >= 100;
 
     res.setHeader(
       'Cache-Control',
@@ -468,7 +751,8 @@ async function handler(
     return res
       .status(200)
       .json({
-        ok:true,
+
+        ok,
 
         venueName:
           VENUES[venue],
@@ -476,53 +760,94 @@ async function handler(
         race,
 
         source:
-          'official-odds3t-v4',
+          'official-3t+boatracecsv-multibet-v12',
 
-        transport:
-          'node-https-ipv4',
-
-        htmlLength:
-          html.length,
+        oddsCount:
+          officialCount,
 
         rawOddsPointCount:
-          parsed.rawOddsPointCount,
-
-        oddsCount,
+          rawCount,
 
         odds,
 
-        marketProbabilities,
+        marketProbabilities:
+          marketProbabilities(
+            odds
+          ),
+
+        odds3f,
+        odds2t,
+        odds2f,
+
+        market3f:
+          marketProbabilities(
+            odds3f
+          ),
+
+        market2t:
+          marketProbabilities(
+            odds2t
+          ),
+
+        market2f:
+          marketProbabilities(
+            odds2f
+          ),
+
+        multibetReady:
+          (
+            Object.keys(
+              odds3f
+            ).length > 0
+            &&
+            Object.keys(
+              odds2t
+            ).length > 0
+            &&
+            Object.keys(
+              odds2f
+            ).length > 0
+          ),
+
+        counts:{
+          trifecta:
+            Object.keys(
+              odds
+            ).length,
+
+          trio:
+            Object.keys(
+              odds3f
+            ).length,
+
+          exacta:
+            Object.keys(
+              odds2t
+            ).length,
+
+          quinella:
+            Object.keys(
+              odds2f
+            ).length
+        },
 
         elapsedMs:
-          Date.now() -
+          Date.now()
+          -
           started
+
       });
 
   }catch(error){
 
     return res
-      .status(200)
+      .status(500)
       .json({
         ok:false,
-
         error:
-          error?.code ===
-          'UPSTREAM_TIMEOUT'
-            ?
-            'odds-data-timeout'
-            :
-            (
-              error?.message ||
-              String(error)
-            ),
-
-        code:
-          error?.code ||
-          null,
-
-        elapsedMs:
-          Date.now() -
-          started
+          error.message
+          ||
+          'odds-error'
       });
   }
 };

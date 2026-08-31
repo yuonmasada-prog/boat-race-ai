@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<title>BOAT RACE AI v11</title>
+<title>BOAT RACE AI v12 MultiBet</title>
 
 <style>
 :root{
@@ -563,7 +563,7 @@ td:first-child{
 </h1>
 
 <div class="sub">
-  AUTO CHAMPION / RACE-RELATIVE LIVE MODEL
+  AUTO CHAMPION / MULTI-BET STRATEGY
 </div>
 
 
@@ -794,12 +794,12 @@ td:first-child{
   >
 
     <div class="box-title">
-      3連単予想
+      券種別AI予想
     </div>
 
     <div class="sub">
-      購入・見送りに関係なく
-      必ず表示します。
+      3連単・3連複・2連単・2連複を比較し、
+      購入・見送りに関係なく表示します。
     </div>
 
     <div id="predictions"></div>
@@ -849,7 +849,7 @@ td:first-child{
 
       <div class="metric">
         <small>
-          3連単1位評価
+          推奨券種1位評価
         </small>
         <b id="topComboScore">
           -
@@ -2795,6 +2795,685 @@ function predictionTop4(
 }
 
 
+function aggregateBetProbabilities(
+  trifecta
+){
+
+  const trio={};
+  const exacta={};
+  const quinella={};
+
+  for(
+    const [
+      combo,
+      probability
+    ]
+    of Object.entries(
+      trifecta
+    )
+  ){
+
+    const boats=
+      combo
+        .replace(
+          /-/g,
+          ''
+        )
+        .split('')
+        .map(Number);
+
+    if(
+      boats.length !== 3
+    ){
+      continue;
+    }
+
+    const [
+      first,
+      second
+    ]=
+      boats;
+
+    const trioKey=
+      [...boats]
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            a - b
+        )
+        .join('=');
+
+    const exactaKey=
+      `${first}-${second}`;
+
+    const quinellaKey=
+      [
+        first,
+        second
+      ]
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            a - b
+        )
+        .join('=');
+
+    trio[trioKey]=
+      (
+        trio[trioKey]
+        ||
+        0
+      )
+      +
+      probability;
+
+    exacta[exactaKey]=
+      (
+        exacta[exactaKey]
+        ||
+        0
+      )
+      +
+      probability;
+
+    quinella[quinellaKey]=
+      (
+        quinella[quinellaKey]
+        ||
+        0
+      )
+      +
+      probability;
+  }
+
+  return{
+    trifecta,
+    trio,
+    exacta,
+    quinella
+  };
+}
+
+
+function betTypeDefinitions(){
+
+  return{
+
+    trifecta:{
+      label:
+        '3連単',
+      uniform:
+        1 / 120,
+      safer:
+        0.94
+    },
+
+    trio:{
+      label:
+        '3連複',
+      uniform:
+        1 / 20,
+      safer:
+        1.08
+    },
+
+    exacta:{
+      label:
+        '2連単',
+      uniform:
+        1 / 30,
+      safer:
+        1.02
+    },
+
+    quinella:{
+      label:
+        '2連複',
+      uniform:
+        1 / 15,
+      safer:
+        1.12
+    }
+
+  };
+
+}
+
+
+function oddsForType(
+  oddsData,
+  type
+){
+
+  if(
+    type ===
+    'trifecta'
+  ){
+    return(
+      oddsData?.odds
+      ||
+      {}
+    );
+  }
+
+  if(
+    type ===
+    'trio'
+  ){
+    return(
+      oddsData?.odds3f
+      ||
+      {}
+    );
+  }
+
+  if(
+    type ===
+    'exacta'
+  ){
+    return(
+      oddsData?.odds2t
+      ||
+      {}
+    );
+  }
+
+  return(
+    oddsData?.odds2f
+    ||
+    {}
+  );
+
+}
+
+
+function marketForType(
+  oddsData,
+  type
+){
+
+  if(
+    type ===
+    'trifecta'
+  ){
+    return(
+      oddsData?.marketProbabilities
+      ||
+      {}
+    );
+  }
+
+  if(
+    type ===
+    'trio'
+  ){
+    return(
+      oddsData?.market3f
+      ||
+      {}
+    );
+  }
+
+  if(
+    type ===
+    'exacta'
+  ){
+    return(
+      oddsData?.market2t
+      ||
+      {}
+    );
+  }
+
+  return(
+    oddsData?.market2f
+    ||
+    {}
+  );
+
+}
+
+
+function formatBetCombo(
+  combo
+){
+  return String(
+    combo
+  );
+}
+
+
+function multiBetRecommendation(
+  modelTrifecta,
+  oddsData
+){
+
+  const definitions=
+    betTypeDefinitions();
+
+  const models=
+    aggregateBetProbabilities(
+      modelTrifecta
+    );
+
+  const candidates=[];
+
+  for(
+    const type
+    of Object.keys(
+      definitions
+    )
+  ){
+
+    const pure=
+      models[type];
+
+    const market=
+      marketForType(
+        oddsData,
+        type
+      );
+
+    const combined=
+      Object.keys(
+        market
+      ).length
+        ?
+        combineMarket(
+          pure,
+          market
+        )
+        :
+        pure;
+
+    const odds=
+      oddsForType(
+        oddsData,
+        type
+      );
+
+    const ranked=
+      rankPredictions(
+        combined,
+        pure,
+        odds
+      );
+
+    const first=
+      ranked[0]
+      ||
+      null;
+
+    const second=
+      ranked[1]
+      ||
+      null;
+
+    if(!first){
+      continue;
+    }
+
+    const margin=
+      second
+        ?
+        Math.max(
+          first.p
+          -
+          second.p,
+          0
+        )
+        :
+        first.p;
+
+    const definition=
+      definitions[
+        type
+      ];
+
+    const concentration=
+      first.p
+      /
+      definition.uniform;
+
+    const marginStrength=
+      margin
+      /
+      definition.uniform;
+
+    const oddsReady=
+      first.odd !== null;
+
+    const score=
+      (
+        Math.log(
+          1
+          +
+          Math.max(
+            concentration,
+            0
+          )
+        )
+        *
+        definition.safer
+      )
+      +
+      Math.min(
+        marginStrength,
+        4
+      )
+      *
+      0.10
+      +
+      (
+        oddsReady
+          ?
+          0.08
+          :
+          0
+      );
+
+    candidates.push({
+
+      type,
+
+      label:
+        definition.label,
+
+      ranked,
+
+      pure,
+
+      combined,
+
+      market,
+
+      odds,
+
+      top:
+        first,
+
+      margin,
+
+      score
+
+    });
+
+  }
+
+  candidates.sort(
+    (
+      a,
+      b
+    ) =>
+      b.score
+      -
+      a.score
+  );
+
+  return{
+
+    recommended:
+      candidates[0]
+      ||
+      null,
+
+    types:
+      candidates
+
+  };
+
+}
+
+
+function chooseMultiBets(
+  recommendation,
+  budget
+){
+
+  const recommended=
+    recommendation?.recommended;
+
+  if(
+    !recommended
+    ||
+    budget < 100
+  ){
+    return [];
+  }
+
+  const definition=
+    betTypeDefinitions()[
+      recommended.type
+    ];
+
+  const minimumProbability=
+    definition.uniform
+    *
+    1.45;
+
+  const candidates=
+    recommended.ranked
+
+      .filter(
+        item =>
+          item.odd !== null
+          &&
+          item.odd >= 1
+          &&
+          item.odd <= 200
+          &&
+          item.p >=
+            minimumProbability
+      )
+
+      .map(
+        item => ({
+          ...item,
+
+          betType:
+            recommended.type,
+
+          betTypeLabel:
+            recommended.label,
+
+          score:
+            item.p
+            *
+            Math.min(
+              Math.sqrt(
+                item.odd
+              ),
+              8
+            )
+        })
+      )
+
+      .sort(
+        (
+          a,
+          b
+        ) =>
+          b.score
+          -
+          a.score
+      );
+
+  if(
+    !candidates.length
+  ){
+    return [];
+  }
+
+  const units=
+    Math.floor(
+      budget / 100
+    );
+
+  let count=1;
+
+  if(
+    units >= 4
+  ){
+    count=2;
+  }
+
+  if(
+    units >= 8
+  ){
+    count=3;
+  }
+
+  const selected=
+    candidates.slice(
+      0,
+      count
+    );
+
+  let remaining=
+    units * 100;
+
+  selected.forEach(
+    (
+      item,
+      index
+    )=>{
+
+      const slots=
+        selected.length
+        -
+        index;
+
+      const amount=
+        index ===
+        selected.length - 1
+          ?
+          remaining
+          :
+          Math.max(
+            100,
+            Math.floor(
+              remaining
+              /
+              slots
+              /
+              100
+            )
+            *
+            100
+          );
+
+      item.amount=
+        amount;
+
+      remaining -=
+        amount;
+    }
+  );
+
+  return selected;
+
+}
+
+
+function renderMultiPredictions(
+  recommendation,
+  mode
+){
+
+  const items=
+    recommendation?.types
+    ||
+    [];
+
+  $('predictionArea')
+    .classList
+    .remove(
+      'hidden'
+    );
+
+  $('predictions').innerHTML=
+    items
+      .map(
+        item => {
+
+          const recommended=
+            recommendation
+              ?.recommended
+              ?.type
+            ===
+            item.type;
+
+          return`
+            <div class="prediction">
+
+              <div class="prediction-top">
+
+                <div class="prediction-label">
+                  ${
+                    recommended
+                      ?
+                      '◎ AI推奨券種'
+                      :
+                      '比較'
+                  }
+                  ・${item.label}
+                </div>
+
+                <div class="prediction-score">
+                  券種適合
+                  ${
+                    item.score
+                      .toFixed(2)
+                  }
+                </div>
+
+              </div>
+
+              <div class="combo">
+                ${
+                  formatBetCombo(
+                    item.top.combo
+                  )
+                }
+              </div>
+
+              <div class="sub">
+                モデル評価
+                ${pct(item.top.p)}
+
+                ${
+                  item.top.odd !== null
+                    ?
+                    ` / オッズ ${
+                      item.top.odd
+                        .toFixed(1)
+                    }倍`
+                    :
+                    ''
+                }
+
+                ${
+                  mode === 'pre'
+                    ?
+                    ' / 暫定'
+                    :
+                    ''
+                }
+              </div>
+
+            </div>
+          `;
+        }
+      )
+      .join('');
+
+}
+
+
 function chooseBets(
   probability,
   modelProbability,
@@ -3165,7 +3844,7 @@ function purchaseDecision(
   ){
 
     reasons.push(
-      '3連単1位評価が基準3.0%未満'
+      '推奨券種1位評価が基準3.0%未満'
     );
 
   }
@@ -3737,13 +4416,10 @@ function renderPicks(
         'hidden'
       );
 
-
     $('picks').innerHTML =
       '';
 
-
     return;
-
   }
 
 
@@ -3755,11 +4431,9 @@ function renderPicks(
 
 
   const labels = [
-
     '◎ 購入本線',
     '○ 購入対抗',
     '△ 購入押さえ'
-
   ];
 
 
@@ -3803,6 +4477,8 @@ function renderPicks(
                 '購入候補'
               }
 
+              ・${pick.betTypeLabel || '3連単'}
+
               ${
                 mode === 'pre'
                   ?
@@ -3817,9 +4493,9 @@ function renderPicks(
             <div class="combo">
 
               ${
-                pick.combo
-                  .split('')
-                  .join('-')
+                formatBetCombo(
+                  pick.combo
+                )
               }
 
             </div>
@@ -3862,11 +4538,9 @@ function renderPicks(
                   市場基準
                 </small>
                 <b>
-                  ${
-                    pct(
-                      marketProbability
-                    )
-                  }
+                  ${pct(
+                    marketProbability
+                  )}
                 </b>
               </div>
 
@@ -4464,6 +5138,18 @@ async function analyzeRace(
       );
 
 
+    const recommendation =
+      multiBetRecommendation(
+        modelTrifecta,
+        oddsData
+      );
+
+
+    const recommendedType =
+      recommendation
+        ?.recommended;
+
+
     const predictions =
       predictionTop4(
         ranked
@@ -4471,14 +5157,9 @@ async function analyzeRace(
 
 
     const selected =
-      chooseBets(
-        combined,
-        modelTrifecta,
-        oddsData?.odds
-        ||
-        {},
-        budget,
-        data.oddsOk
+      chooseMultiBets(
+        recommendation,
+        budget
       );
 
 
@@ -4510,18 +5191,27 @@ async function analyzeRace(
 
     const decision =
       purchaseDecision(
+        recommendedType?.ranked
+        ||
         ranked,
         selected,
         laneProbability,
-        data.oddsOk,
+        Boolean(
+          recommendedType
+          &&
+          Object.keys(
+            recommendedType.odds
+            ||
+            {}
+          ).length
+        ),
         budget
       );
 
 
-    renderPredictions(
-      predictions,
-      mode,
-      data.oddsOk
+    renderMultiPredictions(
+      recommendation,
+      mode
     );
 
 
@@ -4533,9 +5223,21 @@ async function analyzeRace(
 
     renderPicks(
       selected,
+      recommendedType?.market
+      ||
       market,
       mode
     );
+
+
+    $('reason').textContent =
+      recommendedType
+        ?
+        `AI推奨券種: ${
+          recommendedType.label
+        }。着順固定の強さと着順不確実性を比較して券種を選択しています。`
+        :
+        '';
 
 
     renderRows(
