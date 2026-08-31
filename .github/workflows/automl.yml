@@ -1,42 +1,36 @@
-name: BOAT RACE AI AutoML
+name: BOAT RACE AI Autonomous Improvement
 
 on:
   workflow_dispatch:
     inputs:
       candidates:
-        description: "Number of model candidates"
+        description: "Number of AutoML candidates"
         required: false
-        default: "24"
+        default: "64"
 
       top_k:
-        description: "Finalists for OOS replication"
+        description: "OOS finalists"
         required: false
-        default: "5"
+        default: "8"
 
   schedule:
-    # 毎週月曜 03:30 JST
+    # Every Monday 03:30 JST
     - cron: "30 18 * * 0"
 
 permissions:
   contents: write
 
 concurrency:
-  group: boat-race-ai-automl
+  group: boat-race-ai-autonomous-improvement
   cancel-in-progress: false
 
 jobs:
-  automl:
+  improve:
     runs-on: ubuntu-latest
-
-    # 候補探索＋2期間OOSなので余裕を持たせる
     timeout-minutes: 180
 
     steps:
-      # ==========================================================
-      # 0. Repository
-      # ==========================================================
-
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -47,34 +41,17 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install numpy pandas requests
 
-      # ==========================================================
-      # 1. Safety checks
-      # ==========================================================
-
-      - name: Syntax check
-        run: |
-          python -m py_compile training/experiment_v10_features.py
-          python -m py_compile training/automl_search.py
-          python -m py_compile training/champion_challenger.py
-
-      # ==========================================================
-      # 2. Resolve search size
-      #
-      # Scheduled run:
-      #   24 candidates
-      #
-      # Manual:
-      #   workflow_dispatch input
-      #
-      # 上限96。
-      # ==========================================================
-
-      - name: Resolve AutoML configuration
+      - name: Resolve configuration
         id: config
         shell: bash
         run: |
@@ -82,20 +59,18 @@ jobs:
           TOP_K="${{ github.event.inputs.top_k }}"
 
           if [ -z "$CANDIDATES" ]; then
-            CANDIDATES="24"
+            CANDIDATES="64"
           fi
 
           if [ -z "$TOP_K" ]; then
-            TOP_K="5"
+            TOP_K="8"
           fi
 
           if ! [[ "$CANDIDATES" =~ ^[0-9]+$ ]]; then
-            echo "Invalid candidates input"
             exit 1
           fi
 
           if ! [[ "$TOP_K" =~ ^[0-9]+$ ]]; then
-            echo "Invalid top_k input"
             exit 1
           fi
 
@@ -107,8 +82,8 @@ jobs:
             CANDIDATES="96"
           fi
 
-          if [ "$TOP_K" -lt 1 ]; then
-            TOP_K="1"
+          if [ "$TOP_K" -lt 2 ]; then
+            TOP_K="2"
           fi
 
           if [ "$TOP_K" -gt 10 ]; then
@@ -118,22 +93,12 @@ jobs:
           echo "candidates=$CANDIDATES" >> "$GITHUB_OUTPUT"
           echo "top_k=$TOP_K" >> "$GITHUB_OUTPUT"
 
-          echo "AutoML candidates: $CANDIDATES"
-          echo "AutoML finalists: $TOP_K"
-
-      # ==========================================================
-      # 3. AutoML
-      #
-      # ・特徴量組み合わせ
-      # ・Learning rate
-      # ・L2
-      # ・Epoch
-      # ・Validation ranking
-      # ・30-day OOS
-      # ・45-day shifted replication OOS
-      #
-      # 本番モデルには触らない。
-      # ==========================================================
+      - name: Syntax checks
+        run: |
+          python -m py_compile training/experiment_v10_features.py
+          python -m py_compile training/automl_search.py
+          python -m py_compile training/auto_cycle.py
+          node --check api/before.js
 
       - name: Run AutoML search
         run: |
@@ -147,325 +112,147 @@ jobs:
             --output model/automl-search.json \
             --challenger model/automl-challenger.json
 
-      # ==========================================================
-      # 4. Validate result
-      # ==========================================================
-
-      - name: Validate AutoML report
+      - name: Compare against current Champion
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
+          python training/auto_cycle.py \
+            --report model/automl-search.json \
+            --champion model/model.json \
+            --challenger model/automl-challenger.json \
+            --backup model/model.previous.json \
+            --manifest model/production-manifest.json \
+            --cycle-report model/auto-cycle.json \
+            --index index.html
 
-          report_path = Path(
-              "model/automl-search.json"
-          )
-
-          if not report_path.exists():
-              raise SystemExit(
-                  "AutoML report missing"
-              )
-
-          report = json.loads(
-              report_path.read_text(
-                  encoding="utf-8"
-              )
-          )
-
-          required = [
-              "version",
-              "candidateCount",
-              "finalistCount",
-              "finalists",
-              "best",
-              "baseline",
-              "promotionCandidate",
-          ]
-
-          for key in required:
-              if key not in report:
-                  raise SystemExit(
-                      f"missing AutoML field: {key}"
-                  )
-
-          if (
-              report["candidateCount"]
-              < 2
-          ):
-              raise SystemExit(
-                  "candidateCount too small"
-              )
-
-          if not report["finalists"]:
-              raise SystemExit(
-                  "no finalists"
-              )
-
-          best = report["best"]
-          baseline = report["baseline"]
-
-          for item_name, item in (
-              ("best", best),
-              ("baseline", baseline),
-          ):
-              for period in (
-                  "latest",
-                  "replication",
-              ):
-                  metrics = item.get(
-                      period
-                  )
-
-                  if not metrics:
-                      raise SystemExit(
-                          f"{item_name} {period} missing"
-                      )
-
-                  for metric in (
-                      "races",
-                      "winnerTop1",
-                      "winnerTop3",
-                      "trifectaTop1",
-                      "trifectaTop3",
-                      "trifectaTop5",
-                      "logLoss",
-                      "brier",
-                  ):
-                      if metric not in metrics:
-                          raise SystemExit(
-                              f"missing metric: "
-                              f"{item_name} "
-                              f"{period} "
-                              f"{metric}"
-                          )
-
-          promotion = bool(
-              report[
-                  "promotionCandidate"
-              ]
-          )
-
-          challenger_path = Path(
-              "model/automl-challenger.json"
-          )
-
-          if promotion:
-              if not challenger_path.exists():
-                  raise SystemExit(
-                      "promotion candidate "
-                      "without challenger file"
-                  )
-
-              challenger = json.loads(
-                  challenger_path.read_text(
-                      encoding="utf-8"
-                  )
-              )
-
-              if (
-                  challenger.get(
-                      "productionPromoted"
-                  )
-                  is not False
-              ):
-                  raise SystemExit(
-                      "AutoML must not "
-                      "directly promote production"
-                  )
-
-          print(
-              json.dumps(
-                  {
-                      "version":
-                          report["version"],
-
-                      "candidateCount":
-                          report["candidateCount"],
-
-                      "finalistCount":
-                          report["finalistCount"],
-
-                      "bestFeatures":
-                          best["features"],
-
-                      "promotionCandidate":
-                          promotion,
-
-                      "latest":
-                          best["latest"],
-
-                      "replication":
-                          best["replication"],
-
-                      "productionChanged":
-                          False,
-                  },
-                  ensure_ascii=False,
-                  indent=2,
-              )
-          )
-          PY
-
-      # ==========================================================
-      # 5. GitHub Step Summary
-      # ==========================================================
-
-      - name: Create AutoML summary
+      - name: Read cycle state
+        id: cycle
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
+          PROMOTED=$(python -c "import json; print(str(json.load(open('model/auto-cycle.json'))['promoted']).lower())")
+          ACTIVE=$(python -c "import json; d=json.load(open('model/auto-cycle.json')); print(d.get('newChampion',''))")
 
-          report = json.loads(
-              Path(
-                  "model/automl-search.json"
-              ).read_text(
-                  encoding="utf-8"
-              )
-          )
+          echo "promoted=$PROMOTED" >> "$GITHUB_OUTPUT"
+          echo "active=$ACTIVE" >> "$GITHUB_OUTPUT"
 
-          best = report["best"]
-          base = report["baseline"]
+          echo "Promoted: $PROMOTED"
+          echo "Active candidate: $ACTIVE"
 
-          def pct(value):
-              return f"{value * 100:.2f}%"
+      - name: Validate promoted runtime
+        if: steps.cycle.outputs.promoted == 'true'
+        run: |
+          node --check api/before.js
 
-          lines = [
-              "# BOAT RACE AI AutoML",
-              "",
-              f"Candidates: "
-              f"{report['candidateCount']}",
-              "",
-              f"Finalists: "
-              f"{report['finalistCount']}",
-              "",
-              "## Best Features",
-              "",
-              (
-                  ", ".join(
-                      best["features"]
-                  )
-                  or
-                  "BASELINE"
-              ),
-              "",
-              "## Latest OOS",
-              "",
-              "| Metric | Baseline | Best |",
-              "|---|---:|---:|",
-              (
-                  f"| Winner Top1 | "
-                  f"{pct(base['latest']['winnerTop1'])} | "
-                  f"{pct(best['latest']['winnerTop1'])} |"
-              ),
-              (
-                  f"| Winner Top3 | "
-                  f"{pct(base['latest']['winnerTop3'])} | "
-                  f"{pct(best['latest']['winnerTop3'])} |"
-              ),
-              (
-                  f"| Trifecta Top3 | "
-                  f"{pct(base['latest']['trifectaTop3'])} | "
-                  f"{pct(best['latest']['trifectaTop3'])} |"
-              ),
-              (
-                  f"| Trifecta Top5 | "
-                  f"{pct(base['latest']['trifectaTop5'])} | "
-                  f"{pct(best['latest']['trifectaTop5'])} |"
-              ),
-              (
-                  f"| Log Loss | "
-                  f"{base['latest']['logLoss']:.5f} | "
-                  f"{best['latest']['logLoss']:.5f} |"
-              ),
-              (
-                  f"| Brier | "
-                  f"{base['latest']['brier']:.5f} | "
-                  f"{best['latest']['brier']:.5f} |"
-              ),
-              "",
-              "## Replication OOS",
-              "",
-              "| Metric | Baseline | Best |",
-              "|---|---:|---:|",
-              (
-                  f"| Winner Top1 | "
-                  f"{pct(base['replication']['winnerTop1'])} | "
-                  f"{pct(best['replication']['winnerTop1'])} |"
-              ),
-              (
-                  f"| Winner Top3 | "
-                  f"{pct(base['replication']['winnerTop3'])} | "
-                  f"{pct(best['replication']['winnerTop3'])} |"
-              ),
-              (
-                  f"| Trifecta Top3 | "
-                  f"{pct(base['replication']['trifectaTop3'])} | "
-                  f"{pct(best['replication']['trifectaTop3'])} |"
-              ),
-              (
-                  f"| Trifecta Top5 | "
-                  f"{pct(base['replication']['trifectaTop5'])} | "
-                  f"{pct(best['replication']['trifectaTop5'])} |"
-              ),
-              "",
-              "## Decision",
-              "",
-              (
-                  "PROMOTION CANDIDATE"
-                  if report["promotionCandidate"]
-                  else
-                  "KEEP CURRENT CHAMPION"
-              ),
-              "",
-              "**Production model is NOT automatically changed.**",
-          ]
+          python -c "import re,pathlib; h=pathlib.Path('index.html').read_text(encoding='utf-8'); s=re.findall(r'<script>([\\s\\S]*?)</script>',h,re.I); assert s; pathlib.Path('/tmp/app.js').write_text('\\n'.join(s),encoding='utf-8')"
 
-          with open(
-              Path(
-                  __import__("os").environ[
-                      "GITHUB_STEP_SUMMARY"
-                  ]
-              ),
-              "a",
-              encoding="utf-8",
-          ) as f:
-              f.write(
-                  "\n".join(lines)
-              )
-          PY
+          node --check /tmp/app.js
 
-      # ==========================================================
-      # 6. Persist AutoML state
-      #
-      # Production model/model.jsonは
-      # 絶対にgit addしない。
-      # ==========================================================
+          python -c "import json; m=json.load(open('model/model.json')); n=len(m['features']); assert 15 <= n <= 21; assert len(m['mean'])==n; assert len(m['scale'])==n; assert len(m['coefficients'])==n; assert m['liveFeatureMode']=='race-relative'"
 
-      - name: Commit AutoML results
+          test -f model/model.previous.json
+          test -f model/production-manifest.json
+
+      - name: Commit AutoML state
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add model/automl-search.json
+          git add \
+            model/automl-search.json \
+            model/auto-cycle.json
 
           if [ -f model/automl-challenger.json ]; then
             git add model/automl-challenger.json
           fi
 
+          if [ "${{ steps.cycle.outputs.promoted }}" = "true" ]; then
+            git add \
+              index.html \
+              api/before.js \
+              model/model.json \
+              model/model.previous.json \
+              model/production-manifest.json
+          fi
+
           if git diff --cached --quiet; then
-            echo "No AutoML changes"
+            echo "No changes"
             exit 0
           fi
 
-          git commit -m "chore: update AutoML challenger search"
+          if [ "${{ steps.cycle.outputs.promoted }}" = "true" ]; then
+            git commit -m "feat: automatically promote stronger Champion"
+          else
+            git commit -m "chore: update weekly AutoML evaluation"
+          fi
+
           git push
 
-      # ==========================================================
-      # 7. Production safety
-      # ==========================================================
-
-      - name: Production safety confirmation
+      - name: Wait for Vercel
+        if: steps.cycle.outputs.promoted == 'true'
         run: |
-          echo "AutoML completed."
-          echo "Production model/model.json was NOT promoted."
+          sleep 30
+
+      - name: Production smoke test
+        id: smoke
+        if: steps.cycle.outputs.promoted == 'true'
+        continue-on-error: true
+        run: |
+          SUCCESS=0
+
+          EXPECTED="${{ steps.cycle.outputs.active }}"
+
+          for i in $(seq 1 18); do
+
+            TS=$(date +%s)
+
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              "https://boat-race-ai-app.vercel.app/model/model.json?v=$TS" \
+              -o /tmp/live-model.json
+            then
+
+              if EXPECTED="$EXPECTED" python -c "import json,os; m=json.load(open('/tmp/live-model.json')); assert m.get('version')==os.environ['EXPECTED']; assert 15 <= len(m.get('features',[])) <= 21"
+              then
+
+                if curl \
+                  --fail \
+                  --silent \
+                  --show-error \
+                  "https://boat-race-ai-app.vercel.app/?v=$TS" \
+                  | grep -q "raceRelativeLiveMaps"
+                then
+                  SUCCESS=1
+                  break
+                fi
+
+              fi
+
+            fi
+
+            sleep 10
+
+          done
+
+          if [ "$SUCCESS" -ne 1 ]; then
+            exit 1
+          fi
+
+      - name: Automatic rollback
+        if: steps.cycle.outputs.promoted == 'true' && steps.smoke.outcome == 'failure'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git revert --no-edit HEAD
+          git push
+
+          echo "Automatic rollback completed."
+
+          exit 1
+
+      - name: Final state
+        run: |
+          if [ "${{ steps.cycle.outputs.promoted }}" = "true" ]; then
+            echo "A stronger Champion was promoted automatically."
+          else
+            echo "Current Champion remains active."
+          fi
