@@ -1,0 +1,38 @@
+{
+  "version": "v10-feature-comparison",
+  "productionChanged": false,
+  "promotionCandidate": true,
+  "period": {
+    "start": "2026-08-01",
+    "end": "2026-08-30",
+    "races": 4266
+  },
+  "baseline": {
+    "winnerTop1": 0.5550867323019222,
+    "winnerTop3": 0.8647444913267698,
+    "trifectaTop1": 0.09540553211439287,
+    "trifectaTop3": 0.2226910454758556,
+    "trifectaTop5": 0.31247069854664794,
+    "logLoss": 1.2422286784842698,
+    "brier": 0.10087689629357796
+  },
+  "enhanced": {
+    "winnerTop1": 0.556024378809189,
+    "winnerTop3": 0.86685419596812,
+    "trifectaTop1": 0.09540553211439287,
+    "trifectaTop3": 0.22691045475855603,
+    "trifectaTop5": 0.3246601031411158,
+    "logLoss": 1.227516439861908,
+    "brier": 0.1000073125393382
+  },
+  "change": {
+    "winnerTop1": 0.0009376465072667983,
+    "winnerTop3": 0.002109704641350185,
+    "logLoss": -0.014712238622361706,
+    "brier": -0.0008695837542397611,
+    "trifectaTop1": 0.0,
+    "trifectaTop3": 0.004219409282700426,
+    "trifectaTop5": 0.012189404594467879
+  },
+  "decision": "candidate-for-next-stage"
+}
