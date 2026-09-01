@@ -3744,6 +3744,30 @@ function purchaseDecision(
   }
 
 
+  if(riskContext.volatility?.unstable){
+    return{
+      title:'見送り',
+      className:'warn',
+      reason:'直前オッズの変動が大きいため、安全側で見送ります。',
+      margin,
+      topCombo:first?.p || 0,
+      topLane:topLaneProbability
+    };
+  }
+
+
+  if(riskContext.dailyRisk?.remaining < 100){
+    return{
+      title:'見送り',
+      className:'warn',
+      reason:'本日の仮想損失・未確定投資が上限に達したため、新規配分を停止します。',
+      margin,
+      topCombo:first?.p || 0,
+      topLane:topLaneProbability
+    };
+  }
+
+
   if(
     selected.length
   ){
@@ -4808,29 +4832,6 @@ function saveAnalysisHistory({
     return;
   }
 
-
-  if(riskContext.volatility?.unstable){
-    return{
-      title:'見送り',
-      className:'warn',
-      reason:'直前オッズの変動が大きいため、安全側で見送ります。',
-      margin,
-      topCombo:first?.p || 0,
-      topLane:topLaneProbability
-    };
-  }
-
-
-  if(riskContext.dailyRisk?.remaining < 100){
-    return{
-      title:'見送り',
-      className:'warn',
-      reason:'本日の仮想損失・未確定投資が上限に達したため、新規配分を停止します。',
-      margin,
-      topCombo:first?.p || 0,
-      topLane:topLaneProbability
-    };
-  }
 
   const quality=
     predictionDataQuality(

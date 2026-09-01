@@ -77,3 +77,19 @@ test('browser prediction path keeps canonical trifecta keys and the 120-row gate
   assert.doesNotMatch(html, /`\$\{first\}\$\{second\}\$\{third\}`/);
   assert.match(html, /oddsCount === 120/);
 });
+
+test('browser risk gates stay inside purchase decision instead of history persistence', () => {
+  const html = readFileSync('index.html', 'utf8');
+  const purchaseDecision = html.slice(
+    html.indexOf('function purchaseDecision('),
+    html.indexOf('function dataStatus(')
+  );
+  const saveHistory = html.slice(
+    html.indexOf('function saveAnalysisHistory('),
+    html.indexOf('function renderHistory(')
+  );
+
+  assert.match(purchaseDecision, /riskContext\.volatility\?\.unstable/);
+  assert.match(purchaseDecision, /riskContext\.dailyRisk\?\.remaining < 100/);
+  assert.doesNotMatch(saveHistory, /riskContext/);
+});
