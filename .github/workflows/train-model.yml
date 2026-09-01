@@ -505,7 +505,7 @@ jobs:
             --mode production \
             --days 120 \
             --end-offset 0 \
-            --output model/model.json \
+            --output model/daily-candidate.json \
             --min-races 500 \
             --epochs 300 \
             --lr 0.035 \
@@ -524,11 +524,11 @@ jobs:
           from datetime import date, timedelta
           from pathlib import Path
 
-          path = Path("model/model.json")
+          path = Path("model/daily-candidate.json")
 
           if not path.exists():
               raise SystemExit(
-                  "model.json missing"
+                  "daily-candidate.json missing"
               )
 
           data = json.loads(
@@ -628,7 +628,7 @@ jobs:
             "boat-race-ai-bot@users.noreply.github.com"
 
           git add \
-            model/model.json \
+            model/daily-candidate.json \
             model/backtest.json \
             model/backtest-v93.json \
             model/comparison-v93.json

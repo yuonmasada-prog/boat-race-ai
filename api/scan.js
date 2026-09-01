@@ -1,5 +1,6 @@
 const https = require("node:https");
 const dns = require("node:dns");
+const core = require('../lib/boat-race-core');
 
 const BASE =
   "https://boatracecsv.github.io/data";
@@ -1002,7 +1003,7 @@ function oddsStats(
 
 
     const combo =
-      `${match[1]}${match[2]}${match[3]}`;
+      `${match[1]}-${match[2]}-${match[3]}`;
 
 
     map[
@@ -1099,15 +1100,20 @@ function marketQuality(
   stats
 ) {
 
-  if (
-    stats.valid <
-    110
-  ) {
+  const oddsQuality =
+    core.validateTrifectaOdds(
+      stats.map,
+      { rawCount: stats.valid }
+    );
+
+
+  if (!oddsQuality.usable) {
     return {
       pass: false,
       score: 0,
       reason:
-        "3連単オッズ不足"
+        "3連単オッズ品質不足",
+      oddsQuality
     };
   }
 
@@ -1123,7 +1129,8 @@ function marketQuality(
       pass: false,
       score: 0,
       reason:
-        "人気オッズ取得失敗"
+        "人気オッズ取得失敗",
+      oddsQuality
     };
   }
 
@@ -1145,7 +1152,8 @@ function marketQuality(
       pass: false,
       score: 0,
       reason:
-        "人気集中が強すぎる"
+        "人気集中が強すぎる",
+      oddsQuality
     };
   }
 
@@ -1158,7 +1166,8 @@ function marketQuality(
       pass: false,
       score: 0,
       reason:
-        "市場が拮抗しすぎ"
+        "市場が拮抗しすぎ",
+      oddsQuality
     };
   }
 
@@ -1215,7 +1224,8 @@ function marketQuality(
   return {
     pass: true,
     score,
-    reason: null
+    reason: null,
+    oddsQuality
   };
 }
 
@@ -1521,7 +1531,10 @@ function raceStrength(
     racers:
       ranked,
 
-    odds
+    odds,
+
+    oddsQuality:
+      market.oddsQuality
   };
 }
 
@@ -1641,12 +1654,20 @@ module.exports =
       await Promise
         .allSettled(
           [
-            fetchText(
-              cardsUrl
+            core.withRetry(
+              ()=>fetchText(
+                cardsUrl,
+                8000
+              ),
+              { attempts:2, retryDelayMs:100 }
             ),
 
-            fetchText(
-              oddsUrl
+            core.withRetry(
+              ()=>fetchText(
+                oddsUrl,
+                8000
+              ),
+              { attempts:2, retryDelayMs:100 }
             )
           ]
         );
@@ -2061,6 +2082,10 @@ module.exports =
             .odds
             .valid,
 
+        dataQuality:
+          evaluation
+            .oddsQuality,
+
         favoriteCombo:
           evaluation
             .odds
@@ -2075,7 +2100,7 @@ module.exports =
           true,
 
         scannerVersion:
-          "v8.3-entry-first"
+          "v8.4-ev-quality"
       });
     }
 
@@ -2143,7 +2168,31 @@ module.exports =
         ok: true,
 
         version:
-          "v8.3-entry-first",
+          "v8.4-ev-quality",
+
+        evaluationPolicyVersion:
+          "ev-quality-v1",
+
+        source:
+          'boatracecsv-race-cards+od3',
+
+        fetchedAt:
+          new Date().toISOString(),
+
+        dataQuality:{
+          score:
+            cards.length && oddsRows.length ? 100 : 0,
+          status:
+            cards.length && oddsRows.length ? 'good' : 'poor',
+          raceCardRows:
+            cards.length,
+          oddsRows:
+            oddsRows.length
+        },
+
+        warnings:[],
+
+        errors:[],
 
         date:
           requestedDate,
@@ -2194,3 +2243,9 @@ module.exports =
             : "no-entry-candidates"
       });
   };
+
+
+module.exports._internals = {
+  oddsStats,
+  marketQuality
+};

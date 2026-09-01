@@ -1,5 +1,6 @@
 const https = require('node:https');
 const dns = require('node:dns');
+const core = require('../lib/boat-race-core');
 
 const VENUES = {
   '01':'桐生','02':'戸田','03':'江戸川','04':'平和島',
@@ -1231,14 +1232,20 @@ async function handler(
       csvResult
     ] =
       await Promise.allSettled([
-        fetchText(
-          officialUrl,
-          22000
+        core.withRetry(
+          ()=>fetchText(
+            officialUrl,
+            10000
+          ),
+          { attempts:2, retryDelayMs:100 }
         ),
 
-        fetchText(
-          csvUrl,
-          12000
+        core.withRetry(
+          ()=>fetchText(
+            csvUrl,
+            6000
+          ),
+          { attempts:2, retryDelayMs:100 }
         )
       ]);
 
@@ -1391,6 +1398,28 @@ async function handler(
         parserOk: true,
 
         parsedCount,
+
+        fetchedAt:
+          new Date().toISOString(),
+
+        dataQuality:{
+          score:
+            fallbackUsed ? 90 : 100,
+          status:
+            fallbackUsed ? 'degraded' : 'good',
+          completeRacers:
+            parsedCount,
+          currentMeetCoverage:
+            racersWithMeetData / 6
+        },
+
+        warnings:
+          [
+            fallbackUsed ? 'official-parser-fallback-used' : null,
+            racersWithMeetData === 0 ? 'current-meet-data-missing' : null
+          ].filter(Boolean),
+
+        errors:[],
 
         officialParserOk:
           officialParsed

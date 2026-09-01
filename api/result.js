@@ -1,5 +1,6 @@
 const https = require('node:https');
 const dns = require('node:dns');
+const core = require('../lib/boat-race-core');
 
 const VENUES = {
   '01':'桐生','02':'戸田','03':'江戸川','04':'平和島',
@@ -219,11 +220,25 @@ function parseResult(raceData) {
   const primary =
     trifecta[0] || null;
 
-  const combination =
-    primary?.combination
-      ? String(primary.combination)
-          .replace(/\s+/g, '')
+  function payoutFor(type) {
+    const entry = Array.isArray(result?.payouts?.[type])
+      ? result.payouts[type][0]
       : null;
+
+    if (!entry) return null;
+
+    const combination = core.canonicalBetCombination(entry.combination, type);
+    const amount = Number(entry.amount);
+
+    return combination && Number.isFinite(amount)
+      ? { combination, amount }
+      : null;
+  }
+
+  const combination =
+    core.canonicalTrifectaKey(
+      primary?.combination
+    );
 
   const payout =
     Number.isFinite(
@@ -300,6 +315,17 @@ function parseResult(raceData) {
         ? payout
         : null,
 
+    payouts:{
+      trifecta:
+        payoutFor('trifecta'),
+      trio:
+        payoutFor('trio'),
+      exacta:
+        payoutFor('exacta'),
+      quinella:
+        payoutFor('quinella')
+    },
+
     popularity:
       null,
 
@@ -356,9 +382,12 @@ async function handler(req, res) {
       `https://boatraceopenapi.github.io/api/v1/${year}/${date}.json`;
 
     const data =
-      await fetchJson(
-        url,
-        15000
+      await core.withRetry(
+        ()=>fetchJson(
+          url,
+          7000
+        ),
+        { attempts:2, retryDelayMs:100 }
       );
 
     res.setHeader(
@@ -441,6 +470,17 @@ async function handler(req, res) {
         source:
           'boatraceopenapi-v1',
 
+        fetchedAt:
+          new Date().toISOString(),
+
+        dataQuality:{
+          score:
+            parsed.finished ? 100 : 0,
+
+          status:
+            parsed.finished ? 'good' : 'pending'
+        },
+
         ...parsed,
 
         elapsedMs:
@@ -472,4 +512,10 @@ async function handler(req, res) {
           started
       });
   }
+};
+
+module.exports._internals={
+  fetchJson,
+  findRace,
+  parseResult
 };

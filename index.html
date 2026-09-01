@@ -941,6 +941,30 @@ td:first-child{
 </section>
 
 
+<section class="card" id="historyArea">
+
+  <h2>予想成績</h2>
+
+  <div class="sub">
+    この端末に最大500件を保存し、確定結果を自動照合します。
+  </div>
+
+  <div class="decision-grid" style="margin-top:12px">
+    <div class="metric"><small>BET / SKIP</small><b id="historyDecisions">0 / 0</b></div>
+    <div class="metric"><small>的中率</small><b id="historyHitRate">-</b></div>
+    <div class="metric"><small>純損益</small><b id="historyProfit">¥0</b></div>
+    <div class="metric"><small>ROI</small><b id="historyRoi">-</b></div>
+  </div>
+
+  <button id="refreshResults" type="button" style="margin-top:12px">
+    結果を更新
+  </button>
+
+  <div id="historyRecent" class="sub" style="margin-top:10px"></div>
+
+</section>
+
+
 <p class="sub">
 
   自動更新は90秒間隔です。
@@ -962,6 +986,9 @@ td:first-child{
 
 </main>
 
+
+<script src="/lib/boat-race-core.js"></script>
+<script src="/history.js"></script>
 
 <script>
 
@@ -2384,7 +2411,7 @@ function trifectaProbabilities(
 
 
         output[
-          `${first}${second}${third}`
+          `${first}-${second}-${third}`
         ] =
           p1
           *
@@ -3231,7 +3258,9 @@ function multiBetRecommendation(
 
 function chooseMultiBets(
   recommendation,
-  budget
+  budget,
+  confidence = 1,
+  maxAbsoluteStake = null
 ){
 
   const recommended=
@@ -3245,136 +3274,51 @@ function chooseMultiBets(
     return [];
   }
 
-  const definition=
-    betTypeDefinitions()[
-      recommended.type
-    ];
-
-  const minimumProbability=
-    definition.uniform
-    *
-    1.45;
-
   const candidates=
     recommended.ranked
-
-      .filter(
-        item =>
-          item.odd !== null
-          &&
-          item.odd >= 1
-          &&
-          item.odd <= 200
-          &&
-          item.p >=
-            minimumProbability
-      )
-
       .map(
         item => ({
-          ...item,
-
+          combination:
+            item.combo,
+          combo:
+            item.combo,
           betType:
             recommended.type,
-
           betTypeLabel:
             recommended.label,
-
-          score:
-            item.p
-            *
-            Math.min(
-              Math.sqrt(
-                item.odd
-              ),
-              8
-            )
+          predictedProbability:
+            item.p,
+          p:
+            item.p,
+          pure:
+            item.pure,
+          marketProbability:
+            recommended.market?.[item.combo] || 0,
+          marketP:
+            recommended.market?.[item.combo] || 0,
+          odds:
+            item.odd,
+          odd:
+            item.odd,
+          confidence:
+            confidence
         })
-      )
-
-      .sort(
-        (
-          a,
-          b
-        ) =>
-          b.score
-          -
-          a.score
       );
 
-  if(
-    !candidates.length
-  ){
-    return [];
-  }
-
-  const units=
-    Math.floor(
-      budget / 100
-    );
-
-  let count=1;
-
-  if(
-    units >= 4
-  ){
-    count=2;
-  }
-
-  if(
-    units >= 8
-  ){
-    count=3;
-  }
-
-  const selected=
-    candidates.slice(
-      0,
-      count
-    );
-
-  let remaining=
-    units * 100;
-
-  selected.forEach(
-    (
-      item,
-      index
-    )=>{
-
-      const slots=
-        selected.length
-        -
-        index;
-
-      const amount=
-        index ===
-        selected.length - 1
-          ?
-          remaining
-          :
-          Math.max(
-            100,
-            Math.floor(
-              remaining
-              /
-              slots
-              /
-              100
-            )
-            *
-            100
-          );
-
-      item.amount=
-        amount;
-
-      remaining -=
-        amount;
+  return BoatRaceCore.allocateStakes(
+    candidates,
+    budget,
+    {
+      minimumEv:1.03,
+      minimumEdgeRatio:1.03,
+      minimumConfidence:.85,
+      kellyFraction:.25,
+      maxRaceFraction:.30,
+      maxBetFraction:.15,
+      maxBets:3,
+      maxAbsoluteStake
     }
   );
-
-  return selected;
 
 }
 
@@ -3705,7 +3649,8 @@ function purchaseDecision(
   selected,
   laneProbability,
   oddsAvailable,
-  budget
+  budget,
+  riskContext = {}
 ){
 
   const first =
@@ -4011,7 +3956,11 @@ function dataStatus(
 
       &&
 
-      oddsCount >= 100
+      oddsData?.dataQuality?.usable === true
+
+      &&
+
+      oddsCount === 120
 
     );
 
@@ -4298,9 +4247,9 @@ function renderPredictions(
             <div class="combo">
 
               ${
-                prediction.combo
-                  .split('')
-                  .join('-')
+                BoatRaceCore.canonicalTrifectaKey(
+                  prediction.combo
+                ) || prediction.combo
               }
 
             </div>
@@ -4557,6 +4506,16 @@ function renderPicks(
 
               <div class="metric">
                 <small>
+                  期待値 EV
+                </small>
+                <b>
+                  ${Number(pick.ev || 0).toFixed(2)}
+                </b>
+              </div>
+
+
+              <div class="metric">
+                <small>
                   的中時目安
                 </small>
                 <b>
@@ -4755,6 +4714,300 @@ function renderCandidates(
       }
     );
 
+}
+
+
+function predictionDataQuality(
+  data,
+  raceData,
+  before,
+  oddsData
+){
+
+  const fetchedAt=
+    new Date().toISOString();
+
+  return BoatRaceCore.calculateDataQuality(
+    {
+      officialRaceData:{
+        ok:
+          Boolean(data?.raceOk),
+        fetchedAt:
+          raceData?.fetchedAt || fetchedAt,
+        missingRate:
+          data?.raceOk ? 0 : 1,
+        weight:3
+      },
+
+      beforeInfo:{
+        ok:
+          Boolean(data?.beforeOk),
+        fetchedAt:
+          before?.fetchedAt || fetchedAt,
+        missingRate:
+          data?.beforeOk ? 0 : 1,
+        weight:2
+      },
+
+      weather:{
+        ok:
+          before?.weather?.windSpeed != null
+          &&
+          before?.weather?.waveHeight != null,
+        fetchedAt:
+          before?.fetchedAt || fetchedAt,
+        weight:1
+      },
+
+      odds:{
+        ok:
+          Boolean(data?.oddsOk),
+        fetchedAt:
+          oddsData?.fetchedAt || fetchedAt,
+        missingRate:
+          Math.max(
+            0,
+            1 - Number(data?.oddsCount || 0) / 120
+          ),
+        weight:3
+      },
+
+      model:{
+        ok:
+          Boolean(data?.mlOk),
+        fetchedAt,
+        weight:2
+      }
+    },
+    {
+      minimumScore:85
+    }
+  );
+}
+
+
+function saveAnalysisHistory({
+  date,
+  venue,
+  race,
+  venueName,
+  mode,
+  data,
+  raceData,
+  before,
+  oddsData,
+  selected,
+  decision
+}){
+
+  if(
+    !window.BoatRaceHistory
+    ||
+    !window.BoatRaceCore
+  ){
+    return;
+  }
+
+
+  if(riskContext.volatility?.unstable){
+    return{
+      title:'見送り',
+      className:'warn',
+      reason:'直前オッズの変動が大きいため、安全側で見送ります。',
+      margin,
+      topCombo:first?.p || 0,
+      topLane:topLaneProbability
+    };
+  }
+
+
+  if(riskContext.dailyRisk?.remaining < 100){
+    return{
+      title:'見送り',
+      className:'warn',
+      reason:'本日の仮想損失・未確定投資が上限に達したため、新規配分を停止します。',
+      margin,
+      topCombo:first?.p || 0,
+      topLane:topLaneProbability
+    };
+  }
+
+  const quality=
+    predictionDataQuality(
+      data,
+      raceData,
+      before,
+      oddsData
+    );
+
+  const code=
+    BoatRaceCore.raceCode(
+      date,
+      venue,
+      race
+    );
+
+  const modelVersion=
+    trainedModel?.version || 'unknown';
+
+  const tickets=
+    (selected || []).map(
+      item => ({
+        ...item,
+        combination:
+          item.combination || item.combo,
+        predictedProbability:
+          item.predictedProbability ?? item.p,
+        marketProbability:
+          item.marketProbability ?? item.marketP,
+        odds:
+          item.odds ?? item.odd,
+        confidence:
+          quality.score / 100,
+        stake:
+          item.stake ?? item.amount
+      })
+    );
+
+  try{
+    const records=BoatRaceHistory.record(
+      localStorage,
+      {
+        predictionId:
+          `${code}-${modelVersion}-${mode || 'unknown'}`,
+        date,
+        venue,
+        venueName,
+        race,
+        modelVersion,
+        decision:
+          tickets.length ? 'BET' : 'SKIP',
+        reason:
+          decision?.reason || null,
+        confidence:
+          quality.score / 100,
+        dataQuality:
+          quality,
+        snapshot:{
+          racers:
+            raceData?.racers || null,
+          exhibition:
+            before?.boats || null,
+          weather:
+            before?.weather || null,
+          mode:
+            mode || null
+        },
+        oddsSnapshot:{
+          fetchedAt:
+            oddsData?.fetchedAt || null,
+          source:
+            oddsData?.source || null,
+          dataQuality:
+            oddsData?.dataQuality || null,
+          marketVolatility:
+            oddsData?.marketVolatility || null,
+          odds:
+            oddsData?.odds || {}
+        },
+        tickets
+      }
+    );
+
+    const latest=records.find(
+      item => item.predictionId === `${code}-${modelVersion}-${mode || 'unknown'}`
+    );
+
+    if(latest){
+      BoatRaceHistory.pushRemote(
+        localStorage,
+        fetch,
+        [latest]
+      ).catch(() => {});
+    }
+
+    renderHistory();
+  }catch(error){
+    console.warn(
+      'prediction-history-save-failed',
+      error
+    );
+  }
+}
+
+
+function renderHistory(){
+
+  if(!window.BoatRaceHistory){
+    return;
+  }
+
+  const records=
+    BoatRaceHistory.load(
+      localStorage
+    );
+
+  const stats=
+    BoatRaceHistory.statistics(
+      records
+    );
+
+  $('historyDecisions').textContent=
+    `${stats.betCount} / ${stats.skipCount}`;
+
+  $('historyHitRate').textContent=
+    stats.settledBetCount
+      ? pct(stats.hitRate)
+      : '-';
+
+  $('historyProfit').textContent=
+    `${stats.profitLoss >= 0 ? '+' : '-'}¥${Math.abs(stats.profitLoss).toLocaleString()}`;
+
+  $('historyRoi').textContent=
+    stats.totalStake
+      ? pct(stats.roi)
+      : '-';
+
+  const recent=
+    records
+      .slice(-3)
+      .reverse();
+
+  $('historyRecent').innerHTML=
+    recent.length
+      ? recent.map(
+          record =>
+            `${record.date} ${record.venueName || record.venue} ${record.race}R: `
+            + `${record.decision}`
+            + `${record.status === 'SETTLED' ? ` / ${record.hit ? '的中' : '不的中'} / 損益 ¥${Number(record.profitLoss || 0).toLocaleString()}` : ' / 結果待ち'}`
+        ).join('<br>')
+      : '履歴はまだありません。';
+}
+
+
+async function refreshPredictionResults(){
+
+  if(!window.BoatRaceHistory){
+    return;
+  }
+
+  $('refreshResults').disabled=
+    true;
+
+  try{
+    await BoatRaceHistory.settlePending(
+      localStorage,
+      fetch
+    );
+    await BoatRaceHistory.pushRemote(
+      localStorage,
+      fetch
+    );
+    renderHistory();
+  }finally{
+    $('refreshResults').disabled=
+      false;
+  }
 }
 
 
@@ -5156,11 +5409,45 @@ async function analyzeRace(
       );
 
 
-    const selected =
-      chooseMultiBets(
-        recommendation,
-        budget
+    const dailyRisk=
+      BoatRaceCore.dailyRiskCapacity(
+        BoatRaceHistory.load(localStorage),
+        date,
+        budget >= 100 ? Math.max(100, budget * .5) : 0
       );
+
+
+    const previousPrediction=
+      BoatRaceHistory.load(localStorage)
+        .slice()
+        .reverse()
+        .find(item =>
+          item.raceCode === BoatRaceCore.raceCode(date, venue, race)
+          && item.oddsSnapshot?.odds
+        );
+
+
+    const volatility=
+      BoatRaceCore.oddsVolatility(
+        previousPrediction?.oddsSnapshot?.odds,
+        oddsData?.odds
+      );
+
+
+    if(oddsData){
+      oddsData.marketVolatility=volatility;
+    }
+
+
+    const selected =
+      volatility.unstable
+        ? []
+        : chooseMultiBets(
+            recommendation,
+            budget,
+            data.score / 100,
+            dailyRisk.remaining
+          );
 
 
     const maxLaneProbability =
@@ -5205,8 +5492,25 @@ async function analyzeRace(
             {}
           ).length
         ),
-        budget
+        budget,
+        {dailyRisk,volatility}
       );
+
+
+    saveAnalysisHistory({
+      date,
+      venue,
+      race,
+      venueName:
+        raceData?.venueName || venue,
+      mode,
+      data,
+      raceData,
+      before,
+      oddsData,
+      selected,
+      decision
+    });
 
 
     renderMultiPredictions(
@@ -6197,6 +6501,13 @@ $('analyze')
   );
 
 
+$('refreshResults')
+  .addEventListener(
+    'click',
+    refreshPredictionResults
+  );
+
+
 $('date')
   .addEventListener(
     'change',
@@ -6280,6 +6591,17 @@ document.addEventListener(
 
 
 async function boot(){
+
+  renderHistory();
+
+  await BoatRaceHistory.syncRemote(
+    localStorage,
+    fetch
+  );
+
+  renderHistory();
+
+  await refreshPredictionResults();
 
   await loadModel();
 

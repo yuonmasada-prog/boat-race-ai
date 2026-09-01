@@ -1,5 +1,6 @@
 const https = require('node:https');
 const dns = require('node:dns');
+const core = require('../lib/boat-race-core');
 
 const VENUES={
   '01':'桐生','02':'戸田','03':'江戸川','04':'平和島',
@@ -633,17 +634,28 @@ async function handler(
     ]=
       await Promise.allSettled([
 
-        fetchOfficial(
-          officialUrl,
-          20000
+        core.withRetry(
+          ()=>fetchOfficial(
+            officialUrl,
+            9000
+          ),
+          { attempts:2, retryDelayMs:100 }
         ),
 
-        fetchText(
-          `${base}/od1/${yyyy}/${mm}/${dd}.csv`
+        core.withRetry(
+          ()=>fetchText(
+            `${base}/od1/${yyyy}/${mm}/${dd}.csv`,
+            5000
+          ),
+          { attempts:2, retryDelayMs:100 }
         ),
 
-        fetchText(
-          `${base}/od2/${yyyy}/${mm}/${dd}.csv`
+        core.withRetry(
+          ()=>fetchText(
+            `${base}/od2/${yyyy}/${mm}/${dd}.csv`,
+            5000
+          ),
+          { attempts:2, retryDelayMs:100 }
         )
 
       ]);
@@ -740,8 +752,39 @@ async function handler(
         '2連複_'
       );
 
+    const fetchedAt=
+      new Date().toISOString();
+
+    const oddsQuality=
+      core.validateTrifectaOdds(
+        odds,
+        { rawCount }
+      );
+
+    const warnings=[
+      ...oddsQuality.warnings
+    ];
+
+    if(officialResult.status !== 'fulfilled'){
+      warnings.push(
+        `official: ${officialResult.reason?.message || 'fetch-failed'}`
+      );
+    }
+
+    if(od1Result.status !== 'fulfilled'){
+      warnings.push(
+        `boatracecsv-od1: ${od1Result.reason?.message || 'fetch-failed'}`
+      );
+    }
+
+    if(od2Result.status !== 'fulfilled'){
+      warnings.push(
+        `boatracecsv-od2: ${od2Result.reason?.message || 'fetch-failed'}`
+      );
+    }
+
     const ok=
-      officialCount >= 100;
+      oddsQuality.usable;
 
     res.setHeader(
       'Cache-Control',
@@ -762,6 +805,8 @@ async function handler(
         source:
           'official-3t+boatracecsv-multibet-v12',
 
+        fetchedAt,
+
         oddsCount:
           officialCount,
 
@@ -771,7 +816,7 @@ async function handler(
         odds,
 
         marketProbabilities:
-          marketProbabilities(
+          core.marketProbabilities(
             odds
           ),
 
@@ -831,6 +876,40 @@ async function handler(
             ).length
         },
 
+        dataQuality:{
+          score:
+            oddsQuality.score,
+
+          status:
+            oddsQuality.status,
+
+          usable:
+            oddsQuality.usable,
+
+          expectedCount:
+            oddsQuality.expectedCount,
+
+          validCount:
+            oddsQuality.validCount,
+
+          missingCount:
+            oddsQuality.missingCount,
+
+          invalidKeyCount:
+            oddsQuality.invalidKeys.length,
+
+          invalidValueCount:
+            oddsQuality.invalidValues.length,
+
+          extremeValueCount:
+            oddsQuality.extremeValues.length
+        },
+
+        warnings,
+
+        errors:
+          oddsQuality.errors,
+
         elapsedMs:
           Date.now()
           -
@@ -850,4 +929,12 @@ async function handler(
           'odds-error'
       });
   }
+};
+
+module.exports._internals={
+  ORDER,
+  parseTrifecta,
+  extractOdds,
+  marketProbabilities,
+  raceCode
 };

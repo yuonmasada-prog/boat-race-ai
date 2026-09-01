@@ -1,5 +1,6 @@
 const https = require('node:https');
 const dns = require('node:dns');
+const core = require('../lib/boat-race-core');
 
 const VENUES={
   '01':'桐生','02':'戸田','03':'江戸川','04':'平和島','05':'多摩川','06':'浜名湖',
@@ -885,9 +886,12 @@ async function handler(
       `https://www.boatrace.jp/owpc/pc/race/beforeinfo?rno=${race}&jcd=${venue}&hd=${date}`;
 
     const html=
-      await fetchOfficial(
-        url,
-        20000
+      await core.withRetry(
+        ()=>fetchOfficial(
+          url,
+          9000
+        ),
+        { attempts:2, retryDelayMs:100 }
       );
 
     const parsed=
@@ -916,6 +920,24 @@ async function handler(
 
         transport:
           'node-https-ipv4',
+
+        fetchedAt:
+          new Date().toISOString(),
+
+        dataQuality:{
+          score:
+            parsed.parserOk ? 100 : Math.round(parsed.parsedCount / 6 * 80),
+          status:
+            parsed.parserOk ? 'good' : 'poor',
+          completeBoats:
+            parsed.parsedCount
+        },
+
+        warnings:
+          parsed.parserOk ? [] : ['before-parser-incomplete'],
+
+        errors:
+          parsed.parserOk ? [] : ['before-data-quality-insufficient'],
 
         htmlLength:
           html.length,

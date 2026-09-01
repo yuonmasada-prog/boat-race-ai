@@ -1,3 +1,5 @@
+const core = require('../lib/boat-race-core');
+
 const VENUES={
   '01':'桐生','02':'戸田','03':'江戸川','04':'平和島','05':'多摩川','06':'浜名湖',
   '07':'蒲郡','08':'常滑','09':'津','10':'三国','11':'びわこ','12':'住之江',
@@ -2632,6 +2634,60 @@ function chooseBets(
 }
 
 
+function chooseBetsWithRiskControls(
+  odds,
+  probabilities,
+  market,
+  budget,
+  dataQualityScore
+){
+
+  const candidates=
+    Object.entries(
+      odds || {}
+    )
+    .map(
+      ([combination, odd]) => ({
+        combination,
+        combo:
+          combination,
+        predictedProbability:
+          probabilities[combination] || 0,
+        p:
+          probabilities[combination] || 0,
+        marketProbability:
+          market[combination] || 0,
+        marketP:
+          market[combination] || 0,
+        odds:
+          odd,
+        confidence:
+          Math.max(
+            0,
+            Math.min(
+              1,
+              dataQualityScore / 100
+            )
+          )
+      })
+    );
+
+  return core.allocateStakes(
+    candidates,
+    budget,
+    {
+      minimumEv:1.03,
+      minimumEdgeRatio:1.03,
+      minimumConfidence:.85,
+      kellyFraction:.25,
+      maxRaceFraction:.30,
+      maxBetFraction:.15,
+      maxBets:3
+    }
+  );
+}
+
+
 /* ================================
    API
 ================================ */
@@ -2908,7 +2964,48 @@ async function handler(
         .status(200)
         .json({
 
+          ok:true,
+
           skip:true,
+
+          predictionId:
+            `${core.raceCode(date,venue,race)}-full-v4.2-stable`,
+
+          timestamp:
+            new Date().toISOString(),
+
+          date,
+
+          venue,
+
+          raceCode:
+            core.raceCode(
+              date,
+              venue,
+              race
+            ),
+
+          modelVersion:
+            'full-v4.2-stable',
+
+          decision:
+            'SKIP',
+
+          confidence:0,
+
+          dataQuality:{
+            score:0,
+            status:'poor',
+            sufficient:false,
+            sources:fetchStatus
+          },
+
+          warnings:[],
+
+          errors:
+            Object.entries(fetchStatus)
+              .filter(([,value])=>value !== 'network' && value !== 'cache')
+              .map(([source,value])=>`${source}: ${value}`),
 
           venueName:
             VENUES[
@@ -2971,6 +3068,20 @@ async function handler(
       ).length;
 
 
+    const fetchedAt=
+      new Date().toISOString();
+
+
+    const oddsQuality=
+      core.validateTrifectaOdds(
+        odds,
+        {
+          rawCount:
+            oddsCount
+        }
+      );
+
+
     const dataCoverage=
       coverage(
 
@@ -2996,6 +3107,57 @@ async function handler(
       );
 
 
+    const dataQuality=
+      core.calculateDataQuality(
+        {
+          officialRaceData:{
+            ok:
+              raceFetch.ok,
+            fetchedAt,
+            missingRate:
+              1 - dataCoverage / 100,
+            weight:3
+          },
+
+          beforeInfo:{
+            ok:
+              beforeFetch.ok,
+            fetchedAt,
+            missingRate:
+              1 - dataCoverage / 100,
+            weight:2
+          },
+
+          weather:{
+            ok:
+              before.weather.windSpeed != null
+              &&
+              before.weather.waveHeight != null,
+            fetchedAt,
+            weight:1
+          },
+
+          odds:{
+            ok:
+              oddsQuality.usable,
+            fetchedAt,
+            missingRate:
+              oddsQuality.missingCount / 120,
+            weight:3
+          },
+
+          model:{
+            ok:true,
+            fetchedAt,
+            weight:2
+          }
+        },
+        {
+          minimumScore:85
+        }
+      );
+
+
     /*
       重要項目欠損 または
       取得率85%未満なら
@@ -3004,6 +3166,10 @@ async function handler(
 
     if(
       !critical.ok
+      ||
+      !oddsQuality.usable
+      ||
+      !dataQuality.sufficient
       ||
       dataCoverage < 85
     ){
@@ -3027,6 +3193,39 @@ async function handler(
 
           reason:
             '重要データが不足しているため、精度優先で予想を見送り。',
+
+          predictionId:
+            `${core.raceCode(date,venue,race)}-full-v4.2-stable`,
+
+          timestamp:
+            fetchedAt,
+
+          date,
+
+          venue,
+
+          raceCode:
+            core.raceCode(
+              date,
+              venue,
+              race
+            ),
+
+          modelVersion:
+            'full-v4.2-stable',
+
+          decision:
+            'SKIP',
+
+          dataQuality,
+
+          warnings:
+            oddsQuality.warnings,
+
+          errors:[
+            ...oddsQuality.errors,
+            ...critical.missing
+          ],
 
           meta:{
 
@@ -3176,7 +3375,7 @@ async function handler(
 
 
     const picks=
-      chooseBets(
+      chooseBetsWithRiskControls(
 
         odds,
 
@@ -3186,7 +3385,7 @@ async function handler(
 
         budget,
 
-        before.weather
+        dataQuality.score
 
       );
 
@@ -3208,8 +3407,17 @@ async function handler(
         0;
 
 
+    const skipDecision=
+      core.decideSkip({
+        oddsQuality,
+        dataQuality,
+        tickets:
+          picks
+      });
+
+
     const skip=
-      !picks.length
+      skipDecision.skip
       ||
       (
         budget <= 500
@@ -3219,9 +3427,82 @@ async function handler(
       );
 
 
+    const prediction=
+      core.createPredictionRecord({
+        predictionId:
+          `${core.raceCode(date,venue,race)}-full-v4.2-stable`,
+        timestamp:
+          fetchedAt,
+        date,
+        venue,
+        venueName:
+          VENUES[venue],
+        race,
+        modelVersion:
+          'full-v4.2-stable',
+        decision:
+          skip ? 'SKIP' : 'BET',
+        reason:
+          skip
+            ? skipDecision.reasons.join(',') || 'confidence-threshold'
+            : 'positive-ev-fractional-kelly',
+        confidence:
+          dataQuality.score / 100,
+        dataQuality,
+        oddsSnapshot:
+          odds,
+        snapshot:{
+          racers:
+            raceInfo.racers,
+          exhibition:
+            before.boats,
+          weather:
+            before.weather,
+          coverage:
+            dataCoverage,
+          modelWeight,
+          courseBias
+        },
+        tickets:
+          skip ? [] : picks
+      });
+
+
     return res
       .status(200)
       .json({
+
+        ok:true,
+
+        predictionId:
+          prediction.predictionId,
+
+        timestamp:
+          prediction.timestamp,
+
+        date,
+
+        venue,
+
+        raceCode:
+          prediction.raceCode,
+
+        modelVersion:
+          prediction.modelVersion,
+
+        decision:
+          prediction.decision,
+
+        confidence:
+          prediction.confidence,
+
+        dataQuality,
+
+        warnings:
+          oddsQuality.warnings,
+
+        errors:
+          oddsQuality.errors,
 
         skip,
 
@@ -3240,6 +3521,15 @@ async function handler(
             []
             :
             picks,
+
+        tickets:
+          skip
+            ?
+            []
+            :
+            picks,
+
+        prediction,
 
         reason:
           skip
@@ -3315,6 +3605,8 @@ async function handler(
       .status(500)
       .json({
 
+        ok:false,
+
         error:
           error.message
           ||
@@ -3325,7 +3617,24 @@ async function handler(
         elapsedMs:
           Date.now()
           -
-          started
+          started,
+
+        fetchedAt:
+          new Date().toISOString(),
+
+        dataQuality:{
+          score:0,
+          status:'poor',
+          sufficient:false
+        },
+
+        warnings:[],
+
+        errors:[
+          error.message
+          ||
+          String(error)
+        ]
 
       });
 
