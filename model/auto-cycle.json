@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-09-13T22:18:48.325436+00:00",
+  "generatedAt": "2026-09-20T22:21:28.040201+00:00",
   "promoted": false,
   "champion": "v9.1-conditional-logit-production-latest",
   "championLatest": {
-    "races": 4375,
-    "winnerTop1": 0.5698285714285715,
-    "winnerTop3": 0.8690285714285715,
-    "logLoss": 1.2148300727950287,
-    "brier": 0.09878559671833598,
-    "trifectaTop1": 0.09462857142857142,
-    "trifectaTop3": 0.23085714285714284,
-    "trifectaTop5": 0.3222857142857143
+    "races": 4361,
+    "winnerTop1": 0.5682182985553772,
+    "winnerTop3": 0.8702132538408622,
+    "logLoss": 1.210031835207576,
+    "brier": 0.09875413678001721,
+    "trifectaTop1": 0.08897041962852557,
+    "trifectaTop3": 0.22288465948177025,
+    "trifectaTop5": 0.32056867690896584
   },
   "reason": "No finalist clearly beat current Champion"
 }
