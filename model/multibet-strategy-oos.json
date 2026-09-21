@@ -1,15 +1,15 @@
 {
   "version": "v12-multibet-oos-strategy",
-  "generatedAt": "2026-09-14T21:56:21.539071+00:00",
+  "generatedAt": "2026-09-21T22:05:56.476936+00:00",
   "productionChanged": false,
   "modelVersion": "v9.1-conditional-logit-production-latest",
   "period": {
-    "start": "2026-08-15",
-    "validationEnd": "2026-08-29",
-    "testStart": "2026-08-30",
-    "end": "2026-09-13",
-    "validationRaces": 2185,
-    "testRaces": 2193
+    "start": "2026-08-22",
+    "validationEnd": "2026-09-05",
+    "testStart": "2026-09-06",
+    "end": "2026-09-20",
+    "validationRaces": 2139,
+    "testRaces": 2243
   },
   "methodology": {
     "selection": "validation-only",
@@ -21,29 +21,29 @@
     "betType": "trifecta",
     "tickets": 1,
     "minConcentration": 3.0,
-    "maxOdds": 100.0,
+    "maxOdds": 200.0,
     "validation": {
-      "racesBet": 2180,
-      "tickets": 2180,
-      "hits": 226,
-      "stake": 218000,
-      "return": 189090,
-      "profit": -28910,
-      "roi": 86.73853211009175,
-      "ticketHitRate": 0.10366972477064221,
-      "raceHitRate": 0.10366972477064221
+      "racesBet": 2133,
+      "tickets": 2133,
+      "hits": 200,
+      "stake": 213300,
+      "return": 184010,
+      "profit": -29290,
+      "roi": 86.26816690107829,
+      "ticketHitRate": 0.09376465072667604,
+      "raceHitRate": 0.09376465072667604
     },
-    "selectionScore": 85.98891447055504,
+    "selectionScore": 85.51033546487305,
     "test": {
-      "racesBet": 2188,
-      "tickets": 2188,
-      "hits": 177,
-      "stake": 218800,
-      "return": 158700,
-      "profit": -60100,
-      "roi": 72.53199268738574,
-      "ticketHitRate": 0.08089579524680073,
-      "raceHitRate": 0.08089579524680073
+      "racesBet": 2241,
+      "tickets": 2241,
+      "hits": 191,
+      "stake": 224100,
+      "return": 174420,
+      "profit": -49680,
+      "roi": 77.83132530120483,
+      "ticketHitRate": 0.08522980812137439,
+      "raceHitRate": 0.08522980812137439
     }
   },
   "topValidationStrategies": [
@@ -51,87 +51,29 @@
       "betType": "trifecta",
       "tickets": 1,
       "minConcentration": 3.0,
-      "maxOdds": 100.0,
-      "validation": {
-        "racesBet": 2180,
-        "tickets": 2180,
-        "hits": 226,
-        "stake": 218000,
-        "return": 189090,
-        "profit": -28910,
-        "roi": 86.73853211009175,
-        "ticketHitRate": 0.10366972477064221,
-        "raceHitRate": 0.10366972477064221
-      },
-      "selectionScore": 85.98891447055504,
-      "test": {
-        "racesBet": 2188,
-        "tickets": 2188,
-        "hits": 177,
-        "stake": 218800,
-        "return": 158700,
-        "profit": -60100,
-        "roi": 72.53199268738574,
-        "ticketHitRate": 0.08089579524680073,
-        "raceHitRate": 0.08089579524680073
-      }
-    },
-    {
-      "betType": "trifecta",
-      "tickets": 1,
-      "minConcentration": 3.0,
       "maxOdds": 200.0,
       "validation": {
-        "racesBet": 2180,
-        "tickets": 2180,
-        "hits": 226,
-        "stake": 218000,
-        "return": 189090,
-        "profit": -28910,
-        "roi": 86.73853211009175,
-        "ticketHitRate": 0.10366972477064221,
-        "raceHitRate": 0.10366972477064221
+        "racesBet": 2133,
+        "tickets": 2133,
+        "hits": 200,
+        "stake": 213300,
+        "return": 184010,
+        "profit": -29290,
+        "roi": 86.26816690107829,
+        "ticketHitRate": 0.09376465072667604,
+        "raceHitRate": 0.09376465072667604
       },
-      "selectionScore": 85.98891447055504,
+      "selectionScore": 85.51033546487305,
       "test": {
-        "racesBet": 2189,
-        "tickets": 2189,
-        "hits": 177,
-        "stake": 218900,
-        "return": 163840,
-        "profit": -55060,
-        "roi": 74.84696208314298,
-        "ticketHitRate": 0.0808588396528095,
-        "raceHitRate": 0.0808588396528095
-      }
-    },
-    {
-      "betType": "trifecta",
-      "tickets": 1,
-      "minConcentration": 2.5,
-      "maxOdds": 100.0,
-      "validation": {
-        "racesBet": 2183,
-        "tickets": 2183,
-        "hits": 226,
-        "stake": 218300,
-        "return": 189090,
-        "profit": -29210,
-        "roi": 86.61933119560238,
-        "ticketHitRate": 0.10352725606962895,
-        "raceHitRate": 0.10352725606962895
-      },
-      "selectionScore": 85.87022881627517,
-      "test": {
-        "racesBet": 2192,
-        "tickets": 2192,
-        "hits": 177,
-        "stake": 219200,
-        "return": 158700,
-        "profit": -60500,
-        "roi": 72.39963503649635,
-        "ticketHitRate": 0.08074817518248176,
-        "raceHitRate": 0.08074817518248176
+        "racesBet": 2241,
+        "tickets": 2241,
+        "hits": 191,
+        "stake": 224100,
+        "return": 174420,
+        "profit": -49680,
+        "roi": 77.83132530120483,
+        "ticketHitRate": 0.08522980812137439,
+        "raceHitRate": 0.08522980812137439
       }
     },
     {
@@ -140,56 +82,27 @@
       "minConcentration": 2.5,
       "maxOdds": 200.0,
       "validation": {
-        "racesBet": 2183,
-        "tickets": 2183,
-        "hits": 226,
-        "stake": 218300,
-        "return": 189090,
-        "profit": -29210,
-        "roi": 86.61933119560238,
-        "ticketHitRate": 0.10352725606962895,
-        "raceHitRate": 0.10352725606962895
+        "racesBet": 2137,
+        "tickets": 2137,
+        "hits": 200,
+        "stake": 213700,
+        "return": 184010,
+        "profit": -29690,
+        "roi": 86.10669162377165,
+        "ticketHitRate": 0.09358914365933552,
+        "raceHitRate": 0.09358914365933552
       },
-      "selectionScore": 85.87022881627517,
+      "selectionScore": 85.34956976771846,
       "test": {
-        "racesBet": 2192,
-        "tickets": 2192,
-        "hits": 177,
-        "stake": 219200,
-        "return": 163840,
-        "profit": -55360,
-        "roi": 74.74452554744525,
-        "ticketHitRate": 0.08074817518248176,
-        "raceHitRate": 0.08074817518248176
-      }
-    },
-    {
-      "betType": "trifecta",
-      "tickets": 1,
-      "minConcentration": 1.15,
-      "maxOdds": 100.0,
-      "validation": {
-        "racesBet": 2185,
-        "tickets": 2185,
-        "hits": 226,
-        "stake": 218500,
-        "return": 189090,
-        "profit": -29410,
-        "roi": 86.5400457665904,
-        "ticketHitRate": 0.1034324942791762,
-        "raceHitRate": 0.1034324942791762
-      },
-      "selectionScore": 85.79128630436942,
-      "test": {
-        "racesBet": 2193,
-        "tickets": 2193,
-        "hits": 177,
-        "stake": 219300,
-        "return": 158700,
-        "profit": -60600,
-        "roi": 72.36662106703147,
-        "ticketHitRate": 0.08071135430916553,
-        "raceHitRate": 0.08071135430916553
+        "racesBet": 2243,
+        "tickets": 2243,
+        "hits": 191,
+        "stake": 224300,
+        "return": 174420,
+        "profit": -49880,
+        "roi": 77.76192599197503,
+        "ticketHitRate": 0.08515381185911726,
+        "raceHitRate": 0.08515381185911726
       }
     },
     {
@@ -198,56 +111,27 @@
       "minConcentration": 1.15,
       "maxOdds": 200.0,
       "validation": {
-        "racesBet": 2185,
-        "tickets": 2185,
-        "hits": 226,
-        "stake": 218500,
-        "return": 189090,
-        "profit": -29410,
-        "roi": 86.5400457665904,
-        "ticketHitRate": 0.1034324942791762,
-        "raceHitRate": 0.1034324942791762
+        "racesBet": 2139,
+        "tickets": 2139,
+        "hits": 200,
+        "stake": 213900,
+        "return": 184010,
+        "profit": -29890,
+        "roi": 86.02618045815802,
+        "ticketHitRate": 0.09350163627863488,
+        "raceHitRate": 0.09350163627863488
       },
-      "selectionScore": 85.79128630436942,
+      "selectionScore": 85.2694126455453,
       "test": {
-        "racesBet": 2193,
-        "tickets": 2193,
-        "hits": 177,
-        "stake": 219300,
-        "return": 163840,
-        "profit": -55460,
-        "roi": 74.71044231646147,
-        "ticketHitRate": 0.08071135430916553,
-        "raceHitRate": 0.08071135430916553
-      }
-    },
-    {
-      "betType": "trifecta",
-      "tickets": 1,
-      "minConcentration": 1.35,
-      "maxOdds": 100.0,
-      "validation": {
-        "racesBet": 2185,
-        "tickets": 2185,
-        "hits": 226,
-        "stake": 218500,
-        "return": 189090,
-        "profit": -29410,
-        "roi": 86.5400457665904,
-        "ticketHitRate": 0.1034324942791762,
-        "raceHitRate": 0.1034324942791762
-      },
-      "selectionScore": 85.79128630436942,
-      "test": {
-        "racesBet": 2193,
-        "tickets": 2193,
-        "hits": 177,
-        "stake": 219300,
-        "return": 158700,
-        "profit": -60600,
-        "roi": 72.36662106703147,
-        "ticketHitRate": 0.08071135430916553,
-        "raceHitRate": 0.08071135430916553
+        "racesBet": 2243,
+        "tickets": 2243,
+        "hits": 191,
+        "stake": 224300,
+        "return": 174420,
+        "profit": -49880,
+        "roi": 77.76192599197503,
+        "ticketHitRate": 0.08515381185911726,
+        "raceHitRate": 0.08515381185911726
       }
     },
     {
@@ -256,56 +140,27 @@
       "minConcentration": 1.35,
       "maxOdds": 200.0,
       "validation": {
-        "racesBet": 2185,
-        "tickets": 2185,
-        "hits": 226,
-        "stake": 218500,
-        "return": 189090,
-        "profit": -29410,
-        "roi": 86.5400457665904,
-        "ticketHitRate": 0.1034324942791762,
-        "raceHitRate": 0.1034324942791762
+        "racesBet": 2139,
+        "tickets": 2139,
+        "hits": 200,
+        "stake": 213900,
+        "return": 184010,
+        "profit": -29890,
+        "roi": 86.02618045815802,
+        "ticketHitRate": 0.09350163627863488,
+        "raceHitRate": 0.09350163627863488
       },
-      "selectionScore": 85.79128630436942,
+      "selectionScore": 85.2694126455453,
       "test": {
-        "racesBet": 2193,
-        "tickets": 2193,
-        "hits": 177,
-        "stake": 219300,
-        "return": 163840,
-        "profit": -55460,
-        "roi": 74.71044231646147,
-        "ticketHitRate": 0.08071135430916553,
-        "raceHitRate": 0.08071135430916553
-      }
-    },
-    {
-      "betType": "trifecta",
-      "tickets": 1,
-      "minConcentration": 1.6,
-      "maxOdds": 100.0,
-      "validation": {
-        "racesBet": 2185,
-        "tickets": 2185,
-        "hits": 226,
-        "stake": 218500,
-        "return": 189090,
-        "profit": -29410,
-        "roi": 86.5400457665904,
-        "ticketHitRate": 0.1034324942791762,
-        "raceHitRate": 0.1034324942791762
-      },
-      "selectionScore": 85.79128630436942,
-      "test": {
-        "racesBet": 2193,
-        "tickets": 2193,
-        "hits": 177,
-        "stake": 219300,
-        "return": 158700,
-        "profit": -60600,
-        "roi": 72.36662106703147,
-        "ticketHitRate": 0.08071135430916553,
-        "raceHitRate": 0.08071135430916553
+        "racesBet": 2243,
+        "tickets": 2243,
+        "hits": 191,
+        "stake": 224300,
+        "return": 174420,
+        "profit": -49880,
+        "roi": 77.76192599197503,
+        "ticketHitRate": 0.08515381185911726,
+        "raceHitRate": 0.08515381185911726
       }
     },
     {
@@ -314,56 +169,27 @@
       "minConcentration": 1.6,
       "maxOdds": 200.0,
       "validation": {
-        "racesBet": 2185,
-        "tickets": 2185,
-        "hits": 226,
-        "stake": 218500,
-        "return": 189090,
-        "profit": -29410,
-        "roi": 86.5400457665904,
-        "ticketHitRate": 0.1034324942791762,
-        "raceHitRate": 0.1034324942791762
+        "racesBet": 2139,
+        "tickets": 2139,
+        "hits": 200,
+        "stake": 213900,
+        "return": 184010,
+        "profit": -29890,
+        "roi": 86.02618045815802,
+        "ticketHitRate": 0.09350163627863488,
+        "raceHitRate": 0.09350163627863488
       },
-      "selectionScore": 85.79128630436942,
+      "selectionScore": 85.2694126455453,
       "test": {
-        "racesBet": 2193,
-        "tickets": 2193,
-        "hits": 177,
-        "stake": 219300,
-        "return": 163840,
-        "profit": -55460,
-        "roi": 74.71044231646147,
-        "ticketHitRate": 0.08071135430916553,
-        "raceHitRate": 0.08071135430916553
-      }
-    },
-    {
-      "betType": "trifecta",
-      "tickets": 1,
-      "minConcentration": 2.0,
-      "maxOdds": 100.0,
-      "validation": {
-        "racesBet": 2185,
-        "tickets": 2185,
-        "hits": 226,
-        "stake": 218500,
-        "return": 189090,
-        "profit": -29410,
-        "roi": 86.5400457665904,
-        "ticketHitRate": 0.1034324942791762,
-        "raceHitRate": 0.1034324942791762
-      },
-      "selectionScore": 85.79128630436942,
-      "test": {
-        "racesBet": 2193,
-        "tickets": 2193,
-        "hits": 177,
-        "stake": 219300,
-        "return": 158700,
-        "profit": -60600,
-        "roi": 72.36662106703147,
-        "ticketHitRate": 0.08071135430916553,
-        "raceHitRate": 0.08071135430916553
+        "racesBet": 2243,
+        "tickets": 2243,
+        "hits": 191,
+        "stake": 224300,
+        "return": 174420,
+        "profit": -49880,
+        "roi": 77.76192599197503,
+        "ticketHitRate": 0.08515381185911726,
+        "raceHitRate": 0.08515381185911726
       }
     },
     {
@@ -372,27 +198,201 @@
       "minConcentration": 2.0,
       "maxOdds": 200.0,
       "validation": {
-        "racesBet": 2185,
-        "tickets": 2185,
-        "hits": 226,
-        "stake": 218500,
-        "return": 189090,
-        "profit": -29410,
-        "roi": 86.5400457665904,
-        "ticketHitRate": 0.1034324942791762,
-        "raceHitRate": 0.1034324942791762
+        "racesBet": 2139,
+        "tickets": 2139,
+        "hits": 200,
+        "stake": 213900,
+        "return": 184010,
+        "profit": -29890,
+        "roi": 86.02618045815802,
+        "ticketHitRate": 0.09350163627863488,
+        "raceHitRate": 0.09350163627863488
       },
-      "selectionScore": 85.79128630436942,
+      "selectionScore": 85.2694126455453,
       "test": {
-        "racesBet": 2193,
-        "tickets": 2193,
-        "hits": 177,
-        "stake": 219300,
-        "return": 163840,
-        "profit": -55460,
-        "roi": 74.71044231646147,
-        "ticketHitRate": 0.08071135430916553,
-        "raceHitRate": 0.08071135430916553
+        "racesBet": 2243,
+        "tickets": 2243,
+        "hits": 191,
+        "stake": 224300,
+        "return": 174420,
+        "profit": -49880,
+        "roi": 77.76192599197503,
+        "ticketHitRate": 0.08515381185911726,
+        "raceHitRate": 0.08515381185911726
+      }
+    },
+    {
+      "betType": "quinella",
+      "tickets": 2,
+      "minConcentration": 2.0,
+      "maxOdds": 100.0,
+      "validation": {
+        "racesBet": 2134,
+        "tickets": 4035,
+        "hits": 1101,
+        "stake": 403500,
+        "return": 345470,
+        "profit": -58030,
+        "roi": 85.6183395291202,
+        "ticketHitRate": 0.2728624535315985,
+        "raceHitRate": 0.5159325210871603
+      },
+      "selectionScore": 85.0673462838062,
+      "test": {
+        "racesBet": 2242,
+        "tickets": 4275,
+        "hits": 1140,
+        "stake": 427500,
+        "return": 361350,
+        "profit": -66150,
+        "roi": 84.52631578947368,
+        "ticketHitRate": 0.26666666666666666,
+        "raceHitRate": 0.5084745762711864
+      }
+    },
+    {
+      "betType": "quinella",
+      "tickets": 2,
+      "minConcentration": 2.0,
+      "maxOdds": 200.0,
+      "validation": {
+        "racesBet": 2134,
+        "tickets": 4035,
+        "hits": 1101,
+        "stake": 403500,
+        "return": 345470,
+        "profit": -58030,
+        "roi": 85.6183395291202,
+        "ticketHitRate": 0.2728624535315985,
+        "raceHitRate": 0.5159325210871603
+      },
+      "selectionScore": 85.0673462838062,
+      "test": {
+        "racesBet": 2242,
+        "tickets": 4276,
+        "hits": 1140,
+        "stake": 427600,
+        "return": 361350,
+        "profit": -66250,
+        "roi": 84.50654817586529,
+        "ticketHitRate": 0.2666043030869972,
+        "raceHitRate": 0.5084745762711864
+      }
+    },
+    {
+      "betType": "quinella",
+      "tickets": 3,
+      "minConcentration": 2.5,
+      "maxOdds": 20.0,
+      "validation": {
+        "racesBet": 2117,
+        "tickets": 4270,
+        "hits": 1157,
+        "stake": 427000,
+        "return": 364880,
+        "profit": -62120,
+        "roi": 85.4519906323185,
+        "ticketHitRate": 0.27096018735363,
+        "raceHitRate": 0.5465281058101087
+      },
+      "selectionScore": 84.91637393550852,
+      "test": {
+        "racesBet": 2218,
+        "tickets": 4543,
+        "hits": 1186,
+        "stake": 454300,
+        "return": 374830,
+        "profit": -79470,
+        "roi": 82.50715386308607,
+        "ticketHitRate": 0.2610609729253797,
+        "raceHitRate": 0.5347159603246168
+      }
+    },
+    {
+      "betType": "quinella",
+      "tickets": 2,
+      "minConcentration": 2.0,
+      "maxOdds": 50.0,
+      "validation": {
+        "racesBet": 2134,
+        "tickets": 4033,
+        "hits": 1100,
+        "stake": 403300,
+        "return": 344580,
+        "profit": -58720,
+        "roi": 85.44011901810067,
+        "ticketHitRate": 0.2727498140342177,
+        "raceHitRate": 0.5154639175257731
+      },
+      "selectionScore": 84.88898916853384,
+      "test": {
+        "racesBet": 2242,
+        "tickets": 4275,
+        "hits": 1140,
+        "stake": 427500,
+        "return": 361350,
+        "profit": -66150,
+        "roi": 84.52631578947368,
+        "ticketHitRate": 0.26666666666666666,
+        "raceHitRate": 0.5084745762711864
+      }
+    },
+    {
+      "betType": "quinella",
+      "tickets": 2,
+      "minConcentration": 1.6,
+      "maxOdds": 100.0,
+      "validation": {
+        "racesBet": 2139,
+        "tickets": 4194,
+        "hits": 1121,
+        "stake": 419400,
+        "return": 358250,
+        "profit": -61150,
+        "roi": 85.4196471149261,
+        "ticketHitRate": 0.26728659990462567,
+        "raceHitRate": 0.5240766713417485
+      },
+      "selectionScore": 84.87919921787866,
+      "test": {
+        "racesBet": 2243,
+        "tickets": 4419,
+        "hits": 1153,
+        "stake": 441900,
+        "return": 369490,
+        "profit": -72410,
+        "roi": 83.61393980538583,
+        "ticketHitRate": 0.26091875990042995,
+        "raceHitRate": 0.5140436914846188
+      }
+    },
+    {
+      "betType": "quinella",
+      "tickets": 2,
+      "minConcentration": 1.6,
+      "maxOdds": 200.0,
+      "validation": {
+        "racesBet": 2139,
+        "tickets": 4194,
+        "hits": 1121,
+        "stake": 419400,
+        "return": 358250,
+        "profit": -61150,
+        "roi": 85.4196471149261,
+        "ticketHitRate": 0.26728659990462567,
+        "raceHitRate": 0.5240766713417485
+      },
+      "selectionScore": 84.87919921787866,
+      "test": {
+        "racesBet": 2243,
+        "tickets": 4420,
+        "hits": 1153,
+        "stake": 442000,
+        "return": 369490,
+        "profit": -72510,
+        "roi": 83.59502262443439,
+        "ticketHitRate": 0.26085972850678735,
+        "raceHitRate": 0.5140436914846188
       }
     }
   ],
