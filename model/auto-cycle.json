@@ -1,16 +1,42 @@
 {
-  "generatedAt": "2026-09-27T22:50:18.193135+00:00",
-  "promoted": false,
-  "champion": "v9.1-conditional-logit-production-latest",
+  "generatedAt": "2026-10-04T23:04:32.187099+00:00",
+  "promoted": true,
+  "previousChampion": "v9.1-conditional-logit-production-latest",
+  "newChampion": "v12-auto-20261004-2304",
+  "liveFeatures": [
+    "ex_time_rel",
+    "ex_st_rel",
+    "course_gain"
+  ],
   "championLatest": {
-    "races": 4319,
-    "winnerTop1": 0.5769854132901134,
-    "winnerTop3": 0.8712664968742765,
-    "logLoss": 1.2012604423992208,
-    "brier": 0.0979800015205575,
-    "trifectaTop1": 0.0835841630006946,
-    "trifectaTop3": 0.2171799027552674,
-    "trifectaTop5": 0.3165084510303311
+    "races": 4449,
+    "winnerTop1": 0.5704652730950776,
+    "winnerTop3": 0.8714317824230164,
+    "logLoss": 1.1995202156000726,
+    "brier": 0.09793234807039684,
+    "trifectaTop1": 0.08608676106990334,
+    "trifectaTop3": 0.21757698359181837,
+    "trifectaTop5": 0.31737469094178467
   },
-  "reason": "No finalist clearly beat current Champion"
+  "challengerLatest": {
+    "races": 4449,
+    "winnerTop1": 0.5731625084288604,
+    "winnerTop3": 0.8750280962013935,
+    "logLoss": 1.1937186318413586,
+    "brier": 0.09738676173529376,
+    "trifectaTop1": 0.08833445718138908,
+    "trifectaTop3": 0.22859069453809844,
+    "trifectaTop5": 0.3328837941110362
+  },
+  "challengerReplication": {
+    "races": 4340,
+    "winnerTop1": 0.5516129032258065,
+    "winnerTop3": 0.8705069124423963,
+    "logLoss": 1.2337569908955297,
+    "brier": 0.1006325779341759,
+    "trifectaTop1": 0.08571428571428572,
+    "trifectaTop3": 0.22235023041474655,
+    "trifectaTop5": 0.3228110599078341
+  },
+  "robustnessScore": 1.5602536798988917
 }

@@ -1,7 +1,7 @@
 {
-  "promotedAt": "2026-08-31T11:12:28.806979+00:00",
-  "active": "v12-auto-20260831-1112",
-  "previous": "v11-automl-challenger",
+  "promotedAt": "2026-10-04T23:04:32.187099+00:00",
+  "active": "v12-auto-20261004-2304",
+  "previous": "v9.1-conditional-logit-production-latest",
   "rollbackFile": "model/model.previous.json",
   "liveFeatures": [
     "ex_time_rel",
