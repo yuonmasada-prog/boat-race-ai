@@ -1,21 +1,21 @@
 {
   "v9.2": {
-    "racesBet": 665,
-    "hitRate": 0.08421052631578947,
-    "roi": 0.7912781954887218,
-    "profit": -13880.0,
-    "stake": 66500.0,
-    "return": 52620.0
+    "racesBet": 500,
+    "hitRate": 0.09,
+    "roi": 0.777,
+    "profit": -11150.0,
+    "stake": 50000.0,
+    "return": 38850.0
   },
   "v9.3": {
-    "racesBet": 1374,
-    "hitRate": 0.12663755458515283,
-    "roi": 0.8809315866084425,
-    "profit": -16360.0,
-    "stake": 137400.0,
-    "return": 121040.0,
-    "skipRate": 0.7024686011260286
+    "racesBet": 1364,
+    "hitRate": 0.12976539589442815,
+    "roi": 0.885850439882698,
+    "profit": -15570.0,
+    "stake": 136400.0,
+    "return": 120830.0,
+    "skipRate": 0.7046979865771812
   },
-  "roiChangePoints": 8.965339111972071,
-  "profitChange": -2480.0
+  "roiChangePoints": 10.885043988269793,
+  "profitChange": -4420.0
 }
