@@ -1596,10 +1596,52 @@
         "tilt_rel",
         "ex_flying"
       ]
+    },
+    {
+      "evaluatedAt": "2026-10-06T16:57:12.077840+00:00",
+      "experimentVersion": "v10-live-relative-feature-experiment",
+      "passedGate": true,
+      "checks": {
+        "oosRaces": true,
+        "winnerTop1": true,
+        "winnerTop3": true,
+        "trifectaTop3": true,
+        "trifectaTop5": true,
+        "logLoss": true,
+        "brier": true
+      },
+      "baseline": {
+        "races": 4433,
+        "winnerTop1": 0.5668847281750508,
+        "winnerTop3": 0.8716444845477104,
+        "logLoss": 1.2057100462264811,
+        "brier": 0.09845007885540105,
+        "trifectaTop1": 0.08594631175276336,
+        "trifectaTop3": 0.21858786374915407,
+        "trifectaTop5": 0.31603879990976763
+      },
+      "challenger": {
+        "races": 4433,
+        "winnerTop1": 0.5709451838484096,
+        "winnerTop3": 0.8804421385066546,
+        "logLoss": 1.1921300282162601,
+        "brier": 0.09749140548628411,
+        "trifectaTop1": 0.08933002481389578,
+        "trifectaTop3": 0.22783667944958266,
+        "trifectaTop5": 0.3297992330250395
+      },
+      "addedFeatures": [
+        "ex_time_rel",
+        "ex_st_rel",
+        "course_gain",
+        "weight_rel",
+        "tilt_rel",
+        "ex_flying"
+      ]
     }
   ],
   "latestChallenger": {
-    "evaluatedAt": "2026-10-05T19:23:59.398544+00:00",
+    "evaluatedAt": "2026-10-06T16:57:12.077840+00:00",
     "experimentVersion": "v10-live-relative-feature-experiment",
     "passedGate": true,
     "checks": {
@@ -1612,24 +1654,24 @@
       "brier": true
     },
     "baseline": {
-      "races": 4457,
-      "winnerTop1": 0.5667489342607135,
-      "winnerTop3": 0.8707650886246354,
-      "logLoss": 1.2024851524484632,
-      "brier": 0.09818483445133194,
-      "trifectaTop1": 0.08525914292124748,
-      "trifectaTop3": 0.21718644828359884,
-      "trifectaTop5": 0.31523446264303345
+      "races": 4433,
+      "winnerTop1": 0.5668847281750508,
+      "winnerTop3": 0.8716444845477104,
+      "logLoss": 1.2057100462264811,
+      "brier": 0.09845007885540105,
+      "trifectaTop1": 0.08594631175276336,
+      "trifectaTop3": 0.21858786374915407,
+      "trifectaTop5": 0.31603879990976763
     },
     "challenger": {
-      "races": 4457,
-      "winnerTop1": 0.5716849899035226,
-      "winnerTop3": 0.8799641014135069,
-      "logLoss": 1.1895927769892103,
-      "brier": 0.09725919122016961,
-      "trifectaTop1": 0.08862463540498093,
-      "trifectaTop3": 0.2272829257347992,
-      "trifectaTop5": 0.33004262957146063
+      "races": 4433,
+      "winnerTop1": 0.5709451838484096,
+      "winnerTop3": 0.8804421385066546,
+      "logLoss": 1.1921300282162601,
+      "brier": 0.09749140548628411,
+      "trifectaTop1": 0.08933002481389578,
+      "trifectaTop3": 0.22783667944958266,
+      "trifectaTop5": 0.3297992330250395
     },
     "addedFeatures": [
       "ex_time_rel",
