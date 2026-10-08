@@ -1,0 +1,25 @@
+{
+  "baseCommit": "aaddf14d8cdec476920fbd633655ea84e6710f5f",
+  "files": {
+    "model/model.json": "ccd7246c783919375fdfbf2a397a90b04a87f29071ec1e86fbcfe6e5bb8eea9c",
+    "model/model.previous.json": "4e6fb4abbb8fa13a0b6af1daa99c5e0fb8e9ab5360845c61b69d873484487a43",
+    "model/production-manifest.json": "be6d9aedc6eef15f2604658a73641e4d699c5a40aac8d76069e7f35fcf3d8201",
+    "predict.js": "608c5011e1fe81fc314e0bd8d12464b4d09ef00fb816734c1920208eec676ee7",
+    "api/predict.js": "e96992c19f7c9bf736f1ec4ababf7bf1f5727388abae627cceec70e16cbec813",
+    "api/race.js": "7ec5a4f29cd9dae1efc40fadda35c4fc027fa2d24b5a6a6ca2317ac790257d43",
+    "api/scan.js": "b2aeda29bd1f738674d6e1c2eaeef452cc699f0e5eb65ad883393781dc628f47",
+    "api/before.js": "b514dac2aa0b358eee4e74d0e1ee3d9d98d1120d82c38e1ef90c8c6e56984c51",
+    "api/result.js": "9acdcb0041f9955a7040a48628b95330f9e56fc0b623f3bbecbc81a285cc1ece",
+    "api/odds.js": "8e5af55625daa869c962e1aa8c3fe031b8af04c6416ca325c520971211cd7468",
+    "api/race-edge.js": "65d8ab0d57a2f907cc7b98b99e0404d990be4c879e18dfcfc8867fec1f4f8e87",
+    "training/backtest_trifecta.py": "dff69b765ede822d4710a4f911042a7e0112d7ca6d3c9f08d911a478a374ec42",
+    "training/multibet_strategy_oos.py": "3efdb0e9eb9b16eb00724f96db1d7eb62c01984355df66ecc29c183d476c9ff9",
+    "training/backtest_v93.py": "fcbabb9df0c9e82e863fbf243a6ab926e77d86b9d1687df9073300aca781002b",
+    "training/install_multibet.py": "e0989d5fbe300442a381260ea38a51195fbbe62dd1cc229ca591606c57ef3403",
+    "training/champion_challenger.py": "75480cccf96348359d9bab8a711e752847e857bb9215f303dfde29b723cce730",
+    "training/promote_automl.py": "b758d50ec13b300097f66aa75ece62cdeac64b8c4f989bc8b2bf8653f3f4283f",
+    "training/train_model.py": "89481f7752e2d2af1b36ed53f19d59f2ba094fe27f1d528d180210c2968a2290",
+    "training/automl_search.py": "17c95a14cc34850bc94fae30c8e6bc68bf7b2766c93eb08c49c608f6ca54f347",
+    "training/experiment_v10_features.py": "70f0b23a49ab18a1815c9192f40febdf6284eb5401a17cf41882394e6998e2a9"
+  }
+}

@@ -8,7 +8,7 @@ on:
     - cron: "30 18 * * 1"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: boat-race-ai-multibet-oos
@@ -24,12 +24,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Capture unchanged serving state
+        run: python training/candidate_artifacts.py capture --kind multibet --directory candidate-output/multibet
 
       - name: Install dependencies
         run: |
@@ -49,8 +52,8 @@ jobs:
             --min-validation-bets 80 \
             --min-test-bets 80 \
             --model model/model.json \
-            --output model/multibet-strategy-oos.json \
-            --strategy model/multibet-strategy.json
+            --output candidate-output/multibet/multibet-strategy-oos.json \
+            --strategy candidate-output/multibet/multibet-strategy.json
 
       - name: Validate report
         run: |
@@ -59,7 +62,7 @@ jobs:
           from pathlib import Path
 
           path = Path(
-              "model/multibet-strategy-oos.json"
+              "candidate-output/multibet/multibet-strategy-oos.json"
           )
 
           assert path.exists()
@@ -154,7 +157,7 @@ jobs:
       - name: Read promotion state
         id: strategy
         run: |
-          PROMOTION=$(python -c "import json; print(str(json.load(open('model/multibet-strategy-oos.json'))['promotionCandidate']).lower())")
+          PROMOTION=$(python -c "import json; print(str(json.load(open('candidate-output/multibet/multibet-strategy-oos.json'))['promotionCandidate']).lower())")
 
           echo "promotion=$PROMOTION" >> "$GITHUB_OUTPUT"
 
@@ -168,7 +171,7 @@ jobs:
           from pathlib import Path
 
           path = Path(
-              "model/multibet-strategy.json"
+              "candidate-output/multibet/multibet-strategy.json"
           )
 
           assert path.exists()
@@ -203,90 +206,27 @@ jobs:
           )
           PY
 
-      - name: Commit OOS evaluation
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Verify and seal candidate bundle
+        id: seal
+        run: python training/candidate_artifacts.py seal --kind multibet --directory candidate-output/multibet
 
-          git add \
-            model/multibet-strategy-oos.json
+      # This artifact is review material only. No workflow publishes or promotes it.
+      - name: Save candidate bundle
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: multibet-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-output/multibet/
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: false
 
-          if [ "${{ steps.strategy.outputs.promotion }}" = "true" ]; then
-            git add \
-              model/multibet-strategy.json
-          fi
-
-          if git diff --cached --quiet; then
-            echo "No changes"
-            exit 0
-          fi
-
-          if [ "${{ steps.strategy.outputs.promotion }}" = "true" ]; then
-            git commit -m "feat: register profitable MultiBet challenger"
-          else
-            git commit -m "chore: update MultiBet OOS evaluation"
-          fi
-
-          git push
-
-      - name: Summary
-        run: |
-          python - <<'PY'
-          import json
-
-          report = json.load(
-              open(
-                  "model/multibet-strategy-oos.json",
-                  encoding="utf-8",
-              )
-          )
-
-          best = report["best"]
-
-          labels = {
-              "trifecta": "3連単",
-              "trio": "3連複",
-              "exacta": "2連単",
-              "quinella": "2連複",
-          }
-
-          print(
-              "Selected:",
-              labels[
-                  best["betType"]
-              ],
-          )
-
-          print(
-              "Validation ROI:",
-              round(
-                  best[
-                      "validation"
-                  ][
-                      "roi"
-                  ],
-                  2,
-              ),
-              "%",
-          )
-
-          print(
-              "Frozen test ROI:",
-              round(
-                  best[
-                      "test"
-                  ][
-                      "roi"
-                  ],
-                  2,
-              ),
-              "%",
-          )
-
-          print(
-              "Promotion candidate:",
-              report[
-                  "promotionCandidate"
-              ],
-          )
-          PY
+      - name: Save incomplete research for diagnosis
+        if: failure() && steps.seal.outcome != 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: multibet-INCOMPLETE-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-output/multibet/
+          if-no-files-found: warn
+          retention-days: 7
+          overwrite: false
