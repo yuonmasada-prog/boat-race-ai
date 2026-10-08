@@ -8,7 +8,7 @@ on:
     - cron: "30 9 * * *"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: boat-race-ai-v93-training
@@ -24,12 +24,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Capture unchanged serving state
+        run: python training/candidate_artifacts.py capture --kind daily --directory candidate-output/daily
 
       - name: Install dependencies
         run: |
@@ -66,7 +69,7 @@ jobs:
             --days 120 \
             --holdout-days 45 \
             --end-offset 45 \
-            --output model/eval-model.json \
+            --output candidate-output/daily/eval-model.json \
             --min-races 500 \
             --epochs 300 \
             --lr 0.035 \
@@ -80,7 +83,7 @@ jobs:
           from datetime import date, timedelta
           from pathlib import Path
 
-          path = Path("model/eval-model.json")
+          path = Path("candidate-output/daily/eval-model.json")
 
           if not path.exists():
               raise SystemExit("eval-model.json missing")
@@ -161,8 +164,8 @@ jobs:
             --validation-days 15 \
             --test-days 30 \
             --min-races 500 \
-            --model model/eval-model.json \
-            --output model/backtest.json
+            --model candidate-output/daily/eval-model.json \
+            --output candidate-output/daily/backtest.json
 
       # ==========================================================
       # 3. v9.3
@@ -180,8 +183,8 @@ jobs:
             --validation-days 15 \
             --test-days 30 \
             --min-races 500 \
-            --model model/eval-model.json \
-            --output model/backtest-v93.json
+            --model candidate-output/daily/eval-model.json \
+            --output candidate-output/daily/backtest-v93.json
 
       # ==========================================================
       # 4. v9.3完全性検査
@@ -195,7 +198,7 @@ jobs:
           from datetime import date
           from pathlib import Path
 
-          path = Path("model/backtest-v93.json")
+          path = Path("candidate-output/daily/backtest-v93.json")
 
           if not path.exists():
               raise SystemExit(
@@ -404,7 +407,7 @@ jobs:
 
           v92 = json.loads(
               Path(
-                  "model/backtest.json"
+                  "candidate-output/daily/backtest.json"
               ).read_text(
                   encoding="utf-8"
               )
@@ -412,7 +415,7 @@ jobs:
 
           v93 = json.loads(
               Path(
-                  "model/backtest-v93.json"
+                  "candidate-output/daily/backtest-v93.json"
               ).read_text(
                   encoding="utf-8"
               )
@@ -475,7 +478,7 @@ jobs:
           }
 
           Path(
-              "model/comparison-v93.json"
+              "candidate-output/daily/comparison-v93.json"
           ).write_text(
               json.dumps(
                   comparison,
@@ -505,7 +508,7 @@ jobs:
             --mode production \
             --days 120 \
             --end-offset 0 \
-            --output model/model.json \
+            --output candidate-output/daily/model.json \
             --min-races 500 \
             --epochs 300 \
             --lr 0.035 \
@@ -524,7 +527,7 @@ jobs:
           from datetime import date, timedelta
           from pathlib import Path
 
-          path = Path("model/model.json")
+          path = Path("candidate-output/daily/model.json")
 
           if not path.exists():
               raise SystemExit(
@@ -605,45 +608,27 @@ jobs:
           )
           PY
 
-      # ==========================================================
-      # 8. 一時評価モデル削除
-      # ==========================================================
+      - name: Verify and seal candidate bundle
+        id: seal
+        run: python training/candidate_artifacts.py seal --kind daily --directory candidate-output/daily
 
-      - name: Remove temporary evaluation model
-        run: |
-          rm -f model/eval-model.json
+      # This artifact is review material only. No workflow publishes or promotes it.
+      - name: Save candidate bundle
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: daily-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-output/daily/
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: false
 
-      # ==========================================================
-      # 9. 結果をGitHubへ保存
-      # ==========================================================
-
-      - name: Commit v9.3 results
-        run: |
-          git config \
-            user.name \
-            "boat-race-ai-bot"
-
-          git config \
-            user.email \
-            "boat-race-ai-bot@users.noreply.github.com"
-
-          git add \
-            model/model.json \
-            model/backtest.json \
-            model/backtest-v93.json \
-            model/comparison-v93.json
-
-          if git diff \
-            --cached \
-            --quiet
-          then
-            echo "No changes."
-            exit 0
-          fi
-
-          git commit \
-            -m "chore: evaluate BOAT RACE AI v9.3"
-
-          git push \
-            origin \
-            HEAD:main
+      - name: Save incomplete research for diagnosis
+        if: failure() && steps.seal.outcome != 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: daily-INCOMPLETE-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-output/daily/
+          if-no-files-found: warn
+          retention-days: 7
+          overwrite: false

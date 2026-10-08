@@ -922,7 +922,7 @@ def main():
     parser.add_argument(
         "--challenger",
         default=
-            "model/automl-challenger.json",
+            "candidate-output/automl/automl-challenger.json",
     )
 
     parser.add_argument(
@@ -940,7 +940,7 @@ def main():
     parser.add_argument(
         "--cycle-report",
         default=
-            "model/auto-cycle.json",
+            "candidate-output/automl/auto-cycle.json",
     )
 
     parser.add_argument(
@@ -949,7 +949,24 @@ def main():
             "index.html",
     )
 
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument("--candidate-only", action="store_true",
+                        help="Save a proposal without changing the serving release (default).")
+    action.add_argument("--promote", action="store_true",
+                        help="Explicitly authorized promotion only; never used by scheduled workflows.")
+
     args = parser.parse_args()
+    if not args.promote:
+        # Require isolated outputs before data acquisition or any write.
+        serving = {Path(p).resolve() for p in (
+            args.champion, args.backup, args.manifest, args.index)}
+        candidate_paths = [Path(p).resolve() for p in (args.challenger, args.cycle_report)]
+        output_root = (Path.cwd() / "candidate-output").resolve()
+        if len(set(candidate_paths)) != len(candidate_paths) or any(
+            p in serving or not p.is_relative_to(output_root) for p in candidate_paths
+        ):
+            parser.error("candidate-only outputs must be distinct files inside candidate-output")
+
 
     report = load(
         args.report
@@ -1052,7 +1069,7 @@ def main():
             generated_at,
 
         "productionPromoted":
-            True,
+            bool(args.promote),
 
         "features":
             BASE
@@ -1130,6 +1147,23 @@ def main():
         args.challenger,
         challenger,
     )
+
+    if not args.promote:
+        cycle = {
+            "generatedAt": generated_at,
+            "promoted": False,
+            "promotionCandidate": True,
+            "candidateVersion": version,
+            "champion": champion.get("version"),
+            "championLatest": champion_metrics,
+            "challengerLatest": candidate["latest"],
+            "challengerReplication": candidate["replication"],
+            "robustnessScore": candidate["robustnessScore"],
+            "reason": "Candidate only; serving release requires separate approval.",
+        }
+        write_json(args.cycle_report, cycle)
+        print(json.dumps(cycle, ensure_ascii=False, indent=2))
+        return
 
     patch_runtime(
         args.index

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<title>BOAT RACE AI v12 MultiBet</title>
+<title>BOAT RACE AI / モデル読込待ち</title>
 
 <style>
 :root{
@@ -563,7 +563,7 @@ td:first-child{
 </h1>
 
 <div class="sub">
-  AUTO CHAMPION / MULTI-BET STRATEGY
+  MULTI-BET STRATEGY / 配信モデル版は下欄に表示
 </div>
 
 
@@ -712,6 +712,10 @@ td:first-child{
       class="sub"
     >
       読み込み待ち
+    </div>
+
+    <div id="modelReleaseStatus" class="sub">
+      配信モデル版を確認中
     </div>
 
   </div>
@@ -1245,6 +1249,45 @@ async function fetchJson(
 }
 
 
+function describeModelIdentity(model, manifest){
+  const actual = typeof model?.version === 'string' && model.version.trim()
+    ? model.version : null;
+  const recorded = typeof manifest?.active === 'string' && manifest.active.trim()
+    ? manifest.active : null;
+  if(!actual){
+    return {title:'BOAT RACE AI / モデル版不明', status:'bad',
+      text:'読込モデルの版が不明です。モデルは自動で切り替えません'};
+  }
+  if(!recorded){
+    return {title:`BOAT RACE AI / ${actual}`, status:'sub',
+      text:`読込モデル: ${actual} / 配信記録は確認できません`};
+  }
+  if(actual !== recorded){
+    return {title:`BOAT RACE AI / ${actual}`, status:'bad',
+      text:`読込モデル: ${actual} / 配信記録: ${recorded}（不一致・要確認）`};
+  }
+  return {title:`BOAT RACE AI / ${actual}`, status:'good',
+    text:`読込モデル: ${actual} / 配信記録と版が一致`};
+}
+
+async function updateModelIdentity(model){
+  const apply = manifest => {
+    // A slow response for a previous load must not replace the current label.
+    if(trainedModel !== model) return;
+    const identity = describeModelIdentity(model, manifest);
+    document.title = identity.title;
+    $('modelReleaseStatus').textContent = identity.text;
+    $('modelReleaseStatus').className = identity.status;
+  };
+  apply(null);
+  try{
+    const manifest = await fetchJson(`/model/production-manifest.json?v=${Date.now()}`);
+    apply(manifest);
+  }catch(error){
+    apply(null);
+  }
+}
+
 async function loadModel(){
 
   try{
@@ -1290,6 +1333,9 @@ async function loadModel(){
 
     trainedModel =
       model;
+
+    // Display only. Identity lookup never changes the loaded model or predictions.
+    void updateModelIdentity(model);
 
 
     $('modelApi').textContent =
@@ -1350,6 +1396,9 @@ async function loadModel(){
     trainedModel =
       null;
 
+    document.title = 'BOAT RACE AI / モデル読込失敗';
+    $('modelReleaseStatus').textContent = '配信モデル版は確認できません';
+    $('modelReleaseStatus').className = 'bad';
 
     $('modelApi').textContent =
       '失敗';

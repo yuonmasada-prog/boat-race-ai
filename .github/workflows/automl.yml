@@ -18,7 +18,7 @@ on:
     - cron: "30 18 * * 0"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: boat-race-ai-autonomous-improvement
@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -45,6 +45,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Capture unchanged serving state
+        run: python training/candidate_artifacts.py capture --kind automl --directory candidate-output/automl
 
       - name: Install dependencies
         run: |
@@ -109,150 +112,39 @@ jobs:
             --replication-shift 45 \
             --max-candidates "${{ steps.config.outputs.candidates }}" \
             --top-k "${{ steps.config.outputs.top_k }}" \
-            --output model/automl-search.json \
-            --challenger model/automl-challenger.json
+            --output candidate-output/automl/automl-search.json \
+            --challenger candidate-output/automl/automl-challenger.json
 
       - name: Compare against current Champion
         run: |
           python training/auto_cycle.py \
-            --report model/automl-search.json \
+            --candidate-only \
+            --report candidate-output/automl/automl-search.json \
             --champion model/model.json \
-            --challenger model/automl-challenger.json \
-            --backup model/model.previous.json \
-            --manifest model/production-manifest.json \
-            --cycle-report model/auto-cycle.json \
-            --index index.html
+            --challenger candidate-output/automl/automl-challenger.json \
+            --cycle-report candidate-output/automl/auto-cycle.json
 
-      - name: Read cycle state
-        id: cycle
-        run: |
-          PROMOTED=$(python -c "import json; print(str(json.load(open('model/auto-cycle.json'))['promoted']).lower())")
-          ACTIVE=$(python -c "import json; d=json.load(open('model/auto-cycle.json')); print(d.get('newChampion',''))")
+      - name: Verify and seal candidate bundle
+        id: seal
+        run: python training/candidate_artifacts.py seal --kind automl --directory candidate-output/automl
 
-          echo "promoted=$PROMOTED" >> "$GITHUB_OUTPUT"
-          echo "active=$ACTIVE" >> "$GITHUB_OUTPUT"
+      # This artifact is review material only. No workflow publishes or promotes it.
+      - name: Save candidate bundle
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: automl-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-output/automl/
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: false
 
-          echo "Promoted: $PROMOTED"
-          echo "Active candidate: $ACTIVE"
-
-      - name: Validate promoted runtime
-        if: steps.cycle.outputs.promoted == 'true'
-        run: |
-          node --check api/before.js
-
-          python -c "import re,pathlib; h=pathlib.Path('index.html').read_text(encoding='utf-8'); s=re.findall(r'<script>([\\s\\S]*?)</script>',h,re.I); assert s; pathlib.Path('/tmp/app.js').write_text('\\n'.join(s),encoding='utf-8')"
-
-          node --check /tmp/app.js
-
-          python -c "import json; m=json.load(open('model/model.json')); n=len(m['features']); assert 15 <= n <= 21; assert len(m['mean'])==n; assert len(m['scale'])==n; assert len(m['coefficients'])==n; assert m['liveFeatureMode']=='race-relative'"
-
-          test -f model/model.previous.json
-          test -f model/production-manifest.json
-
-      - name: Commit AutoML state
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add \
-            model/automl-search.json \
-            model/auto-cycle.json
-
-          if [ -f model/automl-challenger.json ]; then
-            git add model/automl-challenger.json
-          fi
-
-          if [ "${{ steps.cycle.outputs.promoted }}" = "true" ]; then
-            git add \
-              index.html \
-              api/before.js \
-              model/model.json \
-              model/model.previous.json \
-              model/production-manifest.json
-          fi
-
-          if git diff --cached --quiet; then
-            echo "No changes"
-            exit 0
-          fi
-
-          if [ "${{ steps.cycle.outputs.promoted }}" = "true" ]; then
-            git commit -m "feat: automatically promote stronger Champion"
-          else
-            git commit -m "chore: update weekly AutoML evaluation"
-          fi
-
-          git push
-
-      - name: Wait for Vercel
-        if: steps.cycle.outputs.promoted == 'true'
-        run: |
-          sleep 30
-
-      - name: Production smoke test
-        id: smoke
-        if: steps.cycle.outputs.promoted == 'true'
-        continue-on-error: true
-        run: |
-          SUCCESS=0
-
-          EXPECTED="${{ steps.cycle.outputs.active }}"
-
-          for i in $(seq 1 18); do
-
-            TS=$(date +%s)
-
-            if curl \
-              --fail \
-              --silent \
-              --show-error \
-              "https://boat-race-ai-app.vercel.app/model/model.json?v=$TS" \
-              -o /tmp/live-model.json
-            then
-
-              if EXPECTED="$EXPECTED" python -c "import json,os; m=json.load(open('/tmp/live-model.json')); assert m.get('version')==os.environ['EXPECTED']; assert 15 <= len(m.get('features',[])) <= 21"
-              then
-
-                if curl \
-                  --fail \
-                  --silent \
-                  --show-error \
-                  "https://boat-race-ai-app.vercel.app/?v=$TS" \
-                  | grep -q "raceRelativeLiveMaps"
-                then
-                  SUCCESS=1
-                  break
-                fi
-
-              fi
-
-            fi
-
-            sleep 10
-
-          done
-
-          if [ "$SUCCESS" -ne 1 ]; then
-            exit 1
-          fi
-
-      - name: Automatic rollback
-        if: steps.cycle.outputs.promoted == 'true' && steps.smoke.outcome == 'failure'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git revert --no-edit HEAD
-          git push
-
-          echo "Automatic rollback completed."
-
-          exit 1
-
-      - name: Final state
-        run: |
-          if [ "${{ steps.cycle.outputs.promoted }}" = "true" ]; then
-            echo "A stronger Champion was promoted automatically."
-          else
-            echo "Current Champion remains active."
-          fi
+      - name: Save incomplete research for diagnosis
+        if: failure() && steps.seal.outcome != 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: automl-INCOMPLETE-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-output/automl/
+          if-no-files-found: warn
+          retention-days: 7
+          overwrite: false

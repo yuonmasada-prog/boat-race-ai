@@ -8,7 +8,7 @@ on:
     - cron: "30 10 * * *"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: boat-race-ai-auto-improve
@@ -24,12 +24,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Capture unchanged serving state
+        run: python training/candidate_artifacts.py capture --kind auto-improve --directory candidate-output/auto-improve
 
       - name: Install dependencies
         run: |
@@ -62,7 +65,7 @@ jobs:
             --l2 0.002 \
             --min-train-races 500 \
             --min-test-races 300 \
-            --output model/experiment-v10-features.json
+            --output candidate-output/auto-improve/experiment-v10-features.json
 
       # ==========================================================
       # 2. 自動昇格候補判定
@@ -72,12 +75,15 @@ jobs:
       # challenger-model.jsonへ保存。
       # ==========================================================
 
+      - name: Seed candidate registry from existing history
+        run: cp model/model-registry.json candidate-output/auto-improve/model-registry.json
+
       - name: Run champion challenger gate
         run: |
           python training/champion_challenger.py \
-            --experiment model/experiment-v10-features.json \
-            --registry model/model-registry.json \
-            --candidate model/challenger-model.json
+            --experiment candidate-output/auto-improve/experiment-v10-features.json \
+            --registry candidate-output/auto-improve/model-registry.json \
+            --candidate candidate-output/auto-improve/challenger-model.json
 
       # ==========================================================
       # 3. 安全性検証
@@ -90,11 +96,11 @@ jobs:
           from pathlib import Path
 
           experiment_path = Path(
-              "model/experiment-v10-features.json"
+              "candidate-output/auto-improve/experiment-v10-features.json"
           )
 
           registry_path = Path(
-              "model/model-registry.json"
+              "candidate-output/auto-improve/model-registry.json"
           )
 
           if not experiment_path.exists():
@@ -156,7 +162,7 @@ jobs:
           )
 
           candidate_path = Path(
-              "model/challenger-model.json"
+              "candidate-output/auto-improve/challenger-model.json"
           )
 
           if passed:
@@ -218,38 +224,27 @@ jobs:
           )
           PY
 
-      # ==========================================================
-      # 4. 実験結果・候補・履歴だけ保存
-      #
-      # model/model.jsonはgit addしない。
-      # ==========================================================
+      - name: Verify and seal candidate bundle
+        id: seal
+        run: python training/candidate_artifacts.py seal --kind auto-improve --directory candidate-output/auto-improve
 
-      - name: Commit auto improvement state
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      # This artifact is review material only. No workflow publishes or promotes it.
+      - name: Save candidate bundle
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: auto-improve-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-output/auto-improve/
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: false
 
-          git add \
-            model/experiment-v10-features.json \
-            model/model-registry.json
-
-          if [ -f model/challenger-model.json ]; then
-            git add model/challenger-model.json
-          fi
-
-          if git diff --cached --quiet; then
-            echo "No auto-improvement changes"
-            exit 0
-          fi
-
-          git commit -m "chore: update automatic model challenger"
-          git push
-
-      # ==========================================================
-      # 5. 最終確認
-      # ==========================================================
-
-      - name: Final production safety check
-        run: |
-          echo "Production model was not promoted."
-          echo "Current model/model.json remains untouched."
+      - name: Save incomplete research for diagnosis
+        if: failure() && steps.seal.outcome != 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: auto-improve-INCOMPLETE-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-output/auto-improve/
+          if-no-files-found: warn
+          retention-days: 7
+          overwrite: false
